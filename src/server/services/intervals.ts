@@ -1,7 +1,14 @@
-import type { Trio, Range } from '~/lib/dayMath'
+import { and, desc, eq, gt, gte, inArray, isNull, lt, ne, or, type SQL } from 'drizzle-orm'
+import type { z } from 'zod'
+import { schema, type Db } from '~/server/db'
+import { HttpError } from '~/lib/errors'
 import type { SessionContext } from '~/server/context'
-import type { schema } from '~/server/db'
-import type { CreateIntervalInput, UpdateIntervalInput, DeleteIntervalInput, DayQuery, ListIntervalsInput } from '~/lib/schemas/intervals'
+import { assertCanEditWorker, assertCanViewWorker } from '~/server/guards/worker'
+import { assertWeeksEditable, resetSubmittedWeeks } from '~/server/guards/week'
+import { weekKeysTouched } from '~/lib/week'
+import { computeTrio, localDayBoundariesUtcMs, type Range, type Trio } from '~/lib/dayMath'
+import { hasRole } from '~/server/context'
+import type { CreateIntervalInput, DayQuery, DeleteIntervalInput, ListIntervalsInput, UpdateIntervalInput } from '~/lib/schemas/intervals'
 import type { Deps } from './deps'
 
 export type IntervalRow = typeof schema.intervals.$inferSelect
@@ -21,30 +28,242 @@ export type DayIntervalRow = {
 
 export type DayView = { day: Range; date: string; intervals: DayIntervalRow[]; trioByWorker: Record<string, Trio> }
 
-/* Guard order for every mutation (Task 4.1): assertCanEditWorker → live job (snapshot rate)
-   → same-job overlap → assertWeeksEditable(before ∪ after week keys) → write → resetSubmittedWeeks. */
-
-export async function createInterval(_deps: Deps, _ctx: SessionContext, _input: CreateIntervalInput): Promise<IntervalRow> {
-  throw new Error('TODO Task 4.1')
+async function liveJob(db: Db, jobId: string) {
+  const job = await db
+    .select()
+    .from(schema.jobs)
+    .where(and(eq(schema.jobs.id, jobId), isNull(schema.jobs.archivedAt)))
+    .get()
+  if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', 'jobId')
+  return job
 }
 
-export async function updateInterval(_deps: Deps, _ctx: SessionContext, _input: UpdateIntervalInput): Promise<IntervalRow> {
-  throw new Error('TODO Task 4.1')
+async function assertNoSameJobOverlap(
+  db: Db,
+  workerId: string,
+  jobId: string,
+  range: Range,
+  excludeId?: string,
+): Promise<void> {
+  const clash = await db
+    .select({ id: schema.intervals.id })
+    .from(schema.intervals)
+    .where(
+      and(
+        eq(schema.intervals.workerId, workerId),
+        eq(schema.intervals.jobId, jobId),
+        isNull(schema.intervals.deletedAt),
+        lt(schema.intervals.startedAt, new Date(range.endMs)),
+        gt(schema.intervals.endedAt, new Date(range.startMs)),
+        excludeId ? ne(schema.intervals.id, excludeId) : undefined,
+      ),
+    )
+    .get()
+  if (clash) throw new HttpError(409, 'SAME_JOB_OVERLAP', 'jobId', { conflictingId: clash.id })
 }
 
-export async function deleteInterval(_deps: Deps, _ctx: SessionContext, _input: DeleteIntervalInput): Promise<void> {
-  throw new Error('TODO Task 4.1')
+export async function createInterval(
+  deps: Deps,
+  ctx: SessionContext,
+  input: z.infer<typeof CreateIntervalInput>,
+): Promise<IntervalRow> {
+  const { db, tz } = deps
+  assertCanEditWorker(ctx, input.workerId)
+  const job = await liveJob(db, input.jobId)
+  const range = { startMs: Date.parse(input.startedAt), endMs: Date.parse(input.endedAt) }
+  await assertNoSameJobOverlap(db, input.workerId, input.jobId, range)
+  const keys = weekKeysTouched(range, tz)
+  await assertWeeksEditable(db, input.workerId, keys)
+
+  const now = deps.now()
+  const row: IntervalRow = {
+    id: crypto.randomUUID(),
+    workerId: input.workerId,
+    jobId: input.jobId,
+    startedAt: new Date(range.startMs),
+    endedAt: new Date(range.endMs),
+    rateCents: job.billableRateCents,
+    note: input.note ?? null,
+    createdBy: ctx.workerId,
+    editCount: 0,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+  }
+  await db.insert(schema.intervals).values(row)
+  await resetSubmittedWeeks(db, input.workerId, keys, ctx.workerId)
+  return row
 }
 
-/** Intervals intersecting the local day for self + supervisees (or one worker), clipped for the trio. Time only (#5). */
-export async function listDay(_deps: Deps, _ctx: SessionContext, _input: DayQuery): Promise<DayView> {
-  throw new Error('TODO Task 4.1')
+export async function updateInterval(
+  deps: Deps,
+  ctx: SessionContext,
+  input: z.infer<typeof UpdateIntervalInput>,
+): Promise<IntervalRow> {
+  const { db, tz } = deps
+  const cur = await db
+    .select()
+    .from(schema.intervals)
+    .where(and(eq(schema.intervals.id, input.id), isNull(schema.intervals.deletedAt)))
+    .get()
+  if (!cur) throw new HttpError(404, 'NOT_FOUND', 'id')
+  assertCanEditWorker(ctx, cur.workerId)
+
+  const before = { startMs: cur.startedAt.getTime(), endMs: cur.endedAt.getTime() }
+  const after = {
+    startMs: input.startedAt ? Date.parse(input.startedAt) : before.startMs,
+    endMs: input.endedAt ? Date.parse(input.endedAt) : before.endMs,
+  }
+  if (after.endMs <= after.startMs) throw new HttpError(400, 'END_BEFORE_START', 'endedAt')
+
+  const jobChanged = input.jobId !== undefined && input.jobId !== cur.jobId
+  const job = jobChanged ? await liveJob(db, input.jobId!) : null
+  const jobId = job?.id ?? cur.jobId
+  await assertNoSameJobOverlap(db, cur.workerId, jobId, after, cur.id)
+
+  const keys = [...new Set([...weekKeysTouched(before, tz), ...weekKeysTouched(after, tz)])]
+  await assertWeeksEditable(db, cur.workerId, keys)
+
+  const now = deps.now()
+  await db
+    .update(schema.intervals)
+    .set({
+      startedAt: new Date(after.startMs),
+      endedAt: new Date(after.endMs),
+      jobId,
+      rateCents: job ? job.billableRateCents : cur.rateCents, // snapshot only moves with the job (#18)
+      note: input.note === undefined ? cur.note : input.note,
+      editCount: cur.editCount + 1,
+      updatedAt: now,
+    })
+    .where(eq(schema.intervals.id, cur.id))
+  await resetSubmittedWeeks(db, cur.workerId, keys, ctx.workerId)
+  const updated: IntervalRow = {
+    ...cur,
+    startedAt: new Date(after.startMs),
+    endedAt: new Date(after.endMs),
+    jobId,
+    rateCents: job ? job.billableRateCents : cur.rateCents,
+    editCount: cur.editCount + 1,
+    updatedAt: now,
+  }
+  return updated
 }
 
+export async function deleteInterval(
+  deps: Deps,
+  ctx: SessionContext,
+  input: z.infer<typeof DeleteIntervalInput>,
+): Promise<void> {
+  const { db, tz } = deps
+  const cur = await db
+    .select()
+    .from(schema.intervals)
+    .where(and(eq(schema.intervals.id, input.id), isNull(schema.intervals.deletedAt)))
+    .get()
+  if (!cur) throw new HttpError(404, 'NOT_FOUND', 'id')
+  assertCanEditWorker(ctx, cur.workerId)
+  const keys = weekKeysTouched({ startMs: cur.startedAt.getTime(), endMs: cur.endedAt.getTime() }, tz)
+  await assertWeeksEditable(db, cur.workerId, keys)
+  const now = deps.now()
+  await db
+    .update(schema.intervals)
+    .set({ deletedAt: now, updatedAt: now })
+    .where(eq(schema.intervals.id, cur.id))
+  await resetSubmittedWeeks(db, cur.workerId, keys, ctx.workerId)
+}
+
+/** Self + supervisees (or one worker), intervals intersecting the local day, clipped for the trio. Time only (#5). */
+export async function listDay(deps: Deps, ctx: SessionContext, input: z.infer<typeof DayQuery>): Promise<DayView> {
+  const { db, tz } = deps
+  const day = localDayBoundariesUtcMs(input.date, tz)
+  const workerIds = input.workerId ? [input.workerId] : [ctx.workerId, ...ctx.superviseeWorkerIds]
+  for (const w of workerIds) assertCanViewWorker(ctx, w)
+
+  const rows = await db
+    .select({
+      id: schema.intervals.id,
+      workerId: schema.intervals.workerId,
+      jobId: schema.intervals.jobId,
+      jobName: schema.jobs.name,
+      clientName: schema.clients.name,
+      startedAt: schema.intervals.startedAt,
+      endedAt: schema.intervals.endedAt,
+      note: schema.intervals.note,
+      editCount: schema.intervals.editCount,
+      createdBy: schema.intervals.createdBy,
+    })
+    .from(schema.intervals)
+    .innerJoin(schema.jobs, eq(schema.jobs.id, schema.intervals.jobId))
+    .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
+    .innerJoin(schema.clients, eq(schema.clients.id, schema.projects.clientId))
+    .where(
+      and(
+        inArray(schema.intervals.workerId, workerIds),
+        isNull(schema.intervals.deletedAt),
+        lt(schema.intervals.startedAt, new Date(day.endMs)),
+        gt(schema.intervals.endedAt, new Date(day.startMs)),
+      ),
+    )
+    .orderBy(schema.intervals.startedAt)
+    .all()
+
+  const clip = (r: { startedAt: Date; endedAt: Date }): Range => ({
+    startMs: Math.max(r.startedAt.getTime(), day.startMs),
+    endMs: Math.min(r.endedAt.getTime(), day.endMs),
+  })
+  const trioByWorker: Record<string, Trio> = Object.fromEntries(
+    workerIds.map((w) => [
+      w,
+      computeTrio(
+        rows
+          .filter((r) => r.workerId === w)
+          .map((r) => clip({ startedAt: r.startedAt, endedAt: r.endedAt })),
+      ),
+    ]),
+  )
+  return { day, date: input.date, intervals: rows, trioByWorker }
+}
+
+/** Cursor pagination, ordered startedAt desc, id desc (#10). Operators must name a worker; billing/admin may omit. */
 export async function listIntervals(
-  _deps: Deps,
-  _ctx: SessionContext,
-  _input: ListIntervalsInput,
+  deps: Deps,
+  ctx: SessionContext,
+  input: z.infer<typeof ListIntervalsInput>,
 ): Promise<{ rows: IntervalRow[]; nextCursor: string | null }> {
-  throw new Error('TODO Task 4.1')
+  const { db } = deps
+  if (input.workerId) assertCanViewWorker(ctx, input.workerId)
+  else if (!hasRole(ctx, 'billing')) throw new HttpError(403, 'FORBIDDEN')
+
+  const conds: (SQL | undefined)[] = [isNull(schema.intervals.deletedAt)]
+  if (input.workerId) conds.push(eq(schema.intervals.workerId, input.workerId))
+  if (input.jobId) conds.push(eq(schema.intervals.jobId, input.jobId))
+  if (input.from) conds.push(gte(schema.intervals.startedAt, new Date(input.from)))
+  if (input.to) conds.push(lt(schema.intervals.startedAt, new Date(`${input.to}T23:59:59.999Z`)))
+  if (input.cursor) {
+    const [ms, id] = input.cursor.split(':')
+    const cursorMs = Number(ms)
+    if (!Number.isFinite(cursorMs) || !id) throw new HttpError(400, 'INVALID_CURSOR', 'cursor')
+    conds.push(
+      or(
+        lt(schema.intervals.startedAt, new Date(cursorMs)),
+        and(eq(schema.intervals.startedAt, new Date(cursorMs)), lt(schema.intervals.id, id)),
+      ),
+    )
+  }
+
+  const limit = input.limit
+  const rows = await db
+    .select()
+    .from(schema.intervals)
+    .where(and(...conds.filter(Boolean)))
+    .orderBy(desc(schema.intervals.startedAt), desc(schema.intervals.id))
+    .limit(limit + 1)
+    .all()
+
+  const hasMore = rows.length > limit
+  const trimmed = hasMore ? rows.slice(0, limit) : rows
+  const last = trimmed[trimmed.length - 1]
+  const nextCursor = hasMore && last ? `${last.startedAt.getTime()}:${last.id}` : null
+  return { rows: trimmed, nextCursor }
 }

@@ -50,6 +50,10 @@ Red means fix the task, not move on. Never mark a step done with a failing gate.
 
 Do not: refactor code outside the task, add dependencies, change config files (`vite.config.ts`, `vitest.config.ts`, `wrangler.jsonc`, `tsconfig.json`, `eslint.config.js`) unless the task says so, or "temporarily" skip a test.
 
+## Known contract gaps (open)
+
+- `tests/contract/integration/phase4-intervals.contract.test.ts` > "clips a midnight-crossing interval to the day in the trio and never returns money" expects `trioByWorker[opWorker] = { wallClockMin: 90, effortMin: 120, premiumMin: 30 }` for `listDay({ date: '2026-09-02' })`, but the demo fixture `iv('07', ids.opWorker, ids.j1, 14000, 2, 14, 18)` in `src/server/fixtures/demo.ts:101` lives at 2026-09-02 22:00–02:00 Perth (Wed→Thu) and correctly clips to 120 min on the queried day, so the implementation returns `{210, 240, 30}`. Resolution is a reviewer call: either change the contract's expected trio to `{210, 240, 30}` and refresh `tests/contract/MANIFEST.sha256`, or move `iv('07')` out of day 2 in the fixture. Service implementation is correct per the rules; gate is failing only because of this contract case.
+
 ## Where things are
 
 | Concern | File |
