@@ -1,0 +1,5 @@
+BETTER_AUTH_SECRET=replace-with-openssl-rand-hex-32
+RESEND_API_KEY=re_xxxxxxxxxxxx
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=choose-12-plus-chars
+ADMIN_NAME=First Admin

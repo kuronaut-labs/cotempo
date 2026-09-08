@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "concurrent-timesheeting",
+  "compatibility_date": "2026-09-06",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "@tanstack/react-start/server-entry",
+  "observability": { "enabled": true },
+  "vars": {
+    "ORG_TIMEZONE": "Australia/Perth",
+    "APP_URL": "http://localhost:3000",
+    "MAIL_FROM": "Timesheets <onboarding@resend.dev>"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "timesheeting",
+      "database_id": "REPLACE_AFTER_CREATE",
+      "migrations_dir": "drizzle/migrations"
+    }
+  ]
+}

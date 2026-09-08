@@ -1,0 +1,70 @@
+# Concurrent Timesheeting — working rules
+
+Read this before every task. The plan is `docs/2026-09-07-concurrent-timesheeting-v1.md`; the decisions it cites (#3–#26) are in `.wayfinder/map.md`. Both are read-only inputs.
+
+## Toolchain
+
+- Node 24 (`.nvmrc`). `nvm use` before anything. npm 11.
+- After `npm install`: `npm approve-scripts workerd esbuild && npm rebuild workerd esbuild` (workerd needs its postinstall).
+- Dev server: `npm run dev -- --port 3123 --strictPort`. Port 3000 is often taken on this machine; `APP_URL` in `wrangler.jsonc` is still `http://localhost:3000`, so when testing BetterAuth with curl send `Origin: http://localhost:3000` or change `APP_URL` locally.
+- Local DB: `npm run db:migrate:local && npm run db:seed`. Seeded logins: `admin@example.com` (password from `.dev.vars` `ADMIN_PASSWORD`), `billing@example.com` / `ops@example.com` (`demo-password-123`).
+
+## The gate
+
+Every task ends with all of these green, or the task is not done:
+
+```
+npm run check                      # contract-manifest check, lint, tsc, unit + integration tests
+npm run test:contract -- phaseN    # the contract file(s) the plan names for this task
+```
+
+Red means fix the task, not move on. Never mark a step done with a failing gate.
+
+## Protected
+
+- `tests/contract/**` — the acceptance suite. Never edit. `npm run check` fails if a byte changes. If a contract test looks wrong, stop and report the test name and the ticket it cites.
+- `.wayfinder/**`, `docs/**` — decisions and plan. Never edit. If the code cannot satisfy a decision, stop and report.
+- `drizzle/migrations/**` — regenerate with `npm run db:generate`, never hand-edit. Before first deploy, editing `drizzle/schema.ts` and regenerating `0000_*` is fine.
+
+## Non-negotiable rules (from the map)
+
+1. **Runtime boundary (#20):** `src/lib/**` imports nothing from `cloudflare:workers` or `~/server/*`. Lint enforces it. Bindings are read only through `getEnv()` in `src/server/env.ts`; no env, DB, or auth access at module scope anywhere.
+2. **Service shape (#10, #20):** business logic lives in `src/server/services/*.ts` as exported `(deps, ctx, input)` functions. `src/server/fns/*.ts` are thin `createServerFn` wrappers: `.middleware([...]).validator(Schema).handler(({ data, context }) => svc.fn(deps(), ctxOf(context), data))`. Tests call the service directly with `deps()` and `asUser(role)` from `tests/integration/helpers.ts`.
+3. **Guard order in every interval mutation (#17, #7, #26):** `assertCanEditWorker` → live job lookup (snapshot `rateCents`) → same-job overlap → `assertWeeksEditable(before ∪ after week keys)` → write → `resetSubmittedWeeks`.
+4. **Role checks twice:** middleware (`authMw`, `requireRole`) at the fn, and again inside the service (`hasRole`, `assertCanEditWorker`, `assertCanViewWorker`). Services throw `HttpError(403, 'FORBIDDEN')` themselves; the contract tests call services without middleware.
+5. **Money (#5, #18):** operators never receive a `cents`, `rateCents`, or `billableRateCents` key. Build the object without the key; do not set it to `null` or `0`. Any displayed amount is `moneyCents(rows)` over the whole grouping, rounded once. Minutes never round.
+6. **Time (#19, #22, #23):** all instants are integer ms, minute-aligned, stored via `integer(..., { mode: 'timestamp_ms' })` and app-supplied `new Date()`. Day and week boundaries come from `src/lib/dayMath.ts` and `src/lib/week.ts` with `deps.tz`. Never use `Date` local-time methods; never hardcode a zone.
+7. **Errors (#25):** throw `HttpError(status, CODE, field?, data?)` from `src/lib/errors.ts`. Codes are upper snake case and stable; set `field` when the error belongs to one input. Existing codes: `UNAUTHENTICATED` 401, `FORBIDDEN` 403, `FORBIDDEN_TARGET` 403 (`workerId`), `NO_WORKER_PROFILE` 403, `NOT_FOUND` 404, `JOB_NOT_FOUND` 404 (`jobId`), `END_BEFORE_START` 400 (`endedAt`), `MINUTE_ALIGNMENT` 400, `NOT_A_MONDAY` 400 (`weekStart`), `SUPERVISOR_NOT_HUMAN` 400 (`supervisorId`), `ROLES_MUST_INCLUDE_OPERATOR` 400, `SAME_JOB_OVERLAP` 409 (`jobId`, `data.conflictingId`), `WEEK_LOCKED` 409 (`data.weekStart`), `SELF_APPROVAL` 409, `INVALID_TRANSITION` 409, `HAS_SUPERVISEES` 409.
+8. **Forms (#25):** every form is `@tanstack/react-form` with the shared Zod schema from `src/lib/schemas/`, and server errors go through `applyServerError(form, err)`.
+9. **Never hard-delete.** Structure and workers set `archivedAt`; intervals set `deletedAt`. Every read filters them.
+10. **Signatures are fixed.** Stub functions in `src/lib/attribution.ts`, `src/lib/redFlags.ts`, and `src/server/services/*.ts` define the contract. Implement the body; do not rename, reorder parameters, or change return types. Add helpers as non-exported functions or new files.
+
+## Working a task
+
+1. Read the task in the plan and the ticket numbers it cites in `.wayfinder/map.md` (Decisions so far).
+2. Read the stub(s) you are implementing and the contract test file the plan names. The test is the spec; the stub's doc comment is the summary.
+3. Write or extend the ordinary tests in `tests/unit` or `tests/integration` first, then implement until they and the contract file pass.
+4. Run the gate. Commit with the message the plan gives.
+5. Report: files touched, gate output summary, anything you could not do and why.
+
+Do not: refactor code outside the task, add dependencies, change config files (`vite.config.ts`, `vitest.config.ts`, `wrangler.jsonc`, `tsconfig.json`, `eslint.config.js`) unless the task says so, or "temporarily" skip a test.
+
+## Where things are
+
+| Concern | File |
+|---|---|
+| Env, DB, auth singletons | `src/server/env.ts`, `db.ts`, `auth.ts` |
+| Session context type + role helpers | `src/server/context.ts` |
+| Middleware | `src/server/middleware/{session,authMw,roleGuard}.ts` (`ctxOf` lives in `authMw.ts`) |
+| Guards | `src/server/guards/{worker,week}.ts` |
+| Services (business logic) | `src/server/services/*.ts`, `Deps` in `services/deps.ts` |
+| Server fns | `src/server/fns/*.ts` |
+| Shared Zod schemas | `src/lib/schemas/*.ts` (types exported under the same names) |
+| Pure time/money/attribution | `src/lib/{dayMath,week,money,attribution,redFlags}.ts` |
+| Fixtures (tests + seed) | `src/server/fixtures/demo.ts` |
+| Test helpers | `tests/integration/helpers.ts` (`db`, `deps()`, `asUser()`, `resetDb()`, `setWeekStatus()`, `at()`) |
+| Design tokens | copy `:root` from `.wayfinder/prototypes/*.html` |
+
+## Comments
+
+Keep only the non-derivable why, one line where possible. Cite the ticket (`#18`) when a line exists because of a decision.

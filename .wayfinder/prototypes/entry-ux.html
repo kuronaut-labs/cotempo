@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Entry model sketches — concurrent timesheeting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#14161B; --panel:#1D2026; --panel2:#23262D; --line:#31353E;
+  --text:#EAE7E0; --muted:#9297A1; --faint:#5C616B;
+  --j1:#5B8DEF; --j2:#E8735F; --j3:#7FB069; --j4:#D9A441; --j5:#A47CE8;
+  --err:#E8735F;
+  --disp:'Space Grotesk',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{color-scheme:dark}
+body{background:var(--ink);color:var(--text);font-family:var(--body);font-size:14px;line-height:1.5;min-height:100vh}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--j1);outline-offset:2px;border-radius:4px}
+.wrap{max-width:1080px;margin:0 auto;padding:40px 24px 80px}
+
+/* ---------- header ---------- */
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--disp);font-weight:700;font-size:34px;line-height:1.15;margin:10px 0 8px;letter-spacing:-.01em}
+.sub{color:var(--muted);max-width:62ch}
+.sub em{font-style:normal;color:var(--text)}
+.sketchflag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--faint);border:1px solid var(--line);border-radius:3px;padding:2px 7px;margin-left:10px;vertical-align:middle}
+
+/* ---------- tabs ---------- */
+.tabs{display:flex;gap:4px;margin:36px 0 0;border-bottom:1px solid var(--line)}
+.tab{font-family:var(--disp);font-weight:500;font-size:15px;padding:10px 18px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--j1)}
+.tab .n{font-family:var(--mono);font-size:10px;color:var(--faint);margin-right:8px}
+.panel{display:none;padding-top:28px}
+.panel.active{display:block}
+.modeldesc{color:var(--muted);max-width:70ch;margin-bottom:22px}
+.modeldesc strong{color:var(--text);font-weight:600}
+
+/* ---------- day math chip strip (signature, in every model) ---------- */
+.daymath{display:flex;gap:10px;flex-wrap:wrap;margin:22px 0 0;align-items:center}
+.dm{font-family:var(--mono);font-size:12px;border:1px solid var(--line);border-radius:6px;padding:6px 12px;background:var(--panel)}
+.dm b{font-weight:600;color:var(--text)}
+.dm .k{color:var(--muted);margin-right:6px}
+.dm.premium{border-color:#4a3f2e;background:#241f16}
+.dm.premium b{color:var(--j4)}
+.dm-label{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+
+/* ---------- timers model ---------- */
+.timers{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+.workercol{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.workercol h3{font-family:var(--disp);font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.wtag{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;border-radius:3px;padding:2px 6px}
+.wtag.human{background:#233247;color:var(--j1)}
+.wtag.agent{background:#2b2340;color:var(--j5)}
+.tcard{margin-top:14px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:12px}
+.tcard .jobrow{display:flex;align-items:center;gap:8px}
+.dot{width:9px;height:9px;border-radius:2px;flex:none}
+.tcard .jname{font-weight:500;font-size:13px}
+.tcard .elapsed{font-family:var(--mono);font-size:22px;margin-top:6px;font-variant-numeric:tabular-nums}
+.tcard .meta{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px}
+.pulse{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--j3);margin-right:6px;animation:pulse 1.6s ease infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.pulse{animation:none}}
+.concurrent{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--j4);border:1px solid #4a3f2e;background:#241f16;border-radius:4px;padding:2px 8px;margin-top:10px}
+.jobpick{margin-top:16px;border-top:1px dashed var(--line);padding-top:12px}
+.jobpick .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-bottom:8px}
+.jprow{display:flex;flex-wrap:wrap;gap:6px}
+.jp{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:5px 10px}
+.jp:hover{color:var(--text);border-color:var(--faint)}
+.jp.running{color:var(--faint);cursor:default;border-style:dashed}
+.tlist{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.tlist h4{font-family:var(--disp);font-size:14px;font-weight:600;color:var(--muted);margin-bottom:12px}
+.done{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #262a31;font-family:var(--mono);font-size:12px}
+.done:last-child{border-bottom:none}
+.done .rng{color:var(--muted)}
+.done .dur{margin-left:auto;color:var(--text)}
+.stopbtn{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-radius:5px;padding:4px 10px;color:var(--muted);margin-top:10px}
+.stopbtn:hover{color:var(--text);border-color:var(--faint)}
+
+/* ---------- timeline model ---------- */
+.jobbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;align-items:center}
+.jobbar .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-right:6px}
+.jb{display:flex;align-items:center;gap:7px;font-size:12px;border:1px solid var(--line);border-radius:6px;padding:5px 11px;color:var(--muted)}
+.jb.sel{color:var(--text);border-color:var(--faint);background:var(--panel2)}
+.tl{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px 18px 10px;overflow-x:auto}
+.ruler{position:relative;height:22px;margin-left:120px;min-width:768px}
+.rtick{position:absolute;top:0;font-family:var(--mono);font-size:10px;color:var(--faint);transform:translateX(-50%)}
+.lane{display:flex;align-items:stretch;margin-bottom:10px;min-width:900px}
+.lanehead{width:120px;flex:none;padding-right:12px;display:flex;flex-direction:column;justify-content:center;gap:2px}
+.lanehead .nm{font-family:var(--disp);font-size:13px;font-weight:600}
+.lanehead .tg{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.track{position:relative;flex:1;height:56px;background:repeating-linear-gradient(90deg,var(--panel) 0, var(--panel) calc(1.6px*60 - 1px), #22252c calc(1.6px*60 - 1px), #22252c 1.6px*60);border:1px solid #262a31;border-radius:6px;min-width:768px;cursor:crosshair}
+.block{position:absolute;top:6px;height:44px;border-radius:5px;display:flex;align-items:center;padding:0 8px;font-family:var(--mono);font-size:10px;color:#0e1013;font-weight:600;cursor:grab;user-select:none;white-space:nowrap;overflow:hidden}
+.block .hL,.block .hR{position:absolute;top:0;width:8px;height:100%;cursor:ew-resize}
+.block .hL{left:0}.block .hR{right:0}
+.ovl{position:absolute;bottom:6px;height:12px;border-radius:3px;background:repeating-linear-gradient(45deg,transparent 0 4px,rgba(0,0,0,.55) 4px 6px);pointer-events:none}
+.ovltag{position:absolute;font-family:var(--mono);font-size:9px;color:var(--j4);background:#241f16;border:1px solid #4a3f2e;border-radius:3px;padding:0 5px;transform:translate(-50%,0);pointer-events:none;z-index:5}
+.ghost{position:absolute;top:6px;height:44px;border:1px dashed var(--faint);border-radius:5px;pointer-events:none}
+.tlhint{font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:10px}
+.lanemath{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px}
+.lanemath .p{color:var(--j4)}
+
+/* ---------- retro model ---------- */
+.retro{display:grid;grid-template-columns:360px 1fr;gap:20px;align-items:start}
+.form{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+.form label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin:14px 0 6px}
+.form label:first-child{margin-top:0}
+.form select,.form input{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:6px;color:var(--text);font-family:var(--mono);font-size:13px;padding:8px 10px}
+.addbtn{margin-top:18px;width:100%;font-family:var(--disp);font-weight:600;font-size:14px;background:var(--j1);color:#0e1013;border-radius:7px;padding:10px}
+.addbtn:hover{filter:brightness(1.1)}
+.ferr{display:none;margin-top:12px;font-size:12px;color:var(--err);background:#2a1c19;border:1px solid #4a2f28;border-radius:6px;padding:8px 12px}
+.ferr.show{display:block}
+.rowscard{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.rowscard h4{font-family:var(--disp);font-size:14px;font-weight:600;color:var(--muted);margin-bottom:10px}
+.rrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #262a31;font-family:var(--mono);font-size:12px}
+.rrow:last-child{border-bottom:none}
+.rrow .who{color:var(--muted);width:110px;flex:none;overflow:hidden;text-overflow:ellipsis}
+.rrow .del{margin-left:auto;color:var(--faint);border:1px solid transparent;border-radius:4px;padding:1px 7px;font-size:11px}
+.rrow .del:hover{color:var(--err);border-color:#4a2f28}
+.rrow.bad{background:#2a1c19;border-radius:6px;padding:9px 10px}
+.rrow.bad .rng{color:var(--err)}
+.ministrip{position:relative;height:44px;background:var(--panel2);border:1px solid #262a31;border-radius:6px;margin-top:14px;overflow:hidden}
+.ministrip .mb{position:absolute;top:8px;height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:9px;color:#0e1013;font-weight:600;overflow:hidden;white-space:nowrap}
+.ministrip .mo{position:absolute;bottom:2px;height:6px;border-radius:3px;background:repeating-linear-gradient(45deg,transparent 0 3px,rgba(0,0,0,.55) 3px 5px)}
+
+/* ---------- footer ---------- */
+.rulesfoot{margin-top:56px;border-top:1px solid var(--line);padding-top:18px;font-family:var(--mono);font-size:11px;color:var(--faint);line-height:1.9}
+.rulesfoot b{color:var(--muted);font-weight:500}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Concurrent timesheeting · entry model sketches</div>
+  <h1>Three ways to log overlapping work <span class="sketchflag">ROUGH SKETCH · DEMO DATA</span></h1>
+  <p class="sub">Same rules underneath all three: overlapped minutes bill <em>each job in full</em>, and the overlap premium is always on screen. Poke each model — drag things, start two timers, try to double-book one job. What feels right for capturing a day?</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" id="tab-a" data-panel="pA"><span class="n">A</span>Live timers</button>
+    <button class="tab" role="tab" aria-selected="false" id="tab-b" data-panel="pB"><span class="n">B</span>Timeline drawing</button>
+    <button class="tab" role="tab" aria-selected="false" id="tab-c" data-panel="pC"><span class="n">C</span>Retroactive batch</button>
+  </div>
+
+  <!-- ============ MODEL A: LIVE TIMERS ============ -->
+  <section class="panel active" id="pA" role="tabpanel">
+    <p class="modeldesc"><strong>Live timers with switching.</strong> Start a timer, start another without stopping the first. Concurrency is explicit — two clocks running at once — and stopping writes the interval.</p>
+    <div class="timers">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="workercol" id="wc-you"></div>
+        <div class="workercol" id="wc-atlas"></div>
+      </div>
+      <div class="tlist">
+        <h4>Logged today</h4>
+        <div id="donelist"></div>
+      </div>
+    </div>
+    <div class="daymath" id="dmA"></div>
+  </section>
+
+  <!-- ============ MODEL B: TIMELINE DRAWING ============ -->
+  <section class="panel" id="pB" role="tabpanel">
+    <p class="modeldesc"><strong>Timeline drawing.</strong> Drag on a lane to draw a block; drag its edges to stretch or move it. Where blocks overlap, the seam turns hatched — that's the premium, visible the moment you create it.</p>
+    <div class="jobbar" id="jobbar"></div>
+    <div class="tl" id="tl"></div>
+    <div class="daymath" id="dmB"></div>
+  </section>
+
+  <!-- ============ MODEL C: RETROACTIVE BATCH ============ -->
+  <section class="panel" id="pC" role="tabpanel">
+    <p class="modeldesc"><strong>Retroactive batch entry.</strong> After the fact: pick a worker, pick a job, type the range. Overlaps between jobs are fine; overlapping the same job is refused — that's a data error, not concurrency.</p>
+    <div class="retro">
+      <div class="form">
+        <label for="rWho">Worker</label>
+        <select id="rWho"></select>
+        <label for="rJob">Job</label>
+        <select id="rJob"></select>
+        <label for="rStart">Start</label>
+        <input type="time" id="rStart" step="300" value="14:00">
+        <label for="rEnd">End</label>
+        <input type="time" id="rEnd" step="300" value="15:30">
+        <button class="addbtn" id="rAdd">Add interval</button>
+        <div class="ferr" id="rErr"></div>
+      </div>
+      <div class="rowscard">
+        <h4>Today's intervals</h4>
+        <div id="rrows"></div>
+        <div class="ministrip" id="rstrip"></div>
+      </div>
+    </div>
+    <div class="daymath" id="dmC"></div>
+  </section>
+
+  <div class="rulesfoot">
+    RULES IN FORCE (tickets #4 #5 #7)<br>
+    <b>same-job overlap</b> → blocked at entry, it bills one client twice for the same minutes &nbsp;·&nbsp; <b>cross-job overlap</b> → bills each job in full, premium shown &nbsp;·&nbsp; <b>exact minutes</b>, no rounding &nbsp;·&nbsp; <b>day math</b>: wall-clock = union of intervals · effort = sum · premium = effort − wall-clock
+  </div>
+</div>
+
+<script>
+/* ---------------- shared ---------------- */
+const JOBS=[
+  {id:0,name:"Atlas rollout",    color:"#5B8DEF"},
+  {id:1,name:"Corpus QA sweep",  color:"#E8735F"},
+  {id:2,name:"Migration bench",  color:"#7FB069"},
+  {id:3,name:"Onboarding docs",  color:"#D9A441"},
+  {id:4,name:"Nightly evals",    color:"#A47CE8"},
+];
+const WORKERS=[
+  {id:0,name:"You",     kind:"human"},
+  {id:1,name:"Atlas-7", kind:"agent"},
+  {id:2,name:"Ravi",    kind:"human"},
+];
+const job=id=>JOBS.find(j=>j.id===id);
+const m2s=m=>{m=Math.round(m);const h=Math.floor(m/60),r=m%60;return h?`${h}h ${r?String(r).padStart(2,"0")+"m":""}`.trim():`${r}m`};
+const t2m=t=>{const[h,mm]=t.split(":").map(Number);return h*60+mm};
+const m2t2=m=>{const h=Math.floor(m/60),r=Math.round(m%60);return `${String(h).padStart(2,"0")}:${String(r).padStart(2,"0")}`};
+
+/* day math: the ticket-#7 derivation, running live in every model */
+function dayMath(intervals){
+  if(!intervals.length)return{wall:0,effort:0,premium:0};
+  const effort=intervals.reduce((s,i)=>s+(i.end-i.start),0);
+  const pts=[];intervals.forEach(i=>{pts.push([i.start,1],[i.end,-1])});
+  pts.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  let depth=0,wall=0,last=null;
+  pts.forEach(([t,d])=>{
+    if(last!==null&&depth>0)wall+=t-last;
+    depth+=d;last=t;
+  });
+  return{wall,effort,premium:effort-wall};
+}
+function dmHTML(m,who){
+  return `<span class="dm-label">${who} · day math</span>
+    <span class="dm"><span class="k">wall-clock</span><b>${m2s(m.wall)}</b></span>
+    <span class="dm"><span class="k">effort</span><b>${m2s(m.effort)}</b></span>
+    <span class="dm premium"><span class="k">overlap premium</span><b>${m2s(m.premium)}</b></span>`;
+}
+
+/* tabs */
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.setAttribute("aria-selected","false"));
+  document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+  t.setAttribute("aria-selected","true");
+  document.getElementById(t.dataset.panel).classList.add("active");
+}));
+
+/* ---------------- MODEL A: timers ---------------- */
+const A={
+  running:[ // {worker, job, startedMinAgo}
+    {worker:0,job:0,elapsed:32},
+    {worker:1,job:1,elapsed:18},
+  ],
+  logged:[
+    {worker:0,job:2,start:t2m("09:10"),end:t2m("10:40")},
+    {worker:0,job:3,start:t2m("11:00"),end:t2m("12:00")},
+    {worker:1,job:0,start:t2m("09:30"),end:t2m("11:00")},
+  ],
+};
+function aRenderWorkers(){
+  WORKERS.slice(0,2).forEach(w=>{
+    const el=document.getElementById(w.id===0?"wc-you":"wc-atlas");
+    const runs=A.running.filter(r=>r.worker===w.id);
+    const picks=JOBS.map(j=>{
+      const isRun=runs.some(r=>r.job===j.id);
+      return `<button class="jp ${isRun?"running":""}" data-w="${w.id}" data-j="${j.id}" ${isRun?"disabled":""}>
+        <span class="dot" style="background:${j.color}"></span>${j.name}${isRun?"":" ▶"}</button>`;
+    }).join("");
+    el.innerHTML=`<h3>${w.name} <span class="wtag ${w.kind}">${w.kind}</span></h3>
+      ${runs.map(r=>{const j=job(r.job);return`
+        <div class="tcard" style="border-color:${j.color}44">
+          <div class="jobrow"><span class="dot" style="background:${j.color}"></span><span class="jname">${j.name}</span></div>
+          <div class="elapsed" data-live="${w.id}-${r.job}">${m2s(r.elapsed)}</div>
+          <div class="meta"><span class="pulse"></span>running · since −${m2s(r.elapsed)} (demo)</div>
+          <button class="stopbtn" data-stop="${w.id}-${r.job}">stop &amp; log</button>
+        </div>`}).join("")}
+      ${runs.length>1?`<div class="concurrent">×${runs.length} concurrent — each job bills in full</div>`:""}
+      <div class="jobpick"><div class="lbl">start another — it runs concurrently</div><div class="jprow">${picks}</div></div>`;
+  });
+  document.querySelectorAll(".jp:not(.running)").forEach(b=>b.addEventListener("click",()=>{
+    A.running.push({worker:+b.dataset.w,job:+b.dataset.j,elapsed:0});aRenderWorkers();aRenderDone();
+  }));
+  document.querySelectorAll("[data-stop]").forEach(b=>b.addEventListener("click",()=>{
+    const[wid,jid]=b.dataset.stop.split("-").map(Number);
+    const r=A.running.find(r=>r.worker===wid&&r.job===jid);
+    const end=17*60-(45-Math.min(r.elapsed,45)); // fake clock position
+    const start=end-r.elapsed;
+    A.logged.push({worker:wid,job:jid,start,end});
+    A.running=A.running.filter(x=>x!==r);aRenderWorkers();aRenderDone();
+  }));
+}
+function aRenderDone(){
+  document.getElementById("donelist").innerHTML=A.logged
+    .slice().sort((a,b)=>a.start-b.start).map(l=>`
+    <div class="done"><span class="dot" style="background:${job(l.job).color}"></span>
+      <span class="who" style="width:70px;color:var(--muted)">${WORKERS[l.worker].name}</span>
+      <span>${job(l.job).name}</span>
+      <span class="rng">${m2t2(l.start)}–${m2t2(l.end)}</span>
+      <span class="dur">${m2s(l.end-l.start)}</span></div>`).join("")
+    ||`<div style="color:var(--faint);font-family:var(--mono);font-size:11px">nothing logged yet — stop a timer</div>`;
+  document.getElementById("dmA").innerHTML=dmHTML(
+    dayMath([...A.logged.filter(l=>l.worker===0),
+      ...A.running.filter(r=>r.worker===0).map(r=>({start:0,end:r.elapsed}))]),"You");
+}
+setInterval(()=>{A.running.forEach(r=>r.elapsed++); // tick + re-render elapsed only
+  document.querySelectorAll("[data-live]").forEach(el=>{
+    const[wid,jid]=el.dataset.live.split("-").map(Number);
+    const r=A.running.find(r=>r.worker===wid&&r.job===jid);
+    if(r)el.textContent=m2s(r.elapsed);
+  });
+},1000);
+aRenderWorkers();aRenderDone();
+
+/* ---------------- MODEL B: timeline ---------------- */
+const B={
+  PXMIN:1.6, T0:9*60, T1:17*60, selJob:0,
+  blocks:[ // {lane, job, start, end} minutes from 09:00
+    {lane:0,job:0,start:15, end:135},
+    {lane:0,job:3,start:120,end:210},
+    {lane:1,job:1,start:60, end:180},
+    {lane:1,job:0,start:150,end:300},
+    {lane:2,job:2,start:30, end:90},
+  ],
+};
+const bM2X=m=>m*B.PXMIN;
+function bRender(){
+  const sel=JOBS.map(j=>`<button class="jb ${B.selJob===j.id?"sel":""}" data-jb="${j.id}">
+    <span class="dot" style="background:${j.color}"></span>${j.name}</button>`).join("");
+  document.getElementById("jobbar").innerHTML=`<span class="lbl">draw with</span>${sel}`;
+  document.querySelectorAll("[data-jb]").forEach(b=>b.addEventListener("click",()=>{B.selJob=+b.dataset.jb;bRender();}));
+
+  let tl=`<div class="ruler">`;
+  for(let h=9;h<=17;h++)tl+=`<span class="rtick" style="left:${bM2X((h-9)*60)}px">${h}:00</span>`;
+  tl+=`</div>`;
+  WORKERS.forEach((w,li)=>{
+    const ivs=B.blocks.filter(b=>b.lane===li);
+    const lm=dayMath(ivs.map(b=>({start:b.start+540,end:b.end+540})));
+    tl+=`<div class="lane"><div class="lanehead"><span class="nm">${w.name}</span><span class="tg">${w.kind}</span>
+      <span class="lanemath">${m2s(lm.effort)}${lm.premium?` <span class="p">+${m2s(lm.premium)} premium</span>`:""}</span></div>
+      <div class="track" data-lane="${li}">`;
+    ivs.forEach((b,bi)=>{const j=job(b.job);
+      tl+=`<div class="block" data-bi="${li}-${bi}" style="left:${bM2X(b.start)}px;width:${bM2X(b.end-b.start)}px;background:${j.color}">
+        <span class="hL"></span>${j.name} <span style="opacity:.65;margin-left:6px">${m2s(b.end-b.start)}</span><span class="hR"></span></div>`;
+    });
+    // overlap seams: minute-depth scan per lane
+    const depth=new Array(481).fill(0);
+    ivs.forEach(b=>{for(let m=b.start;m<b.end;m++)depth[m]++;});
+    let m=0;
+    while(m<=480){
+      if(depth[m]>=2){let s=m;while(m<=480&&depth[m]>=2)m++;
+        tl+=`<div class="ovl" style="left:${bM2X(s)}px;width:${bM2X(m-s)}px;background:${jBlend(ivs,s,m)}"></div>`;
+        tl+=`<div class="ovltag" style="left:${bM2X((s+m)/2)}px;bottom:20px">×${Math.max(...depth.slice(s,m))}</div>`;
+      } else m++;
+    }
+    tl+=`</div></div>`;
+  });
+  tl+=`<div class="tlhint">drag on a lane to draw · drag block edges to stretch · drag body to move · double-click to delete · 5-min snap</div>`;
+  document.getElementById("tl").innerHTML=tl;
+  const you=B.blocks.filter(b=>b.lane===0);
+  document.getElementById("dmB").innerHTML=dmHTML(dayMath(you.map(b=>({start:b.start+540,end:b.end+540}))),"You");
+  bWire();
+}
+function jBlend(ivs,s,e){ // average the overlapping colors, then hatch via css overlay
+  const cols=ivs.filter(b=>b.start<e&&b.end>s).map(b=>job(b.job).color);
+  const c=cols.map(hex=>[parseInt(hex.slice(1,3),16),parseInt(hex.slice(3,5),16),parseInt(hex.slice(5,7),16)]);
+  const avg=c[0].map((_,i)=>Math.round(c.reduce((s,x)=>s+x[i],0)/c.length));
+  return `rgba(${avg.join(",")},.9)`;
+}
+function bSnap(m){return Math.max(0,Math.min(480,Math.round(m/5)*5));}
+function bWire(){
+  document.querySelectorAll(".track").forEach(track=>{
+    track.addEventListener("pointerdown",e=>{
+      const lane=+track.dataset.lane;
+      const blk=e.target.closest(".block");
+      const rect=track.getBoundingClientRect();
+      const x2m=x=>bSnap((x-rect.left)/B.PXMIN);
+      if(blk){ // move / resize
+        const[lb,bi]=blk.dataset.bi.split("-").map(Number);
+        const ob=B.blocks.filter(y=>y.lane===lb)[bi];
+        const mode=e.target.classList.contains("hL")?"L":e.target.classList.contains("hR")?"R":"M";
+        const grab=x2m(e.clientX),os=ob.start,oe=ob.end;
+        const mv=ev=>{const x=x2m(ev.clientX);
+          if(mode==="L")ob.start=Math.min(x,ob.end-15);
+          if(mode==="R")ob.end=Math.max(x,ob.start+15);
+          if(mode==="M"){const d=x-grab;ob.start=bSnap(Math.max(0,Math.min(480-(oe-os),os+d)));ob.end=ob.start+(oe-os);}
+          bRenderLite(track,ob,bi);};
+        const up=()=>{window.removeEventListener("pointermove",mv);window.removeEventListener("pointerup",up);bRender();};
+        window.addEventListener("pointermove",mv);window.addEventListener("pointerup",up);
+      } else { // draw new
+        e.preventDefault();
+        const s0=x2m(e.clientX);let ghost=null;
+        const mv=ev=>{const x=x2m(ev.clientX);const s=Math.min(s0,x),e2=Math.max(s0,x);
+          if(!ghost){ghost=document.createElement("div");ghost.className="ghost";track.appendChild(ghost);}
+          ghost.style.left=bM2X(s)+"px";ghost.style.width=bM2X(e2-s)+"px";ghost.dataset.s=s;ghost.dataset.e=e2;};
+        const up=()=>{window.removeEventListener("pointermove",mv);window.removeEventListener("pointerup",up);
+          if(ghost){const s=+ghost.dataset.s,e2=+ghost.dataset.e;
+            if(e2-s>=15){B.blocks.push({lane,job:B.selJob,start:s,end:e2});bRender();}else bRender();}
+        };
+        window.addEventListener("pointermove",mv);window.addEventListener("pointerup",up);
+      }
+    });
+  });
+  document.querySelectorAll(".block").forEach(blk=>blk.addEventListener("dblclick",()=>{
+    const[lb,bi]=blk.dataset.bi.split("-").map(Number);
+    const laneBlocks=B.blocks.filter(y=>y.lane===lb);
+    B.blocks=B.blocks.filter(y=>y!==laneBlocks[bi]);bRender();
+  }));
+}
+function bRenderLite(track,ob,bi){ // cheap live update while dragging
+  const blk=track.querySelector(`[data-bi="${ob.lane}-${bi}"]`);
+  if(blk){blk.style.left=bM2X(ob.start)+"px";blk.style.width=bM2X(ob.end-ob.start)+"px";}
+}
+bRender();
+
+/* ---------------- MODEL C: retro ---------------- */
+const C={
+  rows:[
+    {worker:0,job:0,start:t2m("09:00"),end:t2m("10:30")},
+    {worker:0,job:3,start:t2m("10:00"),end:t2m("11:30")},
+    {worker:2,job:2,start:t2m("13:00"),end:t2m("14:30")},
+  ],
+};
+document.getElementById("rWho").innerHTML=WORKERS.map(w=>`<option value="${w.id}">${w.name} · ${w.kind}</option>`).join("");
+document.getElementById("rJob").innerHTML=JOBS.map(j=>`<option value="${j.id}">${j.name}</option>`).join("");
+function cRender(){
+  document.getElementById("rrows").innerHTML=C.rows.map((r,i)=>{
+    const j=job(r.job);
+    const bad=C.rows.some((o,oi)=>oi!==i&&o.worker===r.worker&&o.job===r.job&&r.start<o.end&&o.start<r.end);
+    return `<div class="rrow ${bad?"bad":""}"><span class="dot" style="background:${j.color}"></span>
+      <span class="who">${WORKERS[r.worker].name}</span><span>${j.name}</span>
+      <span class="rng">${m2t2(r.start)}–${m2t2(r.end)}</span><span class="dur">${m2s(r.end-r.start)}</span>
+      <button class="del" data-del="${i}">remove</button></div>`;
+  }).join("");
+  document.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{C.rows.splice(+b.dataset.del,1);cRender();}));
+  // mini strip 08:00–20:00
+  const S=t2m("08:00"),E=t2m("20:00"),W=E-S;
+  let strip=C.rows.map(r=>{const j=job(r.job);
+    const l=Math.max(0,(r.start-S)/W*100),w=(Math.min(r.end,E)-Math.max(r.start,S))/W*100;
+    return `<div class="mb" style="left:${l}%;width:${w}%;background:${j.color}" title="${WORKERS[r.worker].name} · ${j.name}"></div>`;}).join("");
+  // overlap seams on strip (same worker)
+  WORKERS.forEach(w=>{const ivs=C.rows.filter(r=>r.worker===w.id);
+    const depth=new Array(E-S+1).fill(0);
+    ivs.forEach(r=>{for(let m=Math.max(r.start,S);m<Math.min(r.end,E);m++)depth[m-S]++;});
+    let m=0;while(m<depth.length){if(depth[m]>=2){const st=m;while(m<depth.length&&depth[m]>=2)m++;
+      strip+=`<div class="mo" style="left:${st/depth.length*100}%;width:${(m-st)/depth.length*100}%"></div>`;}else m++;}});
+  document.getElementById("rstrip").innerHTML=strip;
+  document.getElementById("dmC").innerHTML=dmHTML(dayMath(C.rows.filter(r=>r.worker===0)),"You");
+}
+document.getElementById("rAdd").addEventListener("click",()=>{
+  const w=+document.getElementById("rWho").value,j=+document.getElementById("rJob").value;
+  const s=t2m(document.getElementById("rStart").value),e=t2m(document.getElementById("rEnd").value);
+  const err=document.getElementById("rErr");
+  if(e<=s){err.textContent="End has to come after start — this range is empty.";err.classList.add("show");return;}
+  if(C.rows.some(o=>o.worker===w&&o.job===j&&s<o.end&&o.start<e)){
+    err.textContent="Same job already covers part of that range for this worker — that bills one client twice for the same minutes. Fix the times.";err.classList.add("show");return;}
+  err.classList.remove("show");C.rows.push({worker:w,job:j,start:s,end:e});cRender();
+});
+cRender();
+</script>
+</body>
+</html>

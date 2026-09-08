@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reporting & admin dashboard sketches — concurrent timesheeting</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#14161B; --panel:#1D2026; --panel2:#23262D; --line:#31353E;
+  --text:#EAE7E0; --muted:#9297A1; --faint:#5C616B;
+  --j1:#5B8DEF; --j2:#E8735F; --j3:#7FB069; --j4:#D9A441; --j5:#A47CE8;
+  --err:#E8735F; --pos:#7FB069;
+  --disp:'Space Grotesk',system-ui,sans-serif;
+  --body:'Inter',system-ui,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{color-scheme:dark}
+body{background:var(--ink);color:var(--text);font-family:var(--body);font-size:14px;line-height:1.5;min-height:100vh}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--j1);outline-offset:2px;border-radius:4px}
+.wrap{max-width:1180px;margin:0 auto;padding:40px 24px 80px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--disp);font-weight:700;font-size:30px;line-height:1.18;margin:10px 0 8px;letter-spacing:-.01em}
+.sub{color:var(--muted);max-width:68ch}
+.sub em{font-style:normal;color:var(--text)}
+.sketchflag{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--faint);border:1px solid var(--line);border-radius:3px;padding:2px 7px;margin-left:10px;vertical-align:middle}
+
+/* tabs */
+.tabs{display:flex;gap:4px;margin:32px 0 0;border-bottom:1px solid var(--line)}
+.tab{font-family:var(--disp);font-weight:500;font-size:15px;padding:10px 18px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--j1)}
+.tab .n{font-family:var(--mono);font-size:10px;color:var(--faint);margin-right:8px}
+.panel{display:none;padding-top:26px}
+.panel.active{display:block}
+.modeldesc{color:var(--muted);max-width:72ch;margin-bottom:18px}
+.modeldesc strong{color:var(--text);font-weight:600}
+
+/* signature: reconciliation trio (billable / honest / premium) */
+.trio{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;font-family:var(--mono);font-size:11px;background:var(--panel)}
+.trio .seg{padding:5px 10px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:1px}
+.trio .seg:last-child{border-right:none}
+.trio .k{color:var(--muted);font-size:9px;letter-spacing:.08em;text-transform:uppercase}
+.trio .v{color:var(--text);font-size:13px;font-weight:600;font-variant-numeric:tabular-nums}
+.trio .seg.b .v{color:var(--pos)}
+.trio .seg.h .v{color:var(--text)}
+.trio .seg.p .v{color:var(--j4)}
+
+/* KPI tiles (admin top strip) */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.kpi .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.kpi .v{font-family:var(--disp);font-weight:700;font-size:24px;color:var(--text);margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi .subk{font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:2px}
+
+/* card */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:18px}
+.card h2{font-family:var(--disp);font-size:15px;font-weight:600;display:flex;align-items:center;gap:10px}
+.card h2 .meta{font-family:var(--mono);font-size:10px;color:var(--faint);font-weight:400;margin-left:auto}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);font-weight:500}
+td{padding:9px 10px;border-bottom:1px solid #262a31;font-family:var(--mono);font-size:12px}
+tr:last-child td{border-bottom:none}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+td .who{color:var(--text);font-family:var(--body);font-size:13px}
+.wtag{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;border-radius:3px;padding:2px 6px;display:inline-block}
+.wtag.human{background:#233247;color:var(--j1)}
+.wtag.agent{background:#2b2340;color:var(--j5)}
+
+/* utilization bar (per worker, in roster) */
+.ubar{display:flex;align-items:center;gap:6px}
+.ubar .track{flex:1;height:8px;background:var(--panel2);border-radius:3px;overflow:hidden;position:relative}
+.ubar .fill{height:100%;background:var(--j1)}
+.ubar .fill.high{background:var(--j4)}
+.ubar .val{font-family:var(--mono);font-size:11px;color:var(--muted);width:60px;text-align:right;font-variant-numeric:tabular-nums}
+
+/* period selector */
+.period{display:flex;gap:8px;align-items:center;margin-bottom:18px;padding:10px 14px;background:var(--panel);border:1px solid var(--line);border-radius:8px}
+.period .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);margin-right:4px}
+.period button{font-family:var(--mono);font-size:12px;color:var(--muted);padding:5px 10px;border-radius:5px;border:1px solid var(--line)}
+.period button.sel{color:var(--text);background:var(--panel2);border-color:var(--faint)}
+.period .spacer{flex:1}
+.period .export{display:flex;gap:6px}
+.export-btn{font-family:var(--mono);font-size:11px;color:var(--text);padding:5px 12px;border-radius:5px;border:1px solid var(--line);background:var(--panel2)}
+.export-btn:hover{border-color:var(--faint)}
+
+/* reconciliation bar (per client) */
+.recon{display:flex;align-items:center;gap:8px;margin:6px 0;font-family:var(--mono);font-size:11px}
+.recon .nm{width:160px;color:var(--text);font-family:var(--body);font-size:13px}
+.recon .barwrap{flex:1;height:18px;background:var(--panel2);border-radius:4px;position:relative;overflow:hidden}
+.recon .bar{position:absolute;top:0;height:100%;border-radius:3px}
+.recon .bar.honest{background:var(--j3);opacity:.85}
+.recon .bar.billable{background:var(--j1)}
+.recon .bar .lbl{position:absolute;top:1px;left:6px;font-size:10px;color:#0e1013;font-weight:600;font-variant-numeric:tabular-nums}
+.recon .nums{width:200px;text-align:right;color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums}
+.recon .nums b{color:var(--text);font-weight:600}
+
+/* lanes (operator, same vocabulary as entry-ux) */
+.lane{display:flex;align-items:stretch;margin-bottom:10px}
+.lanehead{width:130px;flex:none;padding-right:14px;display:flex;flex-direction:column;justify-content:center;gap:3px}
+.lanehead .nm{font-family:var(--disp);font-size:14px;font-weight:600}
+.lanehead .tg{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+.lanemath{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:4px;line-height:1.6}
+.lanemath .p{color:var(--j4)}
+.track{position:relative;flex:1;height:46px;background:repeating-linear-gradient(90deg,var(--panel) 0, var(--panel) calc(1.6px*60 - 1px), #22252c calc(1.6px*60 - 1px), #22252c 1.6px*60);border:1px solid #262a31;border-radius:6px}
+.block{position:absolute;top:4px;height:38px;border-radius:5px;display:flex;align-items:center;padding:0 8px;font-family:var(--mono);font-size:10px;color:#0e1013;font-weight:600;white-space:nowrap;overflow:hidden}
+.ovl{position:absolute;bottom:2px;height:8px;border-radius:2px;background:repeating-linear-gradient(45deg,transparent 0 3px,rgba(0,0,0,.55) 3px 5px);pointer-events:none}
+.ovltag{position:absolute;font-family:var(--mono);font-size:9px;color:var(--j4);background:#241f16;border:1px solid #4a3f2e;border-radius:3px;padding:0 5px;transform:translate(-50%,0);pointer-events:none;top:1px}
+
+/* nested structure tree (admin) */
+.tree{font-family:var(--mono);font-size:12px;line-height:2}
+.tree .cl{color:var(--text);font-weight:600;padding:6px 0;border-bottom:1px dashed var(--line)}
+.tree .pj{padding-left:18px;color:var(--muted);padding:4px 0;border-bottom:1px dotted #262a31}
+.tree .jb{padding-left:36px;color:var(--muted);padding:4px 0;border-bottom:1px dotted #262a31;display:flex;align-items:center;gap:8px}
+.tree .rate{margin-left:auto;color:var(--pos);font-variant-numeric:tabular-nums}
+
+/* structure tag colors */
+.tag{padding:0 6px;border-radius:3px;font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);margin-right:6px}
+
+/* per-worker stacked bar (admin mini chart) */
+.daybar{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;margin:4px 0}
+.daybar .nm{width:110px;color:var(--text);font-family:var(--body);font-size:13px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.daybar .barwrap{flex:1;height:14px;background:var(--panel2);border-radius:3px;overflow:hidden;display:flex}
+.daybar .seg{height:100%}
+.daybar .nums{width:140px;text-align:right;color:var(--muted);font-variant-numeric:tabular-nums;font-size:11px}
+
+/* footer rules */
+.rulesfoot{margin-top:48px;border-top:1px solid var(--line);padding-top:18px;font-family:var(--mono);font-size:11px;color:var(--faint);line-height:1.9}
+.rulesfoot b{color:var(--muted);font-weight:500}
+.section-head{font-family:var(--disp);font-weight:500;font-size:14px;color:var(--text);margin:24px 0 12px;display:flex;align-items:center;gap:10px}
+.section-head .meta{font-family:var(--mono);font-size:10px;color:var(--faint);font-weight:400;margin-left:auto}
+.legend{display:flex;gap:14px;align-items:center;margin:0 0 12px;font-family:var(--mono);font-size:10px;color:var(--muted)}
+.legend .sw{width:10px;height:10px;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle}
+
+/* sub-tabs (inside Billing) */
+.subtabs{display:flex;gap:4px;margin-bottom:18px;border-bottom:1px solid var(--line)}
+.subtab{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:8px 14px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.subtab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--j1)}
+.subpanel{display:none}
+.subpanel.active{display:block}
+
+/* daily breakdown table */
+.dailytable{margin-top:8px}
+.dailycell{font-family:var(--mono);font-size:11px;line-height:1.5;font-variant-numeric:tabular-nums;white-space:nowrap}
+.dailycell .b{color:var(--pos)}
+.dailycell .h{color:var(--text)}
+.dailycell .p{color:var(--j4)}
+.dailycell.empty{color:var(--faint);text-align:center;font-family:var(--mono)}
+.dailytable tr.total td{border-top:1px solid var(--line);padding-top:12px}
+.dailytable tr.total td .b,.dailytable tr.total td .h,.dailytable tr.total td .p{font-weight:600}
+.dailytable td.daylabel{color:var(--text);font-family:var(--body);font-size:13px;font-weight:500}
+.dailytable td.daylabel .dayrel{font-family:var(--mono);font-size:9px;color:var(--faint);display:block;margin-top:2px;letter-spacing:.05em;text-transform:uppercase;font-weight:400}
+.dailytable tbody tr:hover{background:var(--panel2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Concurrent timesheeting · reporting sketches</div>
+  <h1>Reporting, billing, and operator dashboards <span class="sketchflag">ROUGH SKETCH · DEMO DATA</span></h1>
+  <p class="sub">Three views, all derived from the same <em>intervals</em> table. The signature everywhere is the <em>reconciliation trio</em>: billable / honest / premium — because that's what every reader needs to see to trust the number. Role-gated: operators see time only, billing sees money, admin sees everything.</p>
+
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="true" id="tab-a" data-panel="pA"><span class="n">A</span>Admin</button>
+    <button class="tab" role="tab" aria-selected="false" id="tab-b" data-panel="pB"><span class="n">B</span>Billing</button>
+    <button class="tab" role="tab" aria-selected="false" id="tab-c" data-panel="pC"><span class="n">C</span>Operator</button>
+  </div>
+
+  <!-- ============ A: ADMIN ============ -->
+  <section class="panel active" id="pA" role="tabpanel">
+    <p class="modeldesc"><strong>Admin view.</strong> Sees everything — workers, structure, money. KPI tiles for at-a-glance, roster for who's working, structure tree for what's billable.</p>
+
+    <div class="kpis" id="kpis"></div>
+
+    <div class="card">
+      <h2>Worker roster <span class="meta">supervision · last-7d utilization</span></h2>
+      <table id="roster"><thead><tr>
+        <th>Name</th><th>Kind</th><th>Role</th><th>Supervisor</th><th style="width:30%">Utilization (7d)</th><th class="num">Billable (7d)</th>
+      </tr></thead><tbody></tbody></table>
+    </div>
+
+    <div class="card">
+      <h2>Today's concurrent effort <span class="meta">per worker, today's intervals</span></h2>
+      <div class="legend"><span><span class="sw" style="background:var(--j1)"></span>job</span><span><span class="sw" style="background:repeating-linear-gradient(45deg,transparent 0 3px,rgba(0,0,0,.55) 3px 5px)"></span>overlap</span></div>
+      <div id="daybars"></div>
+    </div>
+
+    <div class="card">
+      <h2>Structure <span class="meta">clients → projects → jobs · rates</span></h2>
+      <div class="tree" id="tree"></div>
+    </div>
+  </section>
+
+  <!-- ============ B: BILLING ============ -->
+  <section class="panel" id="pB" role="tabpanel">
+    <p class="modeldesc"><strong>Billing view.</strong> Reconciliation is the headline — every per-client number shows billable, honest, and the premium between them. Two ways into the data: <em>Reconciliation</em> for period totals, <em>Daily</em> for day-by-day.</p>
+
+    <div class="period">
+      <span class="lbl">Period</span>
+      <button class="sel" data-per="week">This week</button>
+      <button data-per="month">This month</button>
+      <button data-per="qtr">This quarter</button>
+      <button data-per="custom">Custom…</button>
+      <span class="spacer"></span>
+      <span class="export">
+        <button class="export-btn">Export CSV</button>
+        <button class="export-btn">Export PDF</button>
+      </span>
+    </div>
+
+    <div class="subtabs" role="tablist">
+      <button class="subtab" role="tab" aria-selected="true" id="subt-recon" data-sub="subRecon">Reconciliation</button>
+      <button class="subtab" role="tab" aria-selected="false" id="subt-daily" data-sub="subDaily">Daily</button>
+    </div>
+
+    <!-- Reconciliation sub-tab: period totals per client -->
+    <div class="subpanel active" id="subRecon" role="tabpanel">
+
+      <div class="card">
+        <h2>Per-client reconciliation <span class="meta">duplicate-attribution vs wall-clock</span></h2>
+        <table id="clientrecon"><thead><tr>
+          <th>Client</th><th class="num">Projects</th><th class="num">Billable hrs</th><th class="num">Wall-clock hrs</th><th class="num">Premium hrs</th><th class="num">Total $</th>
+        </tr></thead><tbody></tbody></table>
+        <div id="reconbars" style="margin-top:14px"></div>
+      </div>
+
+      <div class="card">
+        <h2>Org-wide reconciliation <span class="meta">what bills vs what actually happened</span></h2>
+        <div id="orgrecon" style="display:flex;gap:18px;align-items:center;flex-wrap:wrap"></div>
+      </div>
+    </div>
+
+    <!-- Daily sub-tab: per-day per-client breakdown -->
+    <div class="subpanel" id="subDaily" role="tabpanel">
+      <div class="card">
+        <h2>Daily breakdown <span class="meta">days × clients · billable / honest / premium per cell</span></h2>
+        <div class="legend">
+          <span><span class="sw" style="background:var(--pos)"></span>billable</span>
+          <span><span class="sw" style="background:var(--text)"></span>wall-clock</span>
+          <span><span class="sw" style="background:var(--j4)"></span>premium</span>
+        </div>
+        <table class="dailytable" id="dailytable">
+          <thead><tr id="dailytable-head"></tr></thead>
+          <tbody></tbody>
+          <tfoot></tfoot>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ C: OPERATOR ============ -->
+  <section class="panel" id="pC" role="tabpanel">
+    <p class="modeldesc"><strong>Operator view.</strong> Self + supervisees only, time only — no money, no rates. Same day-math chips everywhere. The signature is the lane + day-math trio: a worker × day view, not money.</p>
+
+    <div class="card">
+      <h2>Today, self + supervisees <span class="meta">read-only · the entry surface lives elsewhere</span></h2>
+      <div class="legend"><span><span class="sw" style="background:var(--j1)"></span>block</span><span><span class="sw" style="background:repeating-linear-gradient(45deg,transparent 0 3px,rgba(0,0,0,.55) 3px 5px)"></span>overlap</span></div>
+      <div id="oplanes"></div>
+    </div>
+  </section>
+
+  <div class="rulesfoot">
+    RULES IN FORCE (tickets #4 #5 #7 #11)<br>
+    <b>single truth</b> · intervals → billing (duplicate sum) + honest (union) + premium (difference) &nbsp;·&nbsp; <b>role gating</b> · operator sees time only, billing sees money, admin sees all &nbsp;·&nbsp; <b>day math trio</b> · the disclosure posture (CA 1996-147) — premium is always visible wherever a number is shown &nbsp;·&nbsp; <b>reporting is a view</b> · nothing stored that can be derived
+  </div>
+</div>
+
+<script>
+/* -------- shared data (mirrors entry-ux style; demo only) -------- */
+const JOBS=[
+  {id:'j_roll', name:'Atlas rollout',    color:'#5B8DEF', rate:150},
+  {id:'j_qa',   name:'Corpus QA sweep',  color:'#E8735F', rate:175},
+  {id:'j_mig',  name:'Migration bench',  color:'#7FB069', rate:200},
+  {id:'j_docs', name:'Onboarding docs',  color:'#D9A441', rate:125},
+  {id:'j_eval', name:'Nightly evals',    color:'#A47CE8', rate:100},
+];
+const WORKERS=[
+  {id:'w_you',    name:'You',     kind:'human', role:'operator', supervisor:null},
+  {id:'w_atlas7', name:'Atlas-7', kind:'agent',  role:null,       supervisor:'w_you'},
+  {id:'w_beacon', name:'Beacon',  kind:'agent',  role:null,       supervisor:'w_you'},
+  {id:'w_ravi',   name:'Ravi',    kind:'human', role:'operator', supervisor:null},
+  {id:'w_dana',   name:'Dana',    kind:'human', role:'admin',    supervisor:null},
+];
+const CLIENTS=[
+  {id:'c_north',   name:'Northwind'},
+  {id:'c_contoso', name:'Contoso'},
+];
+const PROJECTS=[
+  {id:'p_north_onb', client:'c_north',   name:'Onboarding'},
+  {id:'p_north_mig', client:'c_north',   name:'Migration bench'},
+  {id:'p_contoso_qa',client:'c_contoso', name:'QA sweep'},
+];
+const JOBJ={
+  j_roll:{project:'p_north_onb'}, j_qa:{project:'p_contoso_qa'},
+  j_mig:{project:'p_north_mig'},  j_docs:{project:'p_north_onb'},
+  j_eval:{project:'p_north_onb'},
+};
+// Intervals across the current week (Mon 31 Aug – Sun 6 Sep, 2026).
+// `d` is the day offset from today (Sun 6 Sep): d=0 is today, d=-1 yesterday, etc.
+// `s` and `e` are minutes from midnight in the org timezone.
+const DAYS=[
+  {d:0,  label:'Today',     date:'Sun 6 Sep'},
+  {d:-1, label:'Yesterday', date:'Sat 5 Sep'},
+  {d:-2, label:'2d ago',    date:'Fri 4 Sep'},
+  {d:-3, label:'3d ago',    date:'Thu 3 Sep'},
+  {d:-4, label:'4d ago',    date:'Wed 2 Sep'},
+  {d:-5, label:'5d ago',    date:'Tue 1 Sep'},
+  {d:-6, label:'6d ago',    date:'Mon 31 Aug'},
+];
+const IV=[
+  // Sun 6 Sep (today, d=0): heavy overlap, multiple clients
+  {d:0, w:'w_you',    j:'j_roll', s:540,  e:660},
+  {d:0, w:'w_you',    j:'j_eval', s:600,  e:720},
+  {d:0, w:'w_you',    j:'j_mig',  s:780,  e:960},
+  {d:0, w:'w_you',    j:'j_docs', s:840,  e:900},
+  {d:0, w:'w_atlas7', j:'j_roll', s:600,  e:840},
+  {d:0, w:'w_atlas7', j:'j_qa',   s:660,  e:780},
+  {d:0, w:'w_atlas7', j:'j_mig',  s:900,  e:1020},
+  {d:0, w:'w_beacon', j:'j_qa',   s:540,  e:720},
+  {d:0, w:'w_beacon', j:'j_eval', s:600,  e:660},
+  {d:0, w:'w_ravi',   j:'j_mig',  s:540,  e:840},
+  {d:0, w:'w_ravi',   j:'j_docs', s:870,  e:960},
+  // Sat 5 Sep (d=-1): quiet
+  {d:-1, w:'w_you',   j:'j_docs', s:600,  e:720},
+  // Fri 4 Sep (d=-2): busy
+  {d:-2, w:'w_you',    j:'j_roll', s:540,  e:780},
+  {d:-2, w:'w_you',    j:'j_eval', s:600,  e:720},
+  {d:-2, w:'w_atlas7', j:'j_qa',   s:540,  e:780},
+  {d:-2, w:'w_atlas7', j:'j_roll', s:780,  e:900},
+  {d:-2, w:'w_beacon', j:'j_mig',  s:600,  e:840},
+  {d:-2, w:'w_ravi',   j:'j_mig',  s:540,  e:720},
+  {d:-2, w:'w_ravi',   j:'j_docs', s:780,  e:900},
+  // Thu 3 Sep (d=-3): heavy, lots of overlap
+  {d:-3, w:'w_you',    j:'j_roll', s:540,  e:1020},
+  {d:-3, w:'w_you',    j:'j_eval', s:600,  e:780},
+  {d:-3, w:'w_you',    j:'j_docs', s:780,  e:900},
+  {d:-3, w:'w_you',    j:'j_qa',   s:900,  e:1020},
+  {d:-3, w:'w_atlas7', j:'j_mig',  s:540,  e:1020},
+  {d:-3, w:'w_atlas7', j:'j_qa',   s:600,  e:720},
+  {d:-3, w:'w_ravi',   j:'j_docs', s:540,  e:840},
+  {d:-3, w:'w_beacon', j:'j_qa',   s:540,  e:780},
+  // Wed 2 Sep (d=-4): busy
+  {d:-4, w:'w_you',    j:'j_roll', s:540,  e:780},
+  {d:-4, w:'w_you',    j:'j_mig',  s:780,  e:960},
+  {d:-4, w:'w_atlas7', j:'j_qa',   s:540,  e:780},
+  {d:-4, w:'w_beacon', j:'j_eval', s:600,  e:900},
+  {d:-4, w:'w_ravi',   j:'j_mig',  s:600,  e:840},
+  // Tue 1 Sep (d=-5): busy
+  {d:-5, w:'w_you',    j:'j_roll', s:540,  e:840},
+  {d:-5, w:'w_you',    j:'j_qa',   s:660,  e:780},
+  {d:-5, w:'w_atlas7', j:'j_mig',  s:600,  e:960},
+  {d:-5, w:'w_atlas7', j:'j_roll', s:540,  e:600},
+  {d:-5, w:'w_ravi',   j:'j_mig',  s:540,  e:720},
+  {d:-5, w:'w_ravi',   j:'j_docs', s:780,  e:900},
+  // Mon 31 Aug (d=-6): moderate, Northwind only
+  {d:-6, w:'w_you',    j:'j_docs', s:540,  e:780},
+  {d:-6, w:'w_ravi',   j:'j_mig',  s:540,  e:840},
+  {d:-6, w:'w_atlas7', j:'j_roll', s:600,  e:840},
+];
+
+const PXMIN=1.6, T0=9*60, T1=17*60, W=T1-T0;
+const j=j=>JOBS[Object.keys(JOBS).find(k=>JOBS[k]&&JOBS[k].id===j.id)||j]||JOBS.find(x=>x.id===j);
+const jOf=id=>JOBS.find(x=>x.id===id);
+const wOf=id=>WORKERS.find(x=>x.id===id);
+const cOf=id=>CLIENTS.find(x=>x.id===id);
+const pOf=id=>PROJECTS.find(x=>x.id===id);
+const m2s=m=>{m=Math.round(m);const h=Math.floor(m/60),r=m%60;return h?`${h}h ${r?String(r).padStart(2,"0")+"m":""}`.trim():`${r}m`};
+const m2d=m=>(m/60).toFixed(2)+'h';
+const $=(s,e)=>`$${(s*e).toLocaleString('en-US',{maximumFractionDigits:0})}`;
+function dayMath(intervals){
+  if(!intervals.length)return{wall:0,effort:0,premium:0};
+  const effort=intervals.reduce((s,i)=>s+(i.e-i.s),0);
+  const pts=[];intervals.forEach(i=>{pts.push([i.s,1],[i.e,-1])});
+  pts.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  let depth=0,wall=0,last=null;
+  pts.forEach(([t,d])=>{if(last!==null&&depth>0)wall+=t-last;depth+=d;last=t;});
+  return{wall,effort,premium:effort-wall};
+}
+
+/* -------- tabs -------- */
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.setAttribute("aria-selected","false"));
+  document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+  t.setAttribute("aria-selected","true");
+  document.getElementById(t.dataset.panel).classList.add("active");
+}));
+
+/* -------- A: ADMIN -------- */
+function renderKpis(){
+  const w=WORKERS.length, c=CLIENTS.length, p=PROJECTS.length;
+  const todayIvs=IV.filter(i=>i.d===0);
+  const totalBillableMins=todayIvs.reduce((s,i)=>s+(i.e-i.s),0);
+  const dm=dayMath(IV);
+  const billable$ = todayIvs.reduce((s,i)=>{
+    const rate=jOf(i.j)?jOf(i.j).rate:0; return s+(i.e-i.s)*rate/60;
+  },0);
+  document.getElementById("kpis").innerHTML=`
+    <div class="kpi"><div class="k">Workers</div><div class="v">${w}</div><div class="subk">${WORKERS.filter(x=>x.kind==='human').length} humans · ${WORKERS.filter(x=>x.kind==='agent').length} agents</div></div>
+    <div class="kpi"><div class="k">Structure</div><div class="v">${c} / ${p} / ${JOBS.length}</div><div class="subk">clients / projects / jobs</div></div>
+    <div class="kpi"><div class="k">Billable today</div><div class="v">${$(billable$,1)}</div><div class="subk">${m2s(totalBillableMins)} logged</div></div>
+    <div class="kpi"><div class="k">Premium this week</div><div class="v" style="color:var(--j4)">${m2d(dm.premium/60)}</div><div class="subk">${WORKERS.length} workers</div></div>
+    <div class="kpi"><div class="k">Avg utilization (7d)</div><div class="v">68%</div><div class="subk">wall-clock / available</div></div>`;
+}
+function renderRoster(){
+  const tbody=document.querySelector("#roster tbody");
+  tbody.innerHTML=WORKERS.map(w=>{
+    const sup = w.supervisor ? wOf(w.supervisor)?.name : '—';
+    const ivs=IV.filter(i=>i.w===w.id);
+    const billMins=ivs.reduce((s,i)=>s+(i.e-i.s),0);
+    const util = billMins ? Math.min(100, billMins/W*100*5/7) : 0; // demo: 7d-equiv
+    return `<tr>
+      <td><span class="who">${w.name}</span></td>
+      <td><span class="wtag ${w.kind}">${w.kind}</span></td>
+      <td>${w.role||'—'}</td>
+      <td>${sup}</td>
+      <td><div class="ubar"><div class="track"><div class="fill ${util>90?'high':''}" style="width:${util}%"></div></div><div class="val">${util.toFixed(0)}%</div></div></td>
+      <td class="num">${m2s(billMins)}</td></tr>`;
+  }).join("");
+}
+function renderDayBars(){
+  const el=document.getElementById("daybars");
+  el.innerHTML=WORKERS.map(w=>{
+    const ivs=IV.filter(i=>i.w===w.id && i.d===0);
+    const dm=dayMath(ivs);
+    const segs=ivs.map(i=>{
+      const l=(i.s-T0)/W*100,wid=(i.e-i.s)/W*100,jb=jOf(i.j);
+      return `<div class="seg" style="left:${l}%;position:absolute;top:0;height:100%;width:${wid}%;background:${jb.color};display:flex;align-items:center;padding:0 4px;font-size:9px;color:#0e1013;font-weight:600;overflow:hidden;white-space:nowrap">${jb.name}</div>`;
+    }).join("");
+    // overlap zones
+    const depth=new Array(W+1).fill(0); ivs.forEach(i=>{for(let m=i.s-T0;m<i.e-T0;m++)depth[m]++;});
+    let m=0,ovls="";
+    while(m<=W){
+      if(depth[m]>=2){let s=m;while(m<=W&&depth[m]>=2)m++;
+        ovls+=`<div class="seg" style="left:${s/W*100}%;position:absolute;top:0;height:100%;width:${(m-s)/W*100}%;background:repeating-linear-gradient(45deg,transparent 0 3px,rgba(0,0,0,.55) 3px 5px);pointer-events:none"></div>`;}
+      else m++;
+    }
+    return `<div class="daybar">
+      <div class="nm">${w.name}</div>
+      <div class="barwrap" style="position:relative;height:18px">${segs}${ovls}</div>
+      <div class="nums">${m2s(dm.wall)} · <span style="color:var(--j4)">+${m2s(dm.premium)}</span> · ${m2s(dm.effort)} effort</div>
+    </div>`;
+  }).join("");
+}
+function renderTree(){
+  const tree=document.getElementById("tree");
+  tree.innerHTML=CLIENTS.map(c=>{
+    const ps=PROJECTS.filter(p=>p.client===c.id);
+    return `<div class="cl">${c.name}</div>`+ps.map(p=>{
+      const js=JOBS.filter(j=>JOBJ[j.id]?.project===p.id);
+      return `<div class="pj">${p.name}</div>`+js.map(j=>`<div class="jb"><span class="dot" style="background:${j.color};width:8px;height:8px;border-radius:2px"></span>${j.name}<span class="rate">${$(j.rate,1)}/hr</span></div>`).join("");
+    }).join("");
+  }).join("");
+}
+renderKpis();renderRoster();renderDayBars();renderTree();
+
+/* -------- B: BILLING -------- */
+function renderBilling(){
+  // aggregate per-client
+  const perClient={};
+  CLIENTS.forEach(c=>perClient[c.id]={projects:new Set(),billableMins:0,wallMins:0,premiumMins:0,dollars:0,jobs:new Set()});
+  IV.forEach(i=>{
+    const jb=jOf(i.j); const p=pOf(JOBJ[i.j].project); const c=cOf(p.client);
+    perClient[c.id].projects.add(p.id); perClient[c.id].jobs.add(i.j);
+    perClient[c.id].billableMins+=(i.e-i.s);
+    perClient[c.id].dollars+=(i.e-i.s)/60*jb.rate;
+  });
+  // per-client wall + premium: union of intervals, but per-client per-worker
+  CLIENTS.forEach(c=>{
+    const wIds=[...new Set(IV.filter(i=>{const p=pOf(JOBJ[i.j].project);return p.client===c.id;}).map(i=>i.w))];
+    let billable=0,wall=0;
+    wIds.forEach(wid=>{
+      const ivs=IV.filter(i=>i.w===wid && pOf(JOBJ[i.j].project).client===c.id);
+      billable+=ivs.reduce((s,i)=>s+(i.e-i.s),0);
+      wall+=dayMath(ivs).wall;
+    });
+    perClient[c.id].billableMins=billable;
+    perClient[c.id].wallMins=wall;
+    perClient[c.id].premiumMins=billable-wall;
+  });
+  const tb=document.querySelector("#clientrecon tbody");
+  tb.innerHTML=CLIENTS.map(c=>{
+    const x=perClient[c.id];
+    return `<tr><td><span class="who">${c.name}</span></td>
+      <td class="num">${x.projects.size}</td>
+      <td class="num">${m2d(x.billableMins/60)}</td>
+      <td class="num">${m2d(x.wallMins/60)}</td>
+      <td class="num" style="color:var(--j4)">${m2d(x.premiumMins/60)}</td>
+      <td class="num">${$(x.dollars/60,60)}</td></tr>`;
+  }).join("");
+  // reconciliation bars
+  const maxB=Math.max(...Object.values(perClient).map(x=>x.billableMins));
+  document.getElementById("reconbars").innerHTML=CLIENTS.map(c=>{
+    const x=perClient[c.id];
+    const wPx=Math.max(40,(x.billableMins/maxB)*100);
+    const hPx=Math.max(0,(x.wallMins/maxB)*100);
+    return `<div class="recon">
+      <div class="nm">${c.name}</div>
+      <div class="barwrap">
+        <div class="bar billable" style="left:0;width:${wPx}%"><span class="lbl">${m2d(x.billableMins/60)}</span></div>
+        <div class="bar honest" style="left:0;width:${hPx}%;opacity:.5"></div>
+      </div>
+      <div class="nums"><b>${$(x.dollars/60,60)}</b> &nbsp;·&nbsp; <span style="color:var(--j4)">+${m2d(x.premiumMins/60)} premium</span></div>
+    </div>`;
+  }).join("");
+  // org total trio
+  const allIvs=IV;
+  const billable=dayMath(allIvs).effort, wall=dayMath(allIvs).wall, premium=billable-wall;
+  const total$=allIvs.reduce((s,i)=>s+(i.e-i.s)/60*jOf(i.j).rate,0);
+  document.getElementById("orgrecon").innerHTML=`
+    <div class="trio">
+      <div class="seg b"><div class="k">Billable</div><div class="v">${m2d(billable/60)}</div></div>
+      <div class="seg h"><div class="k">Wall-clock</div><div class="v">${m2d(wall/60)}</div></div>
+      <div class="seg p"><div class="k">Premium</div><div class="v">+${m2d(premium/60)}</div></div>
+    </div>
+    <div class="trio">
+      <div class="seg h"><div class="k">$ billable</div><div class="v">${$(total$/60,60)}</div></div>
+    </div>
+    <div style="font-family:var(--mono);font-size:11px;color:var(--muted);max-width:38ch;line-height:1.6">The premium is the disclosure — what billing books beyond actual time spent. Showing it everywhere is the audit posture from #7.</div>`;
+}
+renderBilling();
+
+/* -------- B (cont): DAILY SUB-TAB -------- */
+function dailyCell(dm){
+  if(!dm.effort && !dm.wall) return `<td class="dailycell empty">—</td>`;
+  return `<td class="dailycell">
+    <div class="b">${m2d(dm.effort/60)}</div>
+    <div class="h">${m2d(dm.wall/60)}</div>
+    <div class="p">+${m2d(dm.premium/60)}</div>
+  </td>`;
+}
+function renderDaily(){
+  // header: Day | Northwind | Contoso | Day total
+  document.getElementById("dailytable-head").innerHTML =
+    `<th>Day</th>` + CLIENTS.map(c=>`<th class="num">${c.name}</th>`).join("") + `<th class="num">Day total</th>`;
+  // body: one row per day
+  const tbody=document.querySelector("#dailytable tbody");
+  tbody.innerHTML=DAYS.map(({d,label,date})=>{
+    const dayIvs=IV.filter(i=>i.d===d);
+    const clientCells=CLIENTS.map(c=>{
+      const ivs=dayIvs.filter(i=>pOf(JOBJ[i.j].project).client===c.id);
+      return dailyCell(dayMath(ivs));
+    }).join("");
+    const totalCell=dailyCell(dayMath(dayIvs));
+    const dim=dayIvs.length?"":"opacity:.4";
+    return `<tr style="${dim}"><td class="daylabel">${date}<span class="dayrel">${label}</span></td>${clientCells}${totalCell}</tr>`;
+  }).join("");
+  // footer: period totals
+  const tfoot=document.querySelector("#dailytable tfoot");
+  const totalCells=CLIENTS.map(c=>dailyCell(dayMath(IV.filter(i=>pOf(JOBJ[i.j].project).client===c.id)))).join("");
+  const grandCell=dailyCell(dayMath(IV));
+  tfoot.innerHTML=`<tr class="total"><td>Period total</td>${totalCells}${grandCell}</tr>`;
+}
+renderDaily();
+
+/* -------- C: OPERATOR -------- */
+function renderOperator(){
+  // operator sees self + supervisees; for demo, viewer = You, today only
+  const viewer='w_you';
+  const visible=WORKERS.filter(w=>w.id===viewer||w.supervisor===viewer);
+  const el=document.getElementById("oplanes");
+  el.innerHTML=visible.map(w=>{
+    const ivs=IV.filter(i=>i.w===w.id && i.d===0);
+    const dm=dayMath(ivs);
+    const blocks=ivs.map(i=>{
+      const jb=jOf(i.j);
+      const l=(i.s-T0)*PXMIN, wid=(i.e-i.s)*PXMIN;
+      return `<div class="block" style="left:${l}px;width:${wid}px;background:${jb.color}">${jb.name} <span style="opacity:.65;margin-left:6px">${m2s(i.e-i.s)}</span></div>`;
+    }).join("");
+    const depth=new Array(W+1).fill(0);ivs.forEach(i=>{for(let m=i.s-T0;m<i.e-T0;m++)depth[m]++;});
+    let m=0,ovls="";const tags=[];
+    while(m<=W){
+      if(depth[m]>=2){let s=m;while(m<=W&&depth[m]>=2)m++;
+        ovls+=`<div class="ovl" style="left:${s*PXMIN}px;width:${(m-s)*PXMIN}px"></div>`;
+        tags.push({x:(s+m)/2,n:Math.max(...depth.slice(s,m))});
+      } else m++;
+    }
+    const tagsHtml=tags.map(t=>`<div class="ovltag" style="left:${t.x*PXMIN}px">×${t.n}</div>`).join("");
+    return `<div class="lane">
+      <div class="lanehead"><span class="nm">${w.name}</span><span class="tg">${w.kind}${w.id!==viewer?' · supervised':''}</span>
+        <div class="lanemath">${m2s(dm.wall)} wall · ${m2s(dm.effort)} effort${dm.premium?` · <span class="p">+${m2s(dm.premium)} premium</span>`:''}</div>
+      </div>
+      <div class="track">${blocks}${ovls}${tagsHtml}</div>
+    </div>`;
+  }).join("");
+}
+renderOperator();
+
+/* period selector stub */
+document.querySelectorAll("[data-per]").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll("[data-per]").forEach(x=>x.classList.remove("sel"));
+  b.classList.add("sel");
+}));
+
+/* sub-tab switching (inside Billing) */
+document.querySelectorAll(".subtab").forEach(t=>t.addEventListener("click",()=>{
+  document.querySelectorAll(".subtab").forEach(x=>x.setAttribute("aria-selected","false"));
+  document.querySelectorAll(".subpanel").forEach(x=>x.classList.remove("active"));
+  t.setAttribute("aria-selected","true");
+  document.getElementById(t.dataset.sub).classList.add("active");
+}));
+</script>
+</body>
+</html>
