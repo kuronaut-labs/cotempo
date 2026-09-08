@@ -291,3 +291,39 @@ samp {
   border-radius: 3px;
   padding: 0 5px;
 }
+
+/* ---------- date nav ---------- */
+
+.datenav {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.datenav button {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: var(--muted);
+}
+
+.datenav button:hover {
+  color: var(--text);
+  border-color: var(--faint);
+}
+
+.datenav button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.datenav input[type='date'] {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 4px 8px;
+  font-family: var(--mono);
+}
