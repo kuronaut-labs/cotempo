@@ -1,7 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { DayMathChip } from '~/components/dayMathChip'
 import { DateNav } from '~/components/dateNav'
+import { IntervalList } from '~/components/intervalList'
 import { MiniStrip } from '~/components/miniStrip'
+import type { DayIntervalRow } from '~/server/services/intervals'
 
 // Dev-only fixture viewer: every UI primitive added in 4.4 renders here with
 // hard-coded props, so the reviewer can eye the visuals against the prototype
@@ -20,6 +22,45 @@ const intervals = [
   { id: 'i4', jobId: 'j3', startMs: dayStart + 22 * 3_600_000, endMs: dayStart + 26 * 3_600_000 },
 ]
 const colors: Record<string, number> = { j1: 1, j2: 2, j3: 4 }
+
+const listRows: DayIntervalRow[] = [
+  {
+    id: 'r1',
+    workerId: 'op-worker',
+    jobId: 'j1',
+    jobName: 'Pipeline Maintenance',
+    clientName: 'Acme Aerospace',
+    startedAt: new Date(dayStart + 9 * 3_600_000),
+    endedAt: new Date(dayStart + 11 * 3_600_000),
+    note: 'Reviewed pipeline logs',
+    editCount: 0,
+    createdBy: 'op-worker',
+  },
+  {
+    id: 'r2',
+    workerId: 'op-worker',
+    jobId: 'j2',
+    jobName: 'Eval Harness Runs',
+    clientName: 'Acme Aerospace',
+    startedAt: new Date(dayStart + 10 * 3_600_000 + 30 * 60_000),
+    endedAt: new Date(dayStart + 11 * 3_600_000 + 30 * 60_000),
+    note: null,
+    editCount: 2,
+    createdBy: 'op-worker',
+  },
+  {
+    id: 'r3',
+    workerId: 'agent-1',
+    jobId: 'j1',
+    jobName: 'Pipeline Maintenance',
+    clientName: 'Acme Aerospace',
+    startedAt: new Date(dayStart + 22 * 3_600_000),
+    endedAt: new Date(dayStart + 23 * 3_600_000 + 30 * 60_000),
+    note: 'Crew run',
+    editCount: 0,
+    createdBy: 'op-worker',
+  },
+]
 
 function DevComponents() {
   return (
@@ -44,6 +85,15 @@ function DevComponents() {
         <p style={{ marginTop: 8, fontSize: 11, color: 'var(--muted)' }}>
           Two overlapping (×2), one separate, one midnight-crossing (trailing clip).
         </p>
+      </section>
+      <section>
+        <h2 style={{ marginBottom: 8 }}>IntervalList</h2>
+        <IntervalList
+          rows={listRows}
+          canEdit={(workerId) => workerId === 'op-worker'}
+          onEdit={() => {}}
+          onDelete={() => {}}
+        />
       </section>
     </main>
   )

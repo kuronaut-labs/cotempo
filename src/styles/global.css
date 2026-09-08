@@ -385,3 +385,69 @@ samp {
   padding: 0 4px;
   line-height: 12px;
 }
+
+/* ---------- interval list (today view table) ---------- */
+
+.intervallist {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.intervallist thead th {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  padding: 6px 10px;
+}
+
+.intervallist tbody td {
+  border-bottom: 1px solid #262a31;
+  padding: 9px 10px;
+  vertical-align: middle;
+}
+
+.intervallist tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.intervallist .mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.intervallist-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.intervallist-actions button {
+  font-family: var(--mono);
+  font-size: 11px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 4px 10px;
+  color: var(--muted);
+}
+
+.intervallist-actions button:hover {
+  color: var(--text);
+  border-color: var(--faint);
+}
+
+.intervallist-empty {
+  padding: 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
