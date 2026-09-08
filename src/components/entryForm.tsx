@@ -13,7 +13,7 @@ type CreateInput = z.infer<typeof CreateIntervalInput>
 type UpdateInput = z.infer<typeof UpdateIntervalInput>
 type FormInput = CreateInput | UpdateInput
 
-type Initial = {
+export type Initial = {
   id?: string
   workerId?: string
   jobId?: string

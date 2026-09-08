@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { localDateOf } from '~/lib/dayMath'
 import { CreateIntervalInput, DayQuery, DeleteIntervalInput, ListIntervalsInput, UpdateIntervalInput } from '~/lib/schemas/intervals'
 import { authMw, ctxOf } from '~/server/middleware/authMw'
 import { getDb } from '~/server/db'
@@ -31,3 +32,6 @@ export const listIntervalsFn = createServerFn({ method: 'GET' })
   .middleware([authMw])
   .validator(ListIntervalsInput)
   .handler(({ data, context }) => svc.listIntervals(deps(), ctxOf(context), data))
+
+// Server's local date in the org tz; the /today route uses this when the URL has no ?date (#23).
+export const getTodayFn = createServerFn({ method: 'GET' }).handler(() => localDateOf(Date.now(), getEnv().ORG_TIMEZONE))

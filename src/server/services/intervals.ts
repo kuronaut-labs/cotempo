@@ -177,7 +177,14 @@ export async function deleteInterval(
 export async function listDay(deps: Deps, ctx: SessionContext, input: z.infer<typeof DayQuery>): Promise<DayView> {
   const { db, tz } = deps
   const day = localDayBoundariesUtcMs(input.date, tz)
-  const workerIds = input.workerId ? [input.workerId] : [ctx.workerId, ...ctx.superviseeWorkerIds]
+  // Billing/admin see everyone's day — operators are restricted to self + supervisees (#7). The route's
+  // per-worker lanes depend on this returning every visible worker's intervals in one round-trip.
+  const workerIds = input.workerId
+    ? [input.workerId]
+    : hasRole(ctx, 'billing')
+      ? (await db.select({ id: schema.workers.id }).from(schema.workers).where(isNull(schema.workers.archivedAt)).all()).map((w) => w.id)
+      : [ctx.workerId, ...ctx.superviseeWorkerIds]
+  if (workerIds.length === 0) return { day, date: input.date, intervals: [], trioByWorker: {} }
   for (const w of workerIds) assertCanViewWorker(ctx, w)
 
   const rows = await db
