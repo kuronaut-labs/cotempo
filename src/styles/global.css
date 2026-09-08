@@ -451,3 +451,30 @@ samp {
   border: 1px solid var(--line);
   border-radius: 6px;
 }
+
+/* ---------- entry form (retro, 4.4d) ---------- */
+
+.entryform {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.entryform .field > span {
+  display: block;
+}
+
+.entryform-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.entryform textarea {
+  font-family: var(--body);
+  font-size: 13px;
+}

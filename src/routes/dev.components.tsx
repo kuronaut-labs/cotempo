@@ -1,9 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { DayMathChip } from '~/components/dayMathChip'
 import { DateNav } from '~/components/dateNav'
+import { EntryForm } from '~/components/entryForm'
 import { IntervalList } from '~/components/intervalList'
 import { MiniStrip } from '~/components/miniStrip'
 import type { DayIntervalRow } from '~/server/services/intervals'
+import type { ClientNode } from '~/server/services/structure'
+import type { AgentWorkerView, HumanWorkerView } from '~/server/services/workers'
 
 // Dev-only fixture viewer: every UI primitive added in 4.4 renders here with
 // hard-coded props, so the reviewer can eye the visuals against the prototype
@@ -62,6 +65,45 @@ const listRows: DayIntervalRow[] = [
   },
 ]
 
+const structureFixture: ClientNode[] = [
+  {
+    id: 'c1',
+    name: 'Acme Aerospace',
+    archivedAt: null,
+    projects: [
+      {
+        id: 'p1',
+        name: 'Flight Ops Automation',
+        archivedAt: null,
+        jobs: [
+          { id: 'j1', name: 'Pipeline Maintenance', archivedAt: null },
+          { id: 'j2', name: 'Eval Harness Runs', archivedAt: null },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'c2',
+    name: 'Nimbus Freight',
+    archivedAt: null,
+    projects: [
+      {
+        id: 'p2',
+        name: 'Route Optimization',
+        archivedAt: null,
+        jobs: [{ id: 'j3', name: 'Route Model Tuning', archivedAt: null }],
+      },
+    ],
+  },
+]
+
+const workerFixture: (HumanWorkerView | AgentWorkerView)[] = [
+  { workerId: 'op-worker', kind: 'human', name: 'Demo Operator', email: 'ops@example.com', roles: ['operator'], supervisorId: null, inviteState: 'active' },
+  { workerId: 'admin-worker', kind: 'human', name: 'Demo Admin', email: 'admin@example.com', roles: ['operator', 'billing', 'admin'], supervisorId: null, inviteState: 'active' },
+  { workerId: 'agent-1', kind: 'agent', name: 'Atlas', model: 'claude-opus-5', framework: 'langgraph', status: 'active', supervisorId: 'op-worker' },
+  { workerId: 'agent-2', kind: 'agent', name: 'Beacon', model: 'claude-sonnet-5', framework: 'crewai', status: 'active', supervisorId: 'op-worker' },
+]
+
 function DevComponents() {
   return (
     <main style={{ padding: 40, display: 'grid', gap: 24, maxWidth: 720 }}>
@@ -93,6 +135,20 @@ function DevComponents() {
           canEdit={(workerId) => workerId === 'op-worker'}
           onEdit={() => {}}
           onDelete={() => {}}
+        />
+      </section>
+      <section>
+        <h2 style={{ marginBottom: 8 }}>EntryForm</h2>
+        <EntryForm
+          date="2026-09-02"
+          tz="Australia/Perth"
+          selfWorkerId="op-worker"
+          superviseeWorkerIds={['agent-1', 'agent-2']}
+          workers={workerFixture}
+          structure={structureFixture}
+          onSubmit={async () => {
+            // fixture: no-op; real route wires this to createIntervalFn
+          }}
         />
       </section>
     </main>
