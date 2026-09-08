@@ -1,0 +1,3 @@
+src/routeTree.gen.ts linguist-generated=true -diff
+drizzle/migrations/meta/** linguist-generated=true -diff
+package-lock.json -diff
