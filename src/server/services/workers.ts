@@ -1,12 +1,14 @@
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { HttpError } from '~/lib/errors'
 import { schema, type Db } from '~/server/db'
-import { isAdmin, type Role, type SessionContext } from '~/server/context'
+import { hasRole, isAdmin, type Role, type SessionContext } from '~/server/context'
+import { activatedUserIds } from '~/server/inviteState'
 import type {
   AgentWorkerInput,
   ArchiveWorkerInput,
   SetRolesInput,
   SetSupervisorInput,
+  UpdateAgentWorkerInput,
 } from '~/lib/schemas/workers'
 import type { Deps } from './deps'
 
@@ -35,88 +37,82 @@ function requireAdmin(ctx: SessionContext) {
 }
 
 async function assertHuman(db: Db, id: string): Promise<void> {
-  const w = await db.select().from(schema.workers).where(eq(schema.workers.id, id)).get()
+  const w = await db
+    .select({ kind: schema.workers.kind })
+    .from(schema.workers)
+    .where(and(eq(schema.workers.id, id), isNull(schema.workers.archivedAt)))
+    .get()
   if (!w || w.kind !== 'human') throw new HttpError(400, 'SUPERVISOR_NOT_HUMAN', 'supervisorId')
+}
+
+// Walks the supervisor chain upward from `supervisorId`; reaching `workerId` would close a loop.
+async function assertNoSupervisorCycle(db: Db, workerId: string, supervisorId: string): Promise<void> {
+  let cur: string | null = supervisorId
+  const seen = new Set<string>()
+  while (cur) {
+    if (cur === workerId) throw new HttpError(400, 'SUPERVISOR_CYCLE', 'supervisorId')
+    if (seen.has(cur)) return // pre-existing loop elsewhere; not made worse here
+    seen.add(cur)
+    const row: { supervisorId: string | null } | undefined = await db
+      .select({ supervisorId: schema.workers.supervisorId })
+      .from(schema.workers)
+      .where(eq(schema.workers.id, cur))
+      .get()
+    cur = row?.supervisorId ?? null
+  }
 }
 
 /** Unarchived workers. Operators receive only self + supervisees; billing/admin everyone. */
 export async function listWorkers(deps: Deps, ctx: SessionContext): Promise<WorkerView[]> {
   const { db } = deps
   const scope = new Set<string>([ctx.workerId, ...ctx.superviseeWorkerIds])
-  const showAll = ctx.roles.includes('billing') || ctx.roles.includes('admin')
 
   const allWorkers = await db
     .select()
     .from(schema.workers)
     .where(isNull(schema.workers.archivedAt))
     .all()
-  const visible = showAll ? allWorkers : allWorkers.filter((w) => scope.has(w.id))
+  const visible = hasRole(ctx, 'billing') ? allWorkers : allWorkers.filter((w) => scope.has(w.id))
   if (visible.length === 0) return []
 
-  const workerIds = visible.map((w) => w.id)
-  const humansAll = await Promise.all(
-    workerIds.map((id) =>
-      db.select().from(schema.humanWorkers).where(eq(schema.humanWorkers.workerId, id)).get(),
-    ),
-  )
-  const humanById = new Map(
-    humansAll.filter((h): h is NonNullable<typeof h> => h != null).map((h) => [h.workerId, h]),
-  )
+  const humanIds = visible.filter((w) => w.kind === 'human').map((w) => w.id)
+  const agentIds = visible.filter((w) => w.kind === 'agent').map((w) => w.id)
 
-  const userIds = [...new Set([...humanById.values()].map((h) => h.userId))]
-  const users = userIds.length
+  const humans = humanIds.length
     ? await db
-        .select({ id: schema.user.id, name: schema.user.name, email: schema.user.email })
-        .from(schema.user)
-        .where(eq(schema.user.id, userIds[0]!))
+        .select({
+          workerId: schema.humanWorkers.workerId,
+          userId: schema.humanWorkers.userId,
+          roles: schema.humanWorkers.roles,
+          name: schema.user.name,
+          email: schema.user.email,
+        })
+        .from(schema.humanWorkers)
+        .innerJoin(schema.user, eq(schema.user.id, schema.humanWorkers.userId))
+        .where(inArray(schema.humanWorkers.workerId, humanIds))
         .all()
     : []
-  // The `inArray` shape drizzle infers here pulls a single id; for the suite we fetch one-by-one.
-  const userById = new Map<string, { id: string; name: string; email: string }>()
-  for (const uid of userIds) {
-    const u = await db
-      .select({ id: schema.user.id, name: schema.user.name, email: schema.user.email })
-      .from(schema.user)
-      .where(eq(schema.user.id, uid))
-      .get()
-    if (u) userById.set(u.id, u)
-  }
-  void users
+  const humanById = new Map(humans.map((h) => [h.workerId, h]))
+  const activated = await activatedUserIds(db, humans.map((h) => h.userId))
 
-  const userWithSession = new Set<string>()
-  for (const uid of userIds) {
-    const s = await db
-      .select({ userId: schema.session.userId })
-      .from(schema.session)
-      .where(eq(schema.session.userId, uid))
-      .get()
-    if (s) userWithSession.add(s.userId)
-  }
-
-  const agentIds = visible.filter((w) => w.kind === 'agent').map((w) => w.id)
-  const agentRows = await Promise.all(
-    agentIds.map((id) =>
-      db.select().from(schema.agentWorkers).where(eq(schema.agentWorkers.workerId, id)).get(),
-    ),
-  )
-  const agentById = new Map(
-    agentRows.filter((a): a is NonNullable<typeof a> => a != null).map((a) => [a.workerId, a]),
-  )
+  const agents = agentIds.length
+    ? await db.select().from(schema.agentWorkers).where(inArray(schema.agentWorkers.workerId, agentIds)).all()
+    : []
+  const agentById = new Map(agents.map((a) => [a.workerId, a]))
 
   const out: WorkerView[] = []
   for (const w of visible) {
     if (w.kind === 'human') {
       const h = humanById.get(w.id)
       if (!h) continue
-      const u = userById.get(h.userId)
       out.push({
         workerId: w.id,
         kind: 'human',
-        name: u?.name ?? '',
-        email: u?.email ?? '',
+        name: h.name,
+        email: h.email,
         roles: JSON.parse(h.roles) as Role[],
         supervisorId: w.supervisorId,
-        inviteState: userWithSession.has(h.userId) ? 'active' : 'pending',
+        inviteState: activated.has(h.userId) ? 'active' : 'pending',
       })
     } else {
       const a = agentById.get(w.id)
@@ -158,6 +154,35 @@ export async function createAgentWorker(
   return { workerId }
 }
 
+export async function updateAgentWorker(deps: Deps, ctx: SessionContext, input: UpdateAgentWorkerInput): Promise<void> {
+  requireAdmin(ctx)
+  const { db } = deps
+  const target = await db
+    .select({ kind: schema.workers.kind })
+    .from(schema.workers)
+    .where(and(eq(schema.workers.id, input.workerId), isNull(schema.workers.archivedAt)))
+    .get()
+  if (!target || target.kind !== 'agent') throw new HttpError(404, 'NOT_FOUND', 'workerId')
+  if (input.supervisorId !== undefined) {
+    await assertHuman(db, input.supervisorId)
+    await assertNoSupervisorCycle(db, input.workerId, input.supervisorId)
+  }
+
+  const workerPatch: Partial<typeof schema.workers.$inferInsert> = {}
+  if (input.name !== undefined) workerPatch.name = input.name
+  if (input.supervisorId !== undefined) workerPatch.supervisorId = input.supervisorId
+  const agentPatch: Partial<typeof schema.agentWorkers.$inferInsert> = {}
+  if (input.model !== undefined) agentPatch.model = input.model
+  if (input.framework !== undefined) agentPatch.framework = input.framework
+  if (input.status !== undefined) agentPatch.status = input.status
+
+  const writes = []
+  if (Object.keys(workerPatch).length) writes.push(db.update(schema.workers).set(workerPatch).where(eq(schema.workers.id, input.workerId)))
+  if (Object.keys(agentPatch).length) writes.push(db.update(schema.agentWorkers).set(agentPatch).where(eq(schema.agentWorkers.workerId, input.workerId)))
+  if (writes.length === 1) await writes[0]
+  else if (writes.length === 2) await db.batch([writes[0]!, writes[1]!])
+}
+
 /** Roles must keep 'operator'. Service re-checks because Zod allows empty arrays of optional roles via partial schemas. */
 export async function setRoles(deps: Deps, ctx: SessionContext, input: SetRolesInput): Promise<void> {
   requireAdmin(ctx)
@@ -181,9 +206,7 @@ export async function setSupervisor(deps: Deps, ctx: SessionContext, input: SetS
   if (target.kind !== 'human') throw new HttpError(400, 'SUPERVISOR_NOT_HUMAN', 'workerId')
   if (input.supervisorId !== null) {
     await assertHuman(db, input.supervisorId)
-    if (input.supervisorId === input.workerId) {
-      throw new HttpError(400, 'SUPERVISOR_NOT_HUMAN', 'supervisorId')
-    }
+    await assertNoSupervisorCycle(db, input.workerId, input.supervisorId)
   }
   await db.update(schema.workers).set({ supervisorId: input.supervisorId }).where(eq(schema.workers.id, input.workerId))
 }

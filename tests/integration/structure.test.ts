@@ -18,6 +18,7 @@ import {
   listWorkers,
   setRoles,
   setSupervisor,
+  updateAgentWorker,
 } from '~/server/services/workers'
 import * as schema from '../../drizzle/schema'
 
@@ -96,6 +97,24 @@ describe('structure mutations (#5, #18)', () => {
     expect(row?.billableRateCents).toBe(15000)
   })
 
+  it('rejects children of missing or archived parents, and updates of missing rows', async () => {
+    await expect(createProject(deps(), asUser('admin'), { clientId: 'nope', name: 'X' })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+      field: 'clientId',
+    })
+    await archiveClient(deps(), asUser('admin'), { id: ids.c2 })
+    await expect(createProject(deps(), asUser('admin'), { clientId: ids.c2, name: 'X' })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+      field: 'clientId',
+    })
+    await expect(createJob(deps(), asUser('admin'), { projectId: 'nope', name: 'X', billableRateCents: null })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+      field: 'projectId',
+    })
+    await expect(updateJob(deps(), asUser('admin'), { id: 'nope', name: 'X' })).rejects.toMatchObject({ code: 'NOT_FOUND', field: 'id' })
+    await expect(archiveProject(deps(), asUser('admin'), { id: 'nope' })).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+
   it('null billableRateCents creates a non-billable job', async () => {
     const j = await createJob(deps(), asUser('admin'), {
       projectId: ids.p1,
@@ -170,6 +189,32 @@ describe('createAgentWorker (#24)', () => {
   })
 })
 
+describe('updateAgentWorker (#24)', () => {
+  it('patches agent fields and supervisor; leaves omitted fields alone', async () => {
+    await updateAgentWorker(deps(), asUser('admin'), { workerId: ids.agent1, model: 'claude-sonnet-5', status: 'inactive' })
+    const a = await db.select().from(schema.agentWorkers).where(eq(schema.agentWorkers.workerId, ids.agent1)).get()
+    expect(a).toMatchObject({ model: 'claude-sonnet-5', framework: 'langgraph', status: 'inactive' })
+    await updateAgentWorker(deps(), asUser('admin'), { workerId: ids.agent1, name: 'Atlas II', supervisorId: ids.billingWorker })
+    const w = await db.select().from(schema.workers).where(eq(schema.workers.id, ids.agent1)).get()
+    expect(w).toMatchObject({ name: 'Atlas II', supervisorId: ids.billingWorker })
+  })
+
+  it('rejects a non-human supervisor, a human target, an unknown id, and non-admin callers', async () => {
+    await expect(
+      updateAgentWorker(deps(), asUser('admin'), { workerId: ids.agent1, supervisorId: ids.agent2 }),
+    ).rejects.toMatchObject({ code: 'SUPERVISOR_NOT_HUMAN', field: 'supervisorId' })
+    await expect(
+      updateAgentWorker(deps(), asUser('admin'), { workerId: ids.opWorker, model: 'm' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND', field: 'workerId' })
+    await expect(
+      updateAgentWorker(deps(), asUser('admin'), { workerId: 'nope', model: 'm' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    await expect(
+      updateAgentWorker(deps(), asUser('operator'), { workerId: ids.agent1, model: 'm' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN', status: 403 })
+  })
+})
+
 describe('setRoles (#5)', () => {
   it('rejects roles without operator, field omitted, code ROLES_MUST_INCLUDE_OPERATOR', async () => {
     await expect(
@@ -198,6 +243,24 @@ describe('setSupervisor (#24)', () => {
     await expect(
       setSupervisor(deps(), asUser('admin'), { workerId: ids.agent1, supervisorId: ids.agent2 }),
     ).rejects.toMatchObject({ code: 'SUPERVISOR_NOT_HUMAN' })
+  })
+
+  it('rejects an archived supervisor', async () => {
+    await db.update(schema.workers).set({ archivedAt: new Date() }).where(eq(schema.workers.id, ids.billingWorker))
+    await expect(
+      setSupervisor(deps(), asUser('admin'), { workerId: ids.opWorker, supervisorId: ids.billingWorker }),
+    ).rejects.toMatchObject({ code: 'SUPERVISOR_NOT_HUMAN', field: 'supervisorId' })
+  })
+
+  it('rejects self-supervision and longer cycles with SUPERVISOR_CYCLE', async () => {
+    await expect(
+      setSupervisor(deps(), asUser('admin'), { workerId: ids.opWorker, supervisorId: ids.opWorker }),
+    ).rejects.toMatchObject({ code: 'SUPERVISOR_CYCLE', field: 'supervisorId', status: 400 })
+    await setSupervisor(deps(), asUser('admin'), { workerId: ids.billingWorker, supervisorId: ids.adminWorker })
+    await setSupervisor(deps(), asUser('admin'), { workerId: ids.adminWorker, supervisorId: ids.opWorker })
+    await expect(
+      setSupervisor(deps(), asUser('admin'), { workerId: ids.opWorker, supervisorId: ids.billingWorker }),
+    ).rejects.toMatchObject({ code: 'SUPERVISOR_CYCLE' })
   })
 
   it('allows setting a null supervisor on a human top-level', async () => {

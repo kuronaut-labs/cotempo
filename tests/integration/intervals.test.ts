@@ -6,6 +6,7 @@ import {
   createInterval,
   deleteInterval,
   listDay,
+  listIntervals,
   updateInterval,
 } from '~/server/services/intervals'
 import * as schema from '../../drizzle/schema'
@@ -87,7 +88,7 @@ describe('updateInterval (#18, #26)', () => {
   it('increments edit_count; job change re-snapshots rate; time-only edit keeps it', async () => {
     const a = await createInterval(deps(), op, baseInput)
     await updateInterval(deps(), op, { id: a.id, note: 'x' })
-    await updateInterval(deps(), op, { id: a.id, note: 'y' })
+    expect((await updateInterval(deps(), op, { id: a.id, note: 'y' })).note).toBe('y')
     let row = await db.select().from(schema.intervals).where(eq(schema.intervals.id, a.id)).get()
     expect(row?.editCount).toBe(2)
     expect(row?.rateCents).toBe(14000)
@@ -207,6 +208,21 @@ describe('resetSubmittedWeeks on create (#26)', () => {
       .all()
     expect(ev).toHaveLength(1)
     expect(ev[0]?.actorWorkerId).toBe(ids.adminWorker)
+  })
+})
+
+describe('listIntervals from/to (#19, #22)', () => {
+  it('bounds the range by org-zone days, not UTC days', async () => {
+    // 06:00 Perth on Sep 3 is 22:00Z on Sep 2: a UTC-day filter would misfile it under `to: '2026-09-02'`.
+    const early = await createInterval(deps(), op, {
+      ...baseInput,
+      startedAt: '2026-09-02T22:00:00.000Z',
+      endedAt: '2026-09-02T23:00:00.000Z',
+    })
+    const upTo2 = await listIntervals(deps(), op, { workerId: ids.opWorker, from: '2026-09-02', to: '2026-09-02', limit: 50 })
+    expect(upTo2.rows.map((r) => r.id)).not.toContain(early.id)
+    const day3 = await listIntervals(deps(), op, { workerId: ids.opWorker, from: '2026-09-03', to: '2026-09-03', limit: 50 })
+    expect(day3.rows.map((r) => r.id)).toContain(early.id)
   })
 })
 

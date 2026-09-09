@@ -4,6 +4,7 @@ import {
   ArchiveWorkerInput,
   SetRolesInput,
   SetSupervisorInput,
+  UpdateAgentWorkerInput,
 } from '~/lib/schemas/workers'
 import { authMw, ctxOf } from '~/server/middleware/authMw'
 import { requireRole } from '~/server/middleware/roleGuard'
@@ -21,6 +22,11 @@ export const createAgentWorkerFn = createServerFn({ method: 'POST' })
   .middleware([authMw, requireRole('admin')])
   .validator(AgentWorkerInput)
   .handler(({ data, context }) => svc.createAgentWorker(deps(), ctxOf(context), data))
+
+export const updateAgentWorkerFn = createServerFn({ method: 'POST' })
+  .middleware([authMw, requireRole('admin')])
+  .validator(UpdateAgentWorkerInput)
+  .handler(({ data, context }) => svc.updateAgentWorker(deps(), ctxOf(context), data))
 
 export const setRolesFn = createServerFn({ method: 'POST' })
   .middleware([authMw, requireRole('admin')])

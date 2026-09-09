@@ -22,6 +22,18 @@ function requireAdmin(ctx: SessionContext) {
   if (!isAdmin(ctx)) throw new HttpError(403, 'FORBIDDEN')
 }
 
+type Archivable = typeof schema.clients | typeof schema.projects | typeof schema.jobs
+
+/** Row must exist; `live` also requires it unarchived (new children never hang off an archived parent). */
+async function assertExists(db: Deps['db'], table: Archivable, id: string, field: string, live = false): Promise<void> {
+  const row = await db
+    .select({ id: table.id })
+    .from(table)
+    .where(live ? and(eq(table.id, id), isNull(table.archivedAt)) : eq(table.id, id))
+    .get()
+  if (!row) throw new HttpError(404, 'NOT_FOUND', field)
+}
+
 /** Tree of clients → projects → jobs. `billableRateCents` present only when canSeeMoney(ctx) (#5). */
 export async function listStructure(
   deps: Deps,
@@ -79,11 +91,13 @@ export async function createClient(deps: Deps, ctx: SessionContext, input: Creat
 
 export async function updateClient(deps: Deps, ctx: SessionContext, input: UpdateClientInput): Promise<void> {
   requireAdmin(ctx)
+  await assertExists(deps.db, schema.clients, input.id, 'id')
   await deps.db.update(schema.clients).set({ name: input.name }).where(eq(schema.clients.id, input.id))
 }
 
 export async function archiveClient(deps: Deps, ctx: SessionContext, input: ArchiveInput): Promise<void> {
   requireAdmin(ctx)
+  await assertExists(deps.db, schema.clients, input.id, 'id')
   await deps.db
     .update(schema.clients)
     .set({ archivedAt: deps.now() })
@@ -92,6 +106,7 @@ export async function archiveClient(deps: Deps, ctx: SessionContext, input: Arch
 
 export async function createProject(deps: Deps, ctx: SessionContext, input: CreateProjectInput): Promise<{ id: string }> {
   requireAdmin(ctx)
+  await assertExists(deps.db, schema.clients, input.clientId, 'clientId', true)
   const id = crypto.randomUUID()
   const now = deps.now()
   await deps.db.insert(schema.projects).values({ id, clientId: input.clientId, name: input.name, createdAt: now })
@@ -100,11 +115,13 @@ export async function createProject(deps: Deps, ctx: SessionContext, input: Crea
 
 export async function updateProject(deps: Deps, ctx: SessionContext, input: UpdateProjectInput): Promise<void> {
   requireAdmin(ctx)
+  await assertExists(deps.db, schema.projects, input.id, 'id')
   await deps.db.update(schema.projects).set({ name: input.name }).where(eq(schema.projects.id, input.id))
 }
 
 export async function archiveProject(deps: Deps, ctx: SessionContext, input: ArchiveInput): Promise<void> {
   requireAdmin(ctx)
+  await assertExists(deps.db, schema.projects, input.id, 'id')
   await deps.db
     .update(schema.projects)
     .set({ archivedAt: deps.now() })
@@ -113,6 +130,7 @@ export async function archiveProject(deps: Deps, ctx: SessionContext, input: Arc
 
 export async function createJob(deps: Deps, ctx: SessionContext, input: CreateJobInput): Promise<{ id: string }> {
   requireAdmin(ctx)
+  await assertExists(deps.db, schema.projects, input.projectId, 'projectId', true)
   const id = crypto.randomUUID()
   const now = deps.now()
   await deps.db.insert(schema.jobs).values({
@@ -128,6 +146,7 @@ export async function createJob(deps: Deps, ctx: SessionContext, input: CreateJo
 /** Changing `billableRateCents` never touches existing intervals' `rate_cents` (#18). */
 export async function updateJob(deps: Deps, ctx: SessionContext, input: UpdateJobInput): Promise<void> {
   requireAdmin(ctx)
+  await assertExists(deps.db, schema.jobs, input.id, 'id')
   const patch: Record<string, unknown> = {}
   if (input.name !== undefined) patch.name = input.name
   if (input.billableRateCents !== undefined) patch.billableRateCents = input.billableRateCents
@@ -137,6 +156,7 @@ export async function updateJob(deps: Deps, ctx: SessionContext, input: UpdateJo
 
 export async function archiveJob(deps: Deps, ctx: SessionContext, input: ArchiveInput): Promise<void> {
   requireAdmin(ctx)
+  await assertExists(deps.db, schema.jobs, input.id, 'id')
   await deps.db
     .update(schema.jobs)
     .set({ archivedAt: deps.now() })
