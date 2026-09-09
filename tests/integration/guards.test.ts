@@ -3,7 +3,7 @@ import { asUser, db, resetDb, setWeekStatus } from './helpers'
 import { ids } from '~/server/fixtures/demo'
 import { assertCanEditWorker, assertCanViewWorker } from '~/server/guards/worker'
 import { assertWeeksEditable, resetSubmittedWeeks } from '~/server/guards/week'
-import { buildSessionContext } from '~/server/middleware/authMw'
+import { buildSessionContext } from '~/server/sessionContext'
 import * as schema from '../../drizzle/schema'
 import { eq } from 'drizzle-orm'
 

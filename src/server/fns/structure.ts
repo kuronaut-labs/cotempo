@@ -11,59 +11,57 @@ import {
 } from '~/lib/schemas/structure'
 import { authMw, ctxOf } from '~/server/middleware/authMw'
 import { requireRole } from '~/server/middleware/roleGuard'
-import { getDb } from '~/server/db'
-import { getEnv } from '~/server/env'
+import { runtimeDeps } from '~/server/runtimeDeps'
 import * as svc from '~/server/services/structure'
 
-const deps = () => ({ db: getDb(), tz: getEnv().ORG_TIMEZONE, now: () => new Date() })
 const adminOnly = [authMw, requireRole('admin')]
 
 export const listStructureFn = createServerFn({ method: 'GET' })
   .middleware([authMw])
   .validator(ListStructureInput)
-  .handler(({ data, context }) => svc.listStructure(deps(), ctxOf(context), data))
+  .handler(({ data, context }) => svc.listStructure(runtimeDeps(), ctxOf(context), data))
 
 export const createClientFn = createServerFn({ method: 'POST' })
   .middleware(adminOnly)
   .validator(CreateClientInput)
-  .handler(({ data, context }) => svc.createClient(deps(), ctxOf(context), data))
+  .handler(({ data, context }) => svc.createClient(runtimeDeps(), ctxOf(context), data))
 
 export const updateClientFn = createServerFn({ method: 'POST' })
   .middleware(adminOnly)
   .validator(UpdateClientInput)
-  .handler(({ data, context }) => svc.updateClient(deps(), ctxOf(context), data))
+  .handler(({ data, context }) => svc.updateClient(runtimeDeps(), ctxOf(context), data))
 
 export const archiveClientFn = createServerFn({ method: 'POST' })
   .middleware(adminOnly)
   .validator(ArchiveInput)
-  .handler(({ data, context }) => svc.archiveClient(deps(), ctxOf(context), data))
+  .handler(({ data, context }) => svc.archiveClient(runtimeDeps(), ctxOf(context), data))
 
 export const createProjectFn = createServerFn({ method: 'POST' })
   .middleware(adminOnly)
   .validator(CreateProjectInput)
-  .handler(({ data, context }) => svc.createProject(deps(), ctxOf(context), data))
+  .handler(({ data, context }) => svc.createProject(runtimeDeps(), ctxOf(context), data))
 
 export const updateProjectFn = createServerFn({ method: 'POST' })
   .middleware(adminOnly)
   .validator(UpdateProjectInput)
-  .handler(({ data, context }) => svc.updateProject(deps(), ctxOf(context), data))
+  .handler(({ data, context }) => svc.updateProject(runtimeDeps(), ctxOf(context), data))
 
 export const archiveProjectFn = createServerFn({ method: 'POST' })
   .middleware(adminOnly)
   .validator(ArchiveInput)
-  .handler(({ data, context }) => svc.archiveProject(deps(), ctxOf(context), data))
+  .handler(({ data, context }) => svc.archiveProject(runtimeDeps(), ctxOf(context), data))
 
 export const createJobFn = createServerFn({ method: 'POST' })
   .middleware(adminOnly)
   .validator(CreateJobInput)
-  .handler(({ data, context }) => svc.createJob(deps(), ctxOf(context), data))
+  .handler(({ data, context }) => svc.createJob(runtimeDeps(), ctxOf(context), data))
 
 export const updateJobFn = createServerFn({ method: 'POST' })
   .middleware(adminOnly)
   .validator(UpdateJobInput)
-  .handler(({ data, context }) => svc.updateJob(deps(), ctxOf(context), data))
+  .handler(({ data, context }) => svc.updateJob(runtimeDeps(), ctxOf(context), data))
 
 export const archiveJobFn = createServerFn({ method: 'POST' })
   .middleware(adminOnly)
   .validator(ArchiveInput)
-  .handler(({ data, context }) => svc.archiveJob(deps(), ctxOf(context), data))
+  .handler(({ data, context }) => svc.archiveJob(runtimeDeps(), ctxOf(context), data))

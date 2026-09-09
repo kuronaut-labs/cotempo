@@ -6,6 +6,7 @@ import {
   findSameJobOverlaps,
   localDateOf,
   localDayBoundariesUtcMs,
+  localHHMM,
   mergeRanges,
   minutesBetween,
   splitRangeAtBoundaries,
@@ -95,6 +96,12 @@ describe('local day boundaries in the org zone (#23)', () => {
   })
   it('localDateOf round-trips the start of each day', () => {
     for (const [d, tz] of cases) expect(localDateOf(localDayBoundariesUtcMs(d, tz).startMs, tz)).toBe(d)
+  })
+  it('localHHMM renders the wall clock in the given zone', () => {
+    const t = Date.UTC(2026, 8, 3, 15, 5) // 23:05 Perth, 01:05 Sydney (AEST)
+    expect(localHHMM(t, 'Australia/Perth')).toBe('23:05')
+    expect(localHHMM(t, 'Australia/Sydney')).toBe('01:05')
+    expect(localHHMM(t, 'UTC')).toBe('15:05')
   })
   it('dayBoundariesWithin lists interior midnights only', () => {
     const start = Date.UTC(2026, 8, 3, 15) // 23:00 Perth Sep 3

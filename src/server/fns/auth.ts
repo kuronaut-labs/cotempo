@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { getAuth } from '~/server/auth'
 import { getDb } from '~/server/db'
-import { buildSessionContext } from '~/server/middleware/authMw'
+import { buildSessionContext } from '~/server/sessionContext'
 import type { RawSession } from '~/server/context'
 
 // Used by route beforeLoad (not the client SDK) so SSR sees cookies.

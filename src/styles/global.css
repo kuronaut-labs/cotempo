@@ -1,0 +1,520 @@
+@import './tokens.css';
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--j1);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+a {
+  color: var(--j1);
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--disp);
+  font-weight: 700;
+}
+
+.mono,
+code,
+kbd,
+samp {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- shell ---------- */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  font-family: var(--disp);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.app-nav a {
+  color: var(--muted);
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.app-nav a:hover {
+  color: var(--text);
+}
+
+.app-nav a.active {
+  color: var(--text);
+  background: var(--panel2);
+}
+
+.app-nav .nav-spacer {
+  flex: 1;
+}
+
+.app-nav .nav-user {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+/* ---------- login / set-password pages ---------- */
+
+.login-page {
+  max-width: 420px;
+  margin: 80px auto;
+  padding: 24px;
+}
+
+.login-page h1 {
+  font-size: 24px;
+  margin-bottom: 18px;
+}
+
+.login-form {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.login-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.field-error {
+  color: var(--err);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.form-error {
+  font-size: 13px;
+  color: var(--err);
+  background: #2a1c19;
+  border: 1px solid #4a2f28;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+/* ---------- shared form primitives ---------- */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.field input,
+.field select,
+.field textarea {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 8px 10px;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: auto;
+}
+
+.field textarea {
+  resize: vertical;
+  min-height: 64px;
+}
+
+.btn-primary {
+  font-family: var(--disp);
+  font-weight: 600;
+  font-size: 14px;
+  background: var(--j1);
+  color: #0e1013;
+  border-radius: 7px;
+  padding: 10px 14px;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.1);
+}
+
+/* ---------- job color utilities (entry-ux palette) ---------- */
+
+.job-c1 {
+  background: var(--j1);
+  color: #0e1013;
+}
+.job-c2 {
+  background: var(--j2);
+  color: #0e1013;
+}
+.job-c3 {
+  background: var(--j3);
+  color: #0e1013;
+}
+.job-c4 {
+  background: var(--j4);
+  color: #0e1013;
+}
+.job-c5 {
+  background: var(--j5);
+  color: #0e1013;
+}
+
+.job-dot-c1 { background: var(--j1); }
+.job-dot-c2 { background: var(--j2); }
+.job-dot-c3 { background: var(--j3); }
+.job-dot-c4 { background: var(--j4); }
+.job-dot-c5 { background: var(--j5); }
+
+/* ---------- day math trio chip ---------- */
+
+.daymath {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.dm {
+  font-family: var(--mono);
+  font-size: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 12px;
+  background: var(--panel);
+}
+
+.dm .k {
+  color: var(--muted);
+  margin-right: 6px;
+}
+
+.dm b {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dm.premium {
+  border-color: #4a3f2e;
+  background: #241f16;
+}
+
+.dm.premium b {
+  color: var(--j4);
+}
+
+/* ---------- overlap hatching ---------- */
+
+.ovl {
+  background: repeating-linear-gradient(45deg, transparent 0 4px, rgba(0, 0, 0, 0.55) 4px 6px);
+  border-radius: 3px;
+}
+
+.ovltag {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--j4);
+  background: #241f16;
+  border: 1px solid #4a3f2e;
+  border-radius: 3px;
+  padding: 0 5px;
+}
+
+/* ---------- date nav ---------- */
+
+.datenav {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.datenav button {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: var(--muted);
+}
+
+.datenav button:hover {
+  color: var(--text);
+  border-color: var(--faint);
+}
+
+.datenav button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.datenav input[type='date'] {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 4px 8px;
+  font-family: var(--mono);
+}
+
+/* ---------- mini-strip (day timeline bar) ---------- */
+
+.ministrip {
+  position: relative;
+  width: 100%;
+  height: 28px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.ministrip-track {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.ministrip-block {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0e1013;
+  overflow: hidden;
+  min-width: 1px;
+}
+
+.ministrip-overlap {
+  position: absolute;
+  bottom: 2px;
+  height: 6px;
+  background: repeating-linear-gradient(45deg, transparent 0 3px, rgba(0, 0, 0, 0.55) 3px 5px);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.ministrip-overlap-tag {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--j4);
+  background: #241f16;
+  border: 1px solid #4a3f2e;
+  border-radius: 3px;
+  padding: 0 4px;
+  line-height: 12px;
+}
+
+/* ---------- interval list (today view table) ---------- */
+
+.intervallist {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.intervallist thead th {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  padding: 6px 10px;
+}
+
+.intervallist tbody td {
+  border-bottom: 1px solid #262a31;
+  padding: 9px 10px;
+  vertical-align: middle;
+}
+
+.intervallist tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.intervallist .mono {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.intervallist-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.intervallist-actions button {
+  font-family: var(--mono);
+  font-size: 11px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 4px 10px;
+  color: var(--muted);
+}
+
+.intervallist-actions button:hover {
+  color: var(--text);
+  border-color: var(--faint);
+}
+
+.intervallist-empty {
+  padding: 16px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+/* ---------- entry form (retro, 4.4d) ---------- */
+
+.entryform {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.entryform .field > span {
+  display: block;
+}
+
+.entryform-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.entryform textarea {
+  font-family: var(--body);
+  font-size: 13px;
+}
+
+.entryform-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ---------- /today page ---------- */
+
+.today {
+  padding: 20px 24px;
+  display: grid;
+  gap: 20px;
+  max-width: 1100px;
+}
+
+.today-lanes {
+  display: grid;
+  gap: 16px;
+}
+
+.today-lane {
+  display: grid;
+  gap: 14px;
+}
+
+.today-lane-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.today-lane-head h2 {
+  font-size: 15px;
+}
+
+.today-section-title {
+  font-size: 15px;
+  margin-bottom: 12px;
+}

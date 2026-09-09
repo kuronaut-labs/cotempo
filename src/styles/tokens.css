@@ -1,0 +1,25 @@
+:root {
+  /* Ink / panel / surface, identical between both prototypes. */
+  --ink: #14161b;
+  --panel: #1d2026;
+  --panel2: #23262d;
+  --line: #31353e;
+  --text: #eae7e0;
+  --muted: #9297a1;
+  --faint: #5c616b;
+
+  /* Job palette — five slots, applied via .job-c{n} utilities. */
+  --j1: #5b8def;
+  --j2: #e8735f;
+  --j3: #7fb069;
+  --j4: #d9a441;
+  --j5: #a47ce8;
+
+  --err: #e8735f;
+  --pos: #7fb069; /* reporting-ux only */
+
+  /* Metric-close fallbacks for when fonts.googleapis.com is blocked. */
+  --disp: 'Space Grotesk', 'Helvetica Neue', Arial, system-ui, sans-serif;
+  --body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+}
