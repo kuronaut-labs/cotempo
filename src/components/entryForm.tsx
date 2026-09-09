@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { TZDate } from '@date-fns/tz'
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
+import { localHHMM } from '~/lib/dayMath'
 import { CreateIntervalInput, UpdateIntervalInput } from '~/lib/schemas/intervals'
 import { applyServerError } from '~/components/forms/applyServerError'
 import type { ClientNode } from '~/server/services/structure'
@@ -22,9 +23,12 @@ export type Initial = {
   note?: string | null
 }
 
-// `initial.id` toggles create ↔ edit. Time-of-day inputs combine with `date` +
-// the org's IANA zone into an ISO UTC string via `TZDate` (#23) — the one
-// place the browser touches the zone; the server still uses org-tz boundaries.
+const serverFieldMap: Record<string, string> = { startedAt: 'startTime', endedAt: 'endTime' }
+
+/*
+ * `initial.id` toggles create ↔ edit; callers `key` the element on it because form-core ignores
+ * new defaultValues once touched. The one place the browser builds an instant, in the org tz (#23).
+ */
 export function EntryForm({
   date,
   tz,
@@ -34,30 +38,28 @@ export function EntryForm({
   structure,
   initial,
   onSubmit,
+  onCancel,
 }: {
   date: string
   tz: string
-  /** Used to split workers into "Self" / "Supervisees" / "Agents" groups. */
   selfWorkerId: string
   superviseeWorkerIds: string[]
   workers: WorkerView[]
   structure: ClientNode[]
   initial?: Initial
   onSubmit: (input: FormInput) => Promise<void>
+  /** Shown in edit mode only. */
+  onCancel?: () => void
 }) {
   const isEdit = Boolean(initial?.id)
-
-  // Default start = 09:00, end = 10:00 of the requested day, in the org tz.
-  const defaultTimeStart = '09:00'
-  const defaultTimeEnd = '10:00'
 
   const form = useForm({
     defaultValues: {
       id: initial?.id,
       workerId: initial?.workerId ?? selfWorkerId,
       jobId: initial?.jobId ?? '',
-      startTime: initial?.startedAt ? toLocalHHMM(initial.startedAt, tz) : defaultTimeStart,
-      endTime: initial?.endedAt ? toLocalHHMM(initial.endedAt, tz) : defaultTimeEnd,
+      startTime: initial?.startedAt ? localHHMM(Date.parse(initial.startedAt), tz) : '09:00',
+      endTime: initial?.endedAt ? localHHMM(Date.parse(initial.endedAt), tz) : '10:00',
       note: initial?.note ?? '',
     } as {
       id?: string
@@ -67,37 +69,33 @@ export function EntryForm({
       endTime: string
       note: string
     },
-    validators: { onSubmit: () => z.unknown() }, // server schema re-validates
+    validators: {
+      onSubmit: ({ value }) => {
+        const fields: Record<string, string> = {}
+        if (!value.jobId) fields.jobId = 'Choose a job.'
+        if (!value.startTime) fields.startTime = 'Enter a start time.'
+        if (!value.endTime) fields.endTime = 'Enter an end time.'
+        return Object.keys(fields).length ? { fields } : undefined
+      },
+    },
     onSubmit: async ({ value }) => {
       const startedAt = combine(date, value.startTime, tz)
       const endedAt = combine(date, value.endTime, tz)
       const note = value.note.trim()
-      const payload: FormInput = isEdit
-        ? {
-            id: value.id!,
-            workerId: value.workerId,
-            jobId: value.jobId,
-            startedAt,
-            endedAt,
-            ...(note ? { note } : {}),
-          }
-        : {
-            workerId: value.workerId,
-            jobId: value.jobId,
-            startedAt,
-            endedAt,
-            ...(note ? { note } : {}),
-          }
+      const base = { workerId: value.workerId, jobId: value.jobId, startedAt, endedAt, ...(note ? { note } : {}) }
+      const payload: FormInput = isEdit ? { id: value.id!, ...base } : base
       try {
         await onSubmit(payload)
       } catch (e) {
-        applyServerError(form as never, e)
+        const err = e as { field?: string } | null
+        const field = err?.field ? serverFieldMap[err.field] ?? err.field : undefined
+        applyServerError(form, err && typeof err === 'object' ? { ...err, field } : err)
       }
     },
   })
 
   const [selectedClient, setSelectedClient] = useState<string>(
-    initial?.jobId ? findClientForJob(structure, initial.jobId) ?? '' : structure[0]?.id ?? '',
+    initial?.jobId ? (findClientForJob(structure, initial.jobId) ?? '') : (structure[0]?.id ?? ''),
   )
 
   return (
@@ -117,11 +115,7 @@ export function EntryForm({
         {(f) => (
           <label className="field">
             <span>Worker</span>
-            <select
-              value={f.state.value}
-              onChange={(e) => f.handleChange(e.target.value)}
-              onBlur={f.handleBlur}
-            >
+            <select value={f.state.value} onChange={(e) => f.handleChange(e.target.value)} onBlur={f.handleBlur}>
               {workerGroups(selfWorkerId, superviseeWorkerIds, workers).map((g) => (
                 <optgroup key={g.label} label={g.label}>
                   {g.options.map((o) => (
@@ -159,11 +153,7 @@ export function EntryForm({
         {(f) => (
           <label className="field">
             <span>Job</span>
-            <select
-              value={f.state.value}
-              onChange={(e) => f.handleChange(e.target.value)}
-              onBlur={f.handleBlur}
-            >
+            <select value={f.state.value} onChange={(e) => f.handleChange(e.target.value)} onBlur={f.handleBlur}>
               <option value="">— select —</option>
               {(structure.find((c) => c.id === selectedClient)?.projects ?? [])
                 .filter((p) => !p.archivedAt)
@@ -177,9 +167,7 @@ export function EntryForm({
                     )),
                 )}
             </select>
-            {f.state.meta.errors[0] && (
-              <span className="field-error">{String(f.state.meta.errors[0])}</span>
-            )}
+            <FieldError errors={f.state.meta.errors} />
           </label>
         )}
       </form.Field>
@@ -196,6 +184,7 @@ export function EntryForm({
                 onChange={(e) => f.handleChange(e.target.value)}
                 onBlur={f.handleBlur}
               />
+              <FieldError errors={f.state.meta.errors} />
             </label>
           )}
         </form.Field>
@@ -210,6 +199,7 @@ export function EntryForm({
                 onChange={(e) => f.handleChange(e.target.value)}
                 onBlur={f.handleBlur}
               />
+              <FieldError errors={f.state.meta.errors} />
             </label>
           )}
         </form.Field>
@@ -230,13 +220,26 @@ export function EntryForm({
         </p>
       )}
 
-      <button type="submit" className="btn-primary">
-        {isEdit ? 'Save' : 'Add'}
-      </button>
+      <div className="entryform-actions">
+        <button type="submit" className="btn-primary">
+          {isEdit ? 'Save' : 'Add'}
+        </button>
+        {isEdit && onCancel && (
+          <button type="button" onClick={onCancel}>
+            Cancel
+          </button>
+        )}
+      </div>
     </form>
   )
 }
 
+function FieldError({ errors }: { errors: unknown[] }) {
+  const first = errors.find(Boolean)
+  return first ? <span className="field-error">{String(first)}</span> : null
+}
+
+// Self/supervisee as tags, not groups, so the select stays short.
 function workerGroups(selfId: string, superviseeIds: string[], workers: WorkerView[]): WorkerGroup[] {
   const humans = workers.filter((w) => w.kind === 'human')
   const agents = workers.filter((w) => w.kind === 'agent')
@@ -246,14 +249,8 @@ function workerGroups(selfId: string, superviseeIds: string[], workers: WorkerVi
     return h.name
   }
   return [
-    {
-      label: 'Operators',
-      options: humans.map((h) => ({ value: h.workerId, label: tag(h) })),
-    },
-    {
-      label: 'Agents',
-      options: agents.map((a) => ({ value: a.workerId, label: a.name })),
-    },
+    { label: 'Operators', options: humans.map((h) => ({ value: h.workerId, label: tag(h) })) },
+    { label: 'Agents', options: agents.map((a) => ({ value: a.workerId, label: a.name })) },
   ]
 }
 
@@ -262,18 +259,6 @@ function findClientForJob(structure: ClientNode[], jobId: string): string | null
   return null
 }
 
-/** Combine the form's `date` and `HH:MM` time in the org tz into a UTC ISO string. */
 function combine(date: string, hhmm: string, tz: string): string {
-  // Construct the wall-clock instant in the org zone, then convert to UTC.
-  const wall = `${date}T${hhmm}:00`
-  return new TZDate(wall, tz).toISOString()
-}
-
-function toLocalHHMM(iso: string, tz: string): string {
-  const t = new TZDate(iso, tz)
-  return `${pad(t.getHours())}:${pad(t.getMinutes())}`
-}
-
-function pad(n: number) {
-  return String(n).padStart(2, '0')
+  return new TZDate(`${date}T${hhmm}:00`, tz).toISOString()
 }

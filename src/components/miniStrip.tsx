@@ -1,4 +1,4 @@
-import type { Range } from '~/lib/dayMath'
+import { localHHMM, type Range } from '~/lib/dayMath'
 
 export type StripInterval = { id: string; jobId: string; startMs: number; endMs: number }
 
@@ -87,25 +87,21 @@ export function stripBlocks(day: Range, intervals: StripInterval[]): StripLayout
         })
       }
     }
-    if (ev.delta > 0) {
-      active += ev.delta
-      runStart = ev.ms
-      runCount = active
-    } else {
-      active += ev.delta
-      runStart = ev.ms
-      runCount = active
-    }
+    active += ev.delta
+    runStart = ev.ms
+    runCount = active
   }
   return { blocks, overlaps }
 }
 
 export function MiniStrip({
   day,
+  tz,
   intervals,
   jobColorIndex,
 }: {
   day: Range
+  tz: string
   intervals: StripInterval[]
   /** Maps `jobId` → 1..5 → CSS class `.job-c{n}`. Missing jobs fall back to `--line`. */
   jobColorIndex: Record<string, number>
@@ -123,7 +119,7 @@ export function MiniStrip({
               key={b.id}
               className={`ministrip-block ${colorClass}`}
               style={{ left: `${b.leftPct}%`, width: `${b.widthPct}%`, ...style }}
-              title={`${b.leadingClip}${new Date(b.clippedStart).toISOString().slice(11, 16)}–${new Date(b.clippedEnd).toISOString().slice(11, 16)}${b.trailingClip}`}
+              title={`${b.leadingClip}${localHHMM(b.clippedStart, tz)}–${localHHMM(b.clippedEnd, tz)}${b.trailingClip}`}
             >
               {b.leadingClip}
               {b.trailingClip}

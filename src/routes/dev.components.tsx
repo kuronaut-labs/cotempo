@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, notFound } from '@tanstack/react-router'
 import { DayMathChip } from '~/components/dayMathChip'
 import { DateNav } from '~/components/dateNav'
 import { EntryForm } from '~/components/entryForm'
@@ -8,10 +8,11 @@ import type { DayIntervalRow } from '~/server/services/intervals'
 import type { ClientNode } from '~/server/services/structure'
 import type { AgentWorkerView, HumanWorkerView } from '~/server/services/workers'
 
-// Dev-only fixture viewer: every UI primitive added in 4.4 renders here with
-// hard-coded props, so the reviewer can eye the visuals against the prototype
-// without running the full /today route.
+// Fixture viewer for the 4.4 primitives, to eyeball against the prototype. Dev builds only.
 export const Route = createFileRoute('/dev/components')({
+  beforeLoad: () => {
+    if (!import.meta.env.DEV) throw notFound()
+  },
   component: DevComponents,
 })
 
@@ -123,7 +124,7 @@ function DevComponents() {
       </section>
       <section>
         <h2 style={{ marginBottom: 8 }}>MiniStrip</h2>
-        <MiniStrip day={day} intervals={intervals} jobColorIndex={colors} />
+        <MiniStrip day={day} tz="UTC" intervals={intervals} jobColorIndex={colors} />
         <p style={{ marginTop: 8, fontSize: 11, color: 'var(--muted)' }}>
           Two overlapping (×2), one separate, one midnight-crossing (trailing clip).
         </p>
@@ -132,6 +133,7 @@ function DevComponents() {
         <h2 style={{ marginBottom: 8 }}>IntervalList</h2>
         <IntervalList
           rows={listRows}
+          tz="UTC"
           canEdit={(workerId) => workerId === 'op-worker'}
           onEdit={() => {}}
           onDelete={() => {}}

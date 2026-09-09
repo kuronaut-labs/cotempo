@@ -3,6 +3,7 @@
 const DAY_MS = 86_400_000
 const pad = (n: number) => String(n).padStart(2, '0')
 
+/** Unvalidated; callers guarantee `YYYY-MM-DD`. */
 export function parseIsoDate(iso: string): Date {
   const [y, m, d] = iso.split('-').map(Number) as [number, number, number]
   return new Date(Date.UTC(y, m - 1, d))

@@ -32,16 +32,17 @@ export const Route = createFileRoute('/_app/today')({
   validateSearch: todaySearch,
   loaderDeps: ({ search: { date } }) => ({ date }),
   loader: async ({ deps }) => {
-    // Resolve the day first when the URL didn't carry one; the rest is parallel (#23).
-    const today = deps.date ? null : await getTodayFn()
-    const date = deps.date ?? today!
-    const [ctx, day, structure, workers] = await Promise.all([
+    // Fetched even when the URL has a date: DateNav's "Today" needs the real one (#23).
+    const todayP = getTodayFn()
+    const date = deps.date ?? (await todayP).date
+    const [today, ctx, day, structure, workers] = await Promise.all([
+      todayP,
       getSessionCtxFn(),
       listDayFn({ data: { date } }),
       listStructureFn({ data: { includeArchived: false } }),
       listWorkersFn(),
     ])
-    return { today: today ?? date, ctx, day, structure, workers }
+    return { today: today.date, tz: today.tz, ctx, day, structure, workers }
   },
   component: TodayView,
 })
@@ -49,7 +50,7 @@ export const Route = createFileRoute('/_app/today')({
 type WorkerRow = { workerId: string; kind: 'human' | 'agent'; name: string }
 
 function TodayView() {
-  const { today, ctx, day, structure, workers } = Route.useLoaderData()
+  const { today, tz, ctx, day, structure, workers } = Route.useLoaderData()
   const search = Route.useSearch()
   const navigate = useNavigate()
   const router = useRouter()
@@ -60,12 +61,17 @@ function TodayView() {
   const scope = scopeWorkerIds(ctx)
   const lanes = orderLanes(workers, scope, ctx?.workerId)
 
-  const tz = pickClientTz()
   const canEditRow = (workerId: string) =>
     Boolean(ctx && (ctx.workerId === workerId || ctx.superviseeWorkerIds.includes(workerId)))
 
   const [editing, setEditing] = useState<DayIntervalRow | null>(null)
   const [lockedWeek, setLockedWeek] = useState<string | null>(null)
+
+  const noteLock = (e: unknown) => {
+    if (isHttpError(e) && e.code === 'WEEK_LOCKED') {
+      setLockedWeek(typeof e.data?.weekStart === 'string' ? e.data.weekStart : null)
+    }
+  }
 
   async function submit(input: CreateIntervalInput | UpdateIntervalInput) {
     try {
@@ -75,17 +81,21 @@ function TodayView() {
       setLockedWeek(null)
       await invalidate()
     } catch (e) {
-      if (isHttpError(e) && e.code === 'WEEK_LOCKED') {
-        setLockedWeek(typeof e.data?.weekStart === 'string' ? e.data.weekStart : null)
-      }
+      noteLock(e)
       throw e
     }
   }
 
   async function remove(id: string) {
     if (!window.confirm('Delete this interval?')) return
-    await deleteIntervalFn({ data: { id } })
-    await invalidate()
+    try {
+      await deleteIntervalFn({ data: { id } })
+      setLockedWeek(null)
+      await invalidate()
+    } catch (e) {
+      noteLock(e)
+      if (!isHttpError(e)) throw e
+    }
   }
 
   return (
@@ -93,9 +103,7 @@ function TodayView() {
       <DateNav
         date={date}
         today={today}
-        onChange={(next) =>
-          navigate({ to: '/today', search: next === today ? {} : { date: next } })
-        }
+        onChange={(next) => navigate({ to: '/today', search: next === today ? {} : { date: next } })}
       />
 
       <div className="today-lanes">
@@ -110,6 +118,7 @@ function TodayView() {
               </header>
               <MiniStrip
                 day={day.day}
+                tz={tz}
                 intervals={intervals.map((i) => ({
                   id: i.id,
                   jobId: i.jobId,
@@ -120,10 +129,10 @@ function TodayView() {
               />
               <IntervalList
                 rows={intervals}
+                tz={tz}
                 canEdit={canEditRow}
                 onEdit={(id) => {
-                  const row = intervals.find((i) => i.id === id) ?? null
-                  setEditing(row)
+                  setEditing(intervals.find((i) => i.id === id) ?? null)
                   setLockedWeek(null)
                 }}
                 onDelete={remove}
@@ -137,6 +146,7 @@ function TodayView() {
         <section className="panel">
           <h2 className="today-section-title">{editing ? 'Edit interval' : 'Add interval'}</h2>
           <EntryForm
+            key={editing?.id ?? 'new'}
             date={date}
             tz={tz}
             selfWorkerId={ctx.workerId}
@@ -145,7 +155,9 @@ function TodayView() {
             structure={structure}
             initial={rowToInitial(editing)}
             onSubmit={submit}
+            onCancel={() => setEditing(null)}
           />
+          {/* Plan 4.4d: link to /approvals?worker=&week= once that route exists (4.6). */}
           {lockedWeek && (
             <p role="alert" className="form-error">
               Week {lockedWeek} is approved. Ask an admin to unlock it before editing intervals on it.
@@ -176,6 +188,7 @@ function colorIndexFromStructure(structure: { projects: { jobs: { id: string }[]
   return out
 }
 
+// null = no filter (billing/admin); mirrors assertCanViewWorker for the lane list.
 function scopeWorkerIds(ctx: SessionContext | null): Set<string> | null {
   if (!ctx) return null
   if (ctx.roles.includes('billing') || ctx.roles.includes('admin')) return null
@@ -187,8 +200,4 @@ function orderLanes(workers: WorkerRow[], scope: Set<string> | null, selfId?: st
   const self = selfId ? filtered.find((w) => w.workerId === selfId) : undefined
   const rest = filtered.filter((w) => !self || w.workerId !== self.workerId)
   return self ? [self, ...rest] : rest
-}
-
-function pickClientTz(): string {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 }

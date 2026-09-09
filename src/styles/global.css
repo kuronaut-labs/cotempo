@@ -479,6 +479,11 @@ samp {
   font-size: 13px;
 }
 
+.entryform-actions {
+  display: flex;
+  gap: 8px;
+}
+
 /* ---------- /today page ---------- */
 
 .today {

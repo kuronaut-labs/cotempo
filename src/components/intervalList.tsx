@@ -1,15 +1,17 @@
+import { localHHMM } from '~/lib/dayMath'
 import { formatHmm } from '~/lib/money'
 import type { DayIntervalRow } from '~/server/services/intervals'
 
-// Read-only row list for the today view. Edit/Delete are UX-only — the server re-checks (#10).
-// Renders UTC times as `HH:MM`; the day boundary comes from `localDayBoundariesUtcMs` in the route (#23).
+// Edit/Delete are UX-only; the server re-checks (#10).
 export function IntervalList({
   rows,
+  tz,
   canEdit,
   onEdit,
   onDelete,
 }: {
   rows: DayIntervalRow[]
+  tz: string
   canEdit: (workerId: string) => boolean
   onEdit: (id: string) => void
   onDelete: (id: string) => void
@@ -32,16 +34,16 @@ export function IntervalList({
       </thead>
       <tbody>
         {rows.map((r) => {
-          const start = new Date(r.startedAt)
-          const end = new Date(r.endedAt)
-          const min = Math.max(0, (end.getTime() - start.getTime()) / 60_000)
+          const startMs = r.startedAt.getTime()
+          const endMs = r.endedAt.getTime()
+          const min = Math.max(0, Math.round((endMs - startMs) / 60_000))
           const editable = canEdit(r.workerId)
           return (
             <tr key={r.id}>
               <td>{r.jobName}</td>
               <td>{r.clientName}</td>
-              <td className="mono">{hhmm(start)}</td>
-              <td className="mono">{hhmm(end)}</td>
+              <td className="mono">{localHHMM(startMs, tz)}</td>
+              <td className="mono">{localHHMM(endMs, tz)}</td>
               <td className="mono">{formatHmm(min)}</td>
               <td>{r.note ?? ''}</td>
               <td className="intervallist-actions">
@@ -63,6 +65,3 @@ export function IntervalList({
     </table>
   )
 }
-
-const hhmm = (d: Date) => `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}`
-const pad = (n: number) => String(n).padStart(2, '0')

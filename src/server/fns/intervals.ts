@@ -30,5 +30,8 @@ export const listIntervalsFn = createServerFn({ method: 'GET' })
   .validator(ListIntervalsInput)
   .handler(({ data, context }) => svc.listIntervals(runtimeDeps(), ctxOf(context), data))
 
-// Server's local date in the org tz; the /today route uses this when the URL has no ?date (#23).
-export const getTodayFn = createServerFn({ method: 'GET' }).handler(() => localDateOf(Date.now(), runtimeDeps().tz))
+// The browser never picks a zone or reads its own clock (#23).
+export const getTodayFn = createServerFn({ method: 'GET' }).handler(() => {
+  const { tz } = runtimeDeps()
+  return { date: localDateOf(Date.now(), tz), tz }
+})
