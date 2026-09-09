@@ -98,7 +98,7 @@ export async function insertDemo(db: Db, opts: { anchorMs?: number } = {}) {
       iv('04', ids.agent2, ids.j3, 12000, 0, 13, 16),
       iv('05', ids.opWorker, ids.j2, 9000, 1, 9, 13),
       iv('06', ids.opWorker, ids.j3, 12000, 1, 11, 12),
-      iv('07', ids.opWorker, ids.j1, 14000, 2, 14, 18),
+      iv('07', ids.opWorker, ids.j1, 14000, 2, 14, 18), // 22:00–02:00 Perth; see CLAUDE.md "Known contract gaps"
       iv('08', ids.opWorker, ids.j4, null, 3, 9, 11), // non-billable
     ])
     .onConflictDoNothing()
