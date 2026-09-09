@@ -8,11 +8,32 @@ const Input = z
   .object({ password: z.string().min(12), confirm: z.string() })
   .refine((v) => v.password === v.confirm, { message: 'Passwords do not match', path: ['confirm'] })
 
-export const Route = createFileRoute('/set-password/$token')({ component: SetPasswordPage })
+// BetterAuth's reset callback lands here as ?token=… (or ?error=INVALID_TOKEN), so token is a search param, not a path segment (#16).
+const Search = z.object({ token: z.string().optional(), error: z.string().optional() })
+
+export const Route = createFileRoute('/set-password')({
+  validateSearch: Search,
+  component: SetPasswordPage,
+})
 
 function SetPasswordPage() {
-  const { token } = Route.useParams()
+  const { token, error: linkError } = Route.useSearch()
   const navigate = useNavigate()
+  if (!token) {
+    return (
+      <main className="login-page">
+        <h1>Set your password</h1>
+        <p role="alert" className="form-error">
+          {linkError === 'INVALID_TOKEN' ? 'This link has expired or was already used.' : 'This link is missing its token.'} Ask an admin
+          to resend your invite.
+        </p>
+      </main>
+    )
+  }
+  return <SetPasswordForm token={token} navigate={navigate} />
+}
+
+function SetPasswordForm({ token, navigate }: { token: string; navigate: ReturnType<typeof useNavigate> }) {
   const form = useForm({
     defaultValues: { password: '', confirm: '' },
     validators: { onSubmit: Input },

@@ -12,10 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteRouteImport } from './routes/_app/route'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as AppTodayRouteImport } from './routes/_app/today'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as DevComponentsRouteImport } from './routes/dev.components'
-import { Route as SetPasswordTokenRouteImport } from './routes/set-password.$token'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -30,6 +30,11 @@ const AppRouteRoute = AppRouteRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetPasswordRoute = SetPasswordRouteImport.update({
+  id: '/set-password',
+  path: '/set-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppTodayRoute = AppTodayRouteImport.update({
@@ -47,11 +52,6 @@ const DevComponentsRoute = DevComponentsRouteImport.update({
   path: '/dev/components',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SetPasswordTokenRoute = SetPasswordTokenRouteImport.update({
-  id: '/set-password/$token',
-  path: '/set-password/$token',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -61,19 +61,19 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/set-password': typeof SetPasswordRoute
   '/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
   '/dev/components': typeof DevComponentsRoute
-  '/set-password/$token': typeof SetPasswordTokenRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/set-password': typeof SetPasswordRoute
   '/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
   '/dev/components': typeof DevComponentsRoute
-  '/set-password/$token': typeof SetPasswordTokenRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
@@ -81,10 +81,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteRouteWithChildren
   '/login': typeof LoginRoute
+  '/set-password': typeof SetPasswordRoute
   '/_app/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
   '/dev/components': typeof DevComponentsRoute
-  '/set-password/$token': typeof SetPasswordTokenRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
@@ -92,29 +92,29 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/set-password'
     | '/today'
     | '/api/health'
     | '/dev/components'
-    | '/set-password/$token'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
+    | '/set-password'
     | '/today'
     | '/api/health'
     | '/dev/components'
-    | '/set-password/$token'
     | '/api/auth/$'
   id:
     | '__root__'
     | '/'
     | '/_app'
     | '/login'
+    | '/set-password'
     | '/_app/today'
     | '/api/health'
     | '/dev/components'
-    | '/set-password/$token'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
@@ -122,9 +122,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRouteRoute: typeof AppRouteRouteWithChildren
   LoginRoute: typeof LoginRoute
+  SetPasswordRoute: typeof SetPasswordRoute
   ApiHealthRoute: typeof ApiHealthRoute
   DevComponentsRoute: typeof DevComponentsRoute
-  SetPasswordTokenRoute: typeof SetPasswordTokenRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
 }
 
@@ -151,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/set-password': {
+      id: '/set-password'
+      path: '/set-password'
+      fullPath: '/set-password'
+      preLoaderRoute: typeof SetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/today': {
       id: '/_app/today'
       path: '/today'
@@ -170,13 +177,6 @@ declare module '@tanstack/react-router' {
       path: '/dev/components'
       fullPath: '/dev/components'
       preLoaderRoute: typeof DevComponentsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/set-password/$token': {
-      id: '/set-password/$token'
-      path: '/set-password/$token'
-      fullPath: '/set-password/$token'
-      preLoaderRoute: typeof SetPasswordTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
@@ -205,9 +205,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRouteRoute: AppRouteRouteWithChildren,
   LoginRoute: LoginRoute,
+  SetPasswordRoute: SetPasswordRoute,
   ApiHealthRoute: ApiHealthRoute,
   DevComponentsRoute: DevComponentsRoute,
-  SetPasswordTokenRoute: SetPasswordTokenRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
 }
 export const routeTree = rootRouteImport

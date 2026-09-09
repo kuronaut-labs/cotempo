@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm'
 import { getDb, schema } from './db'
 import { getEnv } from './env'
 import { sendMail } from './mail'
+import { activatedUserIds } from './inviteState'
 
 const SEVEN_DAYS = 7 * 24 * 60 * 60
 
@@ -24,13 +25,7 @@ function create() {
       disableSignUp: true, // invite-only (#8)
       resetPasswordTokenExpiresIn: SEVEN_DAYS, // doubles as the invite token (#16)
       async sendResetPassword({ user, url }) {
-        // A user who has never had a session is being invited, not resetting.
-        const hasSession = await db
-          .select({ id: schema.session.id })
-          .from(schema.session)
-          .where(eq(schema.session.userId, user.id))
-          .get()
-        const invite = !hasSession
+        const invite = !(await activatedUserIds(db, [user.id])).has(user.id)
         await sendMail({
           to: user.email,
           subject: invite ? 'You have been added to Timesheets' : 'Reset your Timesheets password',
@@ -38,6 +33,10 @@ function create() {
             ? `<p>${user.name}, an admin added you to Timesheets. <a href="${url}">Set your password</a> (link valid 7 days).</p>`
             : `<p><a href="${url}">Reset your password</a> (link valid 7 days).</p>`,
         })
+      },
+      // Completing the reset link proves the address; this is what turns an invite 'active' (#16).
+      async onPasswordReset({ user }) {
+        await db.update(schema.user).set({ emailVerified: true, updatedAt: new Date() }).where(eq(schema.user.id, user.id))
       },
     },
     plugins: [admin()],

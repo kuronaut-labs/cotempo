@@ -68,4 +68,11 @@ describe('buildSessionContext (#8)', () => {
   it('throws NO_WORKER_PROFILE for an unknown user', async () => {
     await expect(buildSessionContext(db, rawFor('nobody'))).rejects.toThrow('NO_WORKER_PROFILE')
   })
+  it('throws FORBIDDEN for an archived worker', async () => {
+    await db.update(schema.workers).set({ archivedAt: new Date() }).where(eq(schema.workers.id, ids.billingWorker))
+    await expect(buildSessionContext(db, rawFor(`user-${ids.billingWorker}`))).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+      status: 403,
+    })
+  })
 })

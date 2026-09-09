@@ -98,11 +98,7 @@ export async function insertDemo(db: Db, opts: { anchorMs?: number } = {}) {
       iv('04', ids.agent2, ids.j3, 12000, 0, 13, 16),
       iv('05', ids.opWorker, ids.j2, 9000, 1, 9, 13),
       iv('06', ids.opWorker, ids.j3, 12000, 1, 11, 12),
-      // iv('07') day 2 14–18 UTC = 2026-09-02 22:00–02:00 Perth (Wed→Thu); the only
-    // fixture interval outside the "17:00–01:00 Perth" comment, and the reason the
-    // phase4-intervals contract listDay case expects `{90, 120, 30}` to fail —
-    // this row clips to 120 min on 2026-09-02. See CLAUDE.md "Known contract gaps".
-    iv('07', ids.opWorker, ids.j1, 14000, 2, 14, 18),
+      iv('07', ids.opWorker, ids.j1, 14000, 2, 14, 18), // 22:00–02:00 Perth; see CLAUDE.md "Known contract gaps"
       iv('08', ids.opWorker, ids.j4, null, 3, 9, 11), // non-billable
     ])
     .onConflictDoNothing()

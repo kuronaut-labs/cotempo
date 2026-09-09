@@ -144,6 +144,7 @@ export async function updateInterval(
     endedAt: new Date(after.endMs),
     jobId,
     rateCents: job ? job.billableRateCents : cur.rateCents,
+    note: input.note === undefined ? cur.note : input.note,
     editCount: cur.editCount + 1,
     updatedAt: now,
   }
@@ -238,15 +239,16 @@ export async function listIntervals(
   ctx: SessionContext,
   input: z.infer<typeof ListIntervalsInput>,
 ): Promise<{ rows: IntervalRow[]; nextCursor: string | null }> {
-  const { db } = deps
+  const { db, tz } = deps
   if (input.workerId) assertCanViewWorker(ctx, input.workerId)
   else if (!hasRole(ctx, 'billing')) throw new HttpError(403, 'FORBIDDEN')
 
   const conds: (SQL | undefined)[] = [isNull(schema.intervals.deletedAt)]
   if (input.workerId) conds.push(eq(schema.intervals.workerId, input.workerId))
   if (input.jobId) conds.push(eq(schema.intervals.jobId, input.jobId))
-  if (input.from) conds.push(gte(schema.intervals.startedAt, new Date(input.from)))
-  if (input.to) conds.push(lt(schema.intervals.startedAt, new Date(`${input.to}T23:59:59.999Z`)))
+  // from/to are org-zone dates, inclusive (#19)
+  if (input.from) conds.push(gte(schema.intervals.startedAt, new Date(localDayBoundariesUtcMs(input.from, tz).startMs)))
+  if (input.to) conds.push(lt(schema.intervals.startedAt, new Date(localDayBoundariesUtcMs(input.to, tz).endMs)))
   if (input.cursor) {
     const [ms, id] = input.cursor.split(':')
     const cursorMs = Number(ms)

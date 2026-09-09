@@ -3,11 +3,12 @@ import { betterAuth } from 'better-auth'
 import { admin } from 'better-auth/plugins'
 import { drizzleAdapter } from '@better-auth/drizzle-adapter'
 import { eq } from 'drizzle-orm'
-import { asUser, db, resetDb } from './helpers'
+import { asUser, db, deps, resetDb } from './helpers'
 import { ids } from '~/server/fixtures/demo'
 import { hasRole } from '~/server/context'
 import { HttpError } from '~/lib/errors'
 import { inviteUser, resendInvite } from '~/server/services/invites'
+import { listWorkers } from '~/server/services/workers'
 import * as schema from '../../drizzle/schema'
 
 beforeEach(resetDb)
@@ -33,6 +34,10 @@ const makeAuth = () => {
       resetPasswordTokenExpiresIn: 7 * 24 * 60 * 60,
       async sendResetPassword({ url }) {
         captured.push(url)
+      },
+      // Mirrors src/server/auth.ts: the reset link is what activates an invite.
+      async onPasswordReset({ user }) {
+        await db.update(schema.user).set({ emailVerified: true }).where(eq(schema.user.id, user.id))
       },
     },
     plugins: [admin()],
@@ -118,6 +123,53 @@ describe('inviteUser (#16)', () => {
 
     const user = await db.select().from(schema.user).where(eq(schema.user.email, 'super@example.com')).get()
     expect(user?.role).toBe('admin')
+  })
+})
+
+describe('inviteUser pre-checks (#16)', () => {
+  it('refuses a taken email and a non-human supervisor before creating an auth user', async () => {
+    const auth = makeAuth()
+    const headers = await adminHeaders(auth)
+    const d = { db, auth, headers, appUrl: 'http://localhost:3000' }
+    const before = (await db.select({ id: schema.user.id }).from(schema.user).all()).length
+    await expect(
+      inviteUser(d, asUser('admin'), { email: 'ops@example.com', name: 'Dup', roles: ['operator'], supervisorId: null }),
+    ).rejects.toMatchObject({ code: 'EMAIL_TAKEN', field: 'email', status: 409 })
+    await expect(
+      inviteUser(d, asUser('admin'), { email: 'n@example.com', name: 'N', roles: ['operator'], supervisorId: ids.agent1 }),
+    ).rejects.toMatchObject({ code: 'SUPERVISOR_NOT_HUMAN', field: 'supervisorId' })
+    expect((await db.select({ id: schema.user.id }).from(schema.user).all()).length).toBe(before)
+    expect(captured).toHaveLength(0)
+  })
+
+  it('invited user is pending until the reset link is used, then active', async () => {
+    const auth = makeAuth()
+    const headers = await adminHeaders(auth)
+    const r = await inviteUser(
+      { db, auth, headers, appUrl: 'http://localhost:3000' },
+      asUser('admin'),
+      { email: 'late@example.com', name: 'Late', roles: ['operator'], supervisorId: null },
+    )
+    const state = async () => {
+      const w = (await listWorkers(deps(), asUser('admin'))).find((x) => x.workerId === r.workerId)
+      return w?.kind === 'human' ? w.inviteState : undefined
+    }
+    expect(await state()).toBe('pending')
+    const token = new URL(captured[0]!).pathname.split('/').at(-1)! // /api/auth/reset-password/:token
+    await auth.api.resetPassword({ body: { newPassword: 'a-brand-new-password', token } })
+    expect(await state()).toBe('active')
+  })
+})
+
+describe('invite services re-check admin (#5)', () => {
+  it('inviteUser and resendInvite refuse non-admin callers before touching auth', async () => {
+    const auth = makeAuth()
+    const d = { db, auth, headers: new Headers(), appUrl: 'http://localhost:3000' }
+    const input = { email: 'x@example.com', name: 'X', roles: ['operator'] as ['operator'], supervisorId: null }
+    await expect(inviteUser(d, asUser('operator'), input)).rejects.toMatchObject({ code: 'FORBIDDEN', status: 403 })
+    await expect(inviteUser(d, asUser('billing'), input)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    await expect(resendInvite(d, asUser('operator'), { workerId: ids.opWorker })).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(captured).toHaveLength(0)
   })
 })
 
