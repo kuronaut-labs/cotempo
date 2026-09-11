@@ -13,9 +13,14 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteRouteImport } from './routes/_app/route'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetPasswordRouteImport } from './routes/set-password'
+import { Route as AppAdminRouteRouteImport } from './routes/_app/admin/route'
 import { Route as AppTodayRouteImport } from './routes/_app/today'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as DevComponentsRouteImport } from './routes/dev.components'
+import { Route as AppAdminClientsRouteImport } from './routes/_app/admin/clients'
+import { Route as AppAdminJobsRouteImport } from './routes/_app/admin/jobs'
+import { Route as AppAdminProjectsRouteImport } from './routes/_app/admin/projects'
+import { Route as AppAdminWorkersRouteImport } from './routes/_app/admin/workers'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -37,6 +42,11 @@ const SetPasswordRoute = SetPasswordRouteImport.update({
   path: '/set-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppAdminRouteRoute = AppAdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppTodayRoute = AppTodayRouteImport.update({
   id: '/today',
   path: '/today',
@@ -52,6 +62,26 @@ const DevComponentsRoute = DevComponentsRouteImport.update({
   path: '/dev/components',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppAdminClientsRoute = AppAdminClientsRouteImport.update({
+  id: '/clients',
+  path: '/clients',
+  getParentRoute: () => AppAdminRouteRoute,
+} as any)
+const AppAdminJobsRoute = AppAdminJobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
+  getParentRoute: () => AppAdminRouteRoute,
+} as any)
+const AppAdminProjectsRoute = AppAdminProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => AppAdminRouteRoute,
+} as any)
+const AppAdminWorkersRoute = AppAdminWorkersRouteImport.update({
+  id: '/workers',
+  path: '/workers',
+  getParentRoute: () => AppAdminRouteRoute,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -62,18 +92,28 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
+  '/admin': typeof AppAdminRouteRouteWithChildren
   '/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
   '/dev/components': typeof DevComponentsRoute
+  '/admin/clients': typeof AppAdminClientsRoute
+  '/admin/jobs': typeof AppAdminJobsRoute
+  '/admin/projects': typeof AppAdminProjectsRoute
+  '/admin/workers': typeof AppAdminWorkersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
+  '/admin': typeof AppAdminRouteRouteWithChildren
   '/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
   '/dev/components': typeof DevComponentsRoute
+  '/admin/clients': typeof AppAdminClientsRoute
+  '/admin/jobs': typeof AppAdminJobsRoute
+  '/admin/projects': typeof AppAdminProjectsRoute
+  '/admin/workers': typeof AppAdminWorkersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
@@ -82,9 +122,14 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
+  '/_app/admin': typeof AppAdminRouteRouteWithChildren
   '/_app/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
   '/dev/components': typeof DevComponentsRoute
+  '/_app/admin/clients': typeof AppAdminClientsRoute
+  '/_app/admin/jobs': typeof AppAdminJobsRoute
+  '/_app/admin/projects': typeof AppAdminProjectsRoute
+  '/_app/admin/workers': typeof AppAdminWorkersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
@@ -93,18 +138,28 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/set-password'
+    | '/admin'
     | '/today'
     | '/api/health'
     | '/dev/components'
+    | '/admin/clients'
+    | '/admin/jobs'
+    | '/admin/projects'
+    | '/admin/workers'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/set-password'
+    | '/admin'
     | '/today'
     | '/api/health'
     | '/dev/components'
+    | '/admin/clients'
+    | '/admin/jobs'
+    | '/admin/projects'
+    | '/admin/workers'
     | '/api/auth/$'
   id:
     | '__root__'
@@ -112,9 +167,14 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/set-password'
+    | '/_app/admin'
     | '/_app/today'
     | '/api/health'
     | '/dev/components'
+    | '/_app/admin/clients'
+    | '/_app/admin/jobs'
+    | '/_app/admin/projects'
+    | '/_app/admin/workers'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
@@ -158,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/admin': {
+      id: '/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AppAdminRouteRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/_app/today': {
       id: '/_app/today'
       path: '/today'
@@ -179,6 +246,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DevComponentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/admin/clients': {
+      id: '/_app/admin/clients'
+      path: '/clients'
+      fullPath: '/admin/clients'
+      preLoaderRoute: typeof AppAdminClientsRouteImport
+      parentRoute: typeof AppAdminRouteRoute
+    }
+    '/_app/admin/jobs': {
+      id: '/_app/admin/jobs'
+      path: '/jobs'
+      fullPath: '/admin/jobs'
+      preLoaderRoute: typeof AppAdminJobsRouteImport
+      parentRoute: typeof AppAdminRouteRoute
+    }
+    '/_app/admin/projects': {
+      id: '/_app/admin/projects'
+      path: '/projects'
+      fullPath: '/admin/projects'
+      preLoaderRoute: typeof AppAdminProjectsRouteImport
+      parentRoute: typeof AppAdminRouteRoute
+    }
+    '/_app/admin/workers': {
+      id: '/_app/admin/workers'
+      path: '/workers'
+      fullPath: '/admin/workers'
+      preLoaderRoute: typeof AppAdminWorkersRouteImport
+      parentRoute: typeof AppAdminRouteRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -189,11 +284,31 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppAdminRouteRouteChildren {
+  AppAdminClientsRoute: typeof AppAdminClientsRoute
+  AppAdminJobsRoute: typeof AppAdminJobsRoute
+  AppAdminProjectsRoute: typeof AppAdminProjectsRoute
+  AppAdminWorkersRoute: typeof AppAdminWorkersRoute
+}
+
+const AppAdminRouteRouteChildren: AppAdminRouteRouteChildren = {
+  AppAdminClientsRoute: AppAdminClientsRoute,
+  AppAdminJobsRoute: AppAdminJobsRoute,
+  AppAdminProjectsRoute: AppAdminProjectsRoute,
+  AppAdminWorkersRoute: AppAdminWorkersRoute,
+}
+
+const AppAdminRouteRouteWithChildren = AppAdminRouteRoute._addFileChildren(
+  AppAdminRouteRouteChildren,
+)
+
 interface AppRouteRouteChildren {
+  AppAdminRouteRoute: typeof AppAdminRouteRouteWithChildren
   AppTodayRoute: typeof AppTodayRoute
 }
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
+  AppAdminRouteRoute: AppAdminRouteRouteWithChildren,
   AppTodayRoute: AppTodayRoute,
 }
 

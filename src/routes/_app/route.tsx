@@ -1,18 +1,18 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate } from '@tanstack/react-router'
 import { authClient } from '~/lib/auth-client'
-import { getSessionFn } from '~/server/fns/auth'
+import { getSessionCtxFn, getSessionFn } from '~/server/fns/auth'
 
 export const Route = createFileRoute('/_app')({
   beforeLoad: async () => {
-    const session = await getSessionFn()
+    const [session, ctx] = await Promise.all([getSessionFn(), getSessionCtxFn()])
     if (!session) throw redirect({ to: '/login' })
-    return { session }
+    return { session, ctx }
   },
   component: AppLayout,
 })
 
 function AppLayout() {
-  const { session } = Route.useRouteContext()
+  const { session, ctx } = Route.useRouteContext()
   const navigate = useNavigate()
   return (
     <div className="app-shell">
@@ -20,7 +20,12 @@ function AppLayout() {
         <Link to="/today" activeProps={{ className: 'active' }}>
           Today
         </Link>
-        {/* Reports, Approvals, Admin land in Phases 5–8. */}
+        {ctx?.roles.includes('admin') && (
+          <Link to="/admin/clients" activeProps={{ className: 'active' }}>
+            Admin
+          </Link>
+        )}
+        {/* Reports, Approvals land in Phases 5–8. */}
         <span className="nav-spacer" />
         <span className="nav-user">{session.name}</span>
         <button

@@ -518,3 +518,263 @@ samp {
   font-size: 15px;
   margin-bottom: 12px;
 }
+
+/* ---------- admin (4.5) ---------- */
+
+.admin {
+  padding: 20px 24px;
+  display: grid;
+  gap: 16px;
+  max-width: 1100px;
+}
+
+.admin-subnav {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+}
+
+.admin-subnav a {
+  font-family: var(--disp);
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 8px 14px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.admin-subnav a:hover {
+  color: var(--text);
+}
+
+.admin-subnav a.active {
+  color: var(--text);
+  border-bottom-color: var(--j1);
+}
+
+.admin-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.admin-head h1 {
+  font-size: 20px;
+}
+
+.admin-head .spacer {
+  flex: 1;
+}
+
+.checkline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 1px 6px;
+  color: var(--muted);
+}
+
+.tag-ok {
+  border-color: #33452f;
+  background: #16211a;
+  color: var(--pos);
+}
+
+.tag-warn {
+  border-color: #4a3f2e;
+  background: #241f16;
+  color: var(--j4);
+}
+
+.tree {
+  display: grid;
+  gap: 10px;
+}
+
+.tree-empty {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  padding: 16px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.tree-client {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 10px;
+  background: var(--panel2);
+}
+
+.tree-client.archived,
+.tree-project.archived,
+.tree-row.archived {
+  opacity: 0.5;
+}
+
+.tree-projects {
+  display: grid;
+  gap: 8px;
+  margin-left: 16px;
+}
+
+.tree-project {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+  background: var(--panel);
+}
+
+.tree-jobs {
+  display: grid;
+  gap: 6px;
+  margin-left: 16px;
+}
+
+.tree-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--panel2);
+}
+
+.tree-row .name {
+  font-weight: 500;
+}
+
+.tree-row .rate {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: auto;
+}
+
+.tree-row.tree-add,
+.tree-row.tree-edit,
+.tree-edit {
+  background: var(--panel);
+  border: 1px dashed var(--line);
+}
+
+.tree-input {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 6px 8px;
+  cursor: auto;
+}
+
+.tree-rate {
+  width: 160px;
+}
+
+.tree-actions {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 6px;
+}
+
+.tree-row button,
+.roster button,
+.tree-edit button {
+  font-family: var(--mono);
+  font-size: 11px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 4px 10px;
+  color: var(--muted);
+}
+
+.tree-row button:hover,
+.roster button:hover,
+.tree-edit button:hover {
+  color: var(--text);
+  border-color: var(--faint);
+}
+
+.tree-row button.danger:hover,
+.roster button.danger:hover,
+.tree-edit button.danger:hover {
+  color: var(--err);
+  border-color: #4a2f28;
+}
+
+.admin-form {
+  display: grid;
+  gap: 12px;
+}
+
+.status-ok {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--pos);
+}
+
+.status-msg {
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.rolecheck {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin-right: 8px;
+}
+
+.rolecheck input[disabled] {
+  opacity: 0.6;
+}
+
+.roster {
+  display: grid;
+  gap: 16px;
+}
+
+.roster-email {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.roster-select {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 4px 6px;
+  cursor: auto;
+}
