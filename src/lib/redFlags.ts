@@ -1,4 +1,7 @@
-import type { Piece } from './attribution'
+import { groupBy, type Piece } from './attribution'
+import { localDateOf } from './dayMath'
+import { localDayBoundariesUtcMs, type Range } from './dayMath'
+import { weekDates } from './week'
 
 export type FlagKind = 'gap' | 'late_entry' | 'multi_edit' | 'retroactive' | 'non_supervisor'
 export type Flag = { kind: FlagKind; intervalId?: string; day?: string; detail: string }
@@ -14,11 +17,101 @@ export type RedFlagInput = {
   pieces: Piece[]
 }
 
-/* gap: a Mon–Fri day with no pieces or wall-clock < gapMinWallMin.
-   late_entry: createdAt > end of week + lateEntryDays.
-   multi_edit: editCount > multiEditOver.
-   retroactive: localDateOf(createdAt) > localDateOf(startedAt).
-   non_supervisor: createdBy ∉ {worker.id, worker.supervisorId} (#12, #17). */
-export function redFlags(_input: RedFlagInput, _cfg: FlagConfig = defaults): Flag[] {
-  throw new Error('TODO Task 6.1')
+const DAY = 86_400_000
+
+/* Per-day wall-clock across the worker's pieces on that local day. Pieces from
+   attribution are already split at day boundaries, so wall-clock is the sum of
+   per-piece minutes (one worker filtered; concurrency was resolved at explode). */
+function wallMinByDay(pieces: Piece[], workerId: string): Map<string, number> {
+  const out = new Map<string, number>()
+  for (const p of pieces) {
+    if (p.workerId !== workerId) continue
+    const min = (p.endMs - p.startMs) / 60_000
+    out.set(p.day, (out.get(p.day) ?? 0) + min)
+  }
+  return out
+}
+
+/* gap: a Mon–Fri day in the week with no time or wall-clock < gapMinWallMin (#12, #17). */
+function gapFlags(input: RedFlagInput, cfg: FlagConfig): Flag[] {
+  const dates = weekDates(input.weekStart).slice(0, 5) // Mon..Fri
+  const walls = wallMinByDay(input.pieces, input.worker.id)
+  const out: Flag[] = []
+  for (const day of dates) {
+    const wall = walls.get(day) ?? 0
+    if (wall < cfg.gapMinWallMin) {
+      out.push({
+        kind: 'gap',
+        day,
+        detail: wall === 0 ? `No time logged on ${day}.` : `Only ${Math.round(wall)} min on ${day} (< 8h).`,
+      })
+    }
+  }
+  return out
+}
+
+/* late_entry: createdAt > end-of-week + lateEntryDays (#17). */
+function lateEntryFlags(input: RedFlagInput, cfg: FlagConfig): Flag[] {
+  // end of weekStart is the start of Tuesday; add 6 days to reach end-of-Sunday
+  // (which is the same as Monday-next-week 00:00 local).
+  const startOfWeek: Range = localDayBoundariesUtcMs(input.weekStart, input.tz)
+  const endOfWeek = startOfWeek.endMs + 6 * DAY
+  const deadline = endOfWeek + cfg.lateEntryDays * DAY
+  const out: Flag[] = []
+  for (const iv of input.intervals) {
+    if (iv.createdAt > deadline) {
+      out.push({ kind: 'late_entry', intervalId: iv.id, detail: `Interval ${iv.id} entered after the late-entry window.` })
+    }
+  }
+  return out
+}
+
+/* multi_edit: editCount > multiEditOver. */
+function multiEditFlags(input: RedFlagInput, cfg: FlagConfig): Flag[] {
+  const out: Flag[] = []
+  for (const iv of input.intervals) {
+    if (iv.editCount > cfg.multiEditOver) {
+      out.push({ kind: 'multi_edit', intervalId: iv.id, detail: `Interval ${iv.id} edited ${iv.editCount} times.` })
+    }
+  }
+  return out
+}
+
+/* retroactive: the interval was created on a later local day than it started (#17). */
+function retroactiveFlags(input: RedFlagInput): Flag[] {
+  const out: Flag[] = []
+  for (const iv of input.intervals) {
+    const c = localDateOf(iv.createdAt, input.tz)
+    const s = localDateOf(iv.startedAt, input.tz)
+    if (c > s) {
+      out.push({ kind: 'retroactive', intervalId: iv.id, detail: `Interval ${iv.id} created ${c} but started ${s}.` })
+    }
+  }
+  return out
+}
+
+/* non_supervisor: createdBy is neither the worker nor their supervisor (#12, #17). */
+function nonSupervisorFlags(input: RedFlagInput): Flag[] {
+  const allowed = new Set([input.worker.id, input.worker.supervisorId].filter(Boolean) as string[])
+  const out: Flag[] = []
+  for (const iv of input.intervals) {
+    if (!allowed.has(iv.createdBy)) {
+      out.push({ kind: 'non_supervisor', intervalId: iv.id, detail: `Interval ${iv.id} entered by ${iv.createdBy}.` })
+    }
+  }
+  return out
+}
+
+/* Order matches the contract tests' `kinds(...)` arrays: gap, late_entry, multi_edit,
+   retroactive, non_supervisor. Add a new check at the end and extend the contract
+   rather than re-ordering, so the existing assertions stay stable. */
+export function redFlags(input: RedFlagInput, cfg: FlagConfig = defaults): Flag[] {
+  void groupBy // kept to ensure attribution stays the canonical grouping helper
+  return [
+    ...gapFlags(input, cfg),
+    ...lateEntryFlags(input, cfg),
+    ...multiEditFlags(input, cfg),
+    ...retroactiveFlags(input),
+    ...nonSupervisorFlags(input),
+  ]
 }
