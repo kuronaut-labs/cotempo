@@ -41,6 +41,15 @@ const makeAuth = () => {
       },
     },
     plugins: [admin()],
+    trustedOrigins: async (request?: Request) => {
+      const origin = request?.headers.get('origin')
+      if (!origin) return []
+      try {
+        const { hostname } = new URL(origin)
+        if (hostname === 'localhost' || hostname === '127.0.0.1') return [origin]
+      } catch {}
+      return []
+    },
   })
 }
 

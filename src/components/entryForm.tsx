@@ -260,5 +260,6 @@ function findClientForJob(structure: ClientNode[], jobId: string): string | null
 }
 
 function combine(date: string, hhmm: string, tz: string): string {
-  return new TZDate(`${date}T${hhmm}:00`, tz).toISOString()
+  // TZDate.toISOString() emits local time with a numeric offset; the wire schema (#19) wants UTC Z.
+  return new Date(new TZDate(`${date}T${hhmm}:00`, tz).getTime()).toISOString()
 }

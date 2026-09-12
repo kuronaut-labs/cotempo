@@ -4,20 +4,19 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import react from '@vitejs/plugin-react'
 
 // `cloudflare:workers` is a Workers-only import (per @cloudflare/vite-plugin).
-// The TanStack Start client build still traces it through server fns; alias
-// to an empty stub so the client bundle compiles. The SSR build uses the
-// real module via the cloudflare plugin's normalisation.
+// The TanStack Start client build still traces it through server fns, so stub
+// it for every non-SSR env to keep the client bundle compiling. The SSR env
+// must resolve to the real module so the cloudflare plugin injects bindings.
 export default defineConfig({
-  resolve: {
-    tsconfigPaths: true,
-    alias: [{ find: 'cloudflare:workers', replacement: '\0cf-stub' }],
-  },
+  resolve: { tsconfigPaths: true },
   plugins: [
     {
       name: 'cloudflare-workers-stub-client',
       enforce: 'pre',
       resolveId(id) {
-        if (id === '\0cf-stub') return '\0cf-stub'
+        if (id === 'cloudflare:workers' && this.environment?.name !== 'ssr') {
+          return '\0cf-stub'
+        }
         return null
       },
       load(id) {

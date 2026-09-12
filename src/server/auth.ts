@@ -15,6 +15,18 @@ function create() {
   return betterAuth({
     baseURL: env.APP_URL,
     secret: env.BETTER_AUTH_SECRET,
+    // Dev port (`:3123` per CLAUDE.md) is not predictable and APP_URL stays at
+    // :3000 because the deploy uses that base for invite links. Trust any
+    // loopback origin in dev; prod is reached via the deployed APP_URL anyway.
+    trustedOrigins: async (request?: Request) => {
+      const origin = request?.headers.get('origin')
+      if (!origin) return []
+      try {
+        const { hostname } = new URL(origin)
+        if (hostname === 'localhost' || hostname === '127.0.0.1') return [origin]
+      } catch {}
+      return []
+    },
     database: drizzleAdapter(db, {
       provider: 'sqlite',
       schema: { user: schema.user, session: schema.session, account: schema.account, verification: schema.verification },
