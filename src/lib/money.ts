@@ -14,3 +14,13 @@ export function formatHmm(minutes: number): string {
 export function formatDecimalHours(minutes: number): string {
   return (minutes / 60).toFixed(2)
 }
+
+/** Cents as '$1,234.56' for display only — never use the rounded value for billing math (#18). */
+export function formatCents(cents: number): string {
+  const sign = cents < 0 ? '-' : ''
+  const abs = Math.abs(cents)
+  const dollars = Math.floor(abs / 100)
+  const remainder = abs % 100
+  const grouped = String(dollars).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+  return `${sign}$${grouped}.${String(remainder).padStart(2, '0')}`
+}

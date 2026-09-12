@@ -778,3 +778,168 @@ samp {
   padding: 4px 6px;
   cursor: auto;
 }
+
+/* ---------- reconciliation trio chip (5.2a) ---------- */
+
+.trio {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 11px;
+  background: var(--panel);
+}
+
+.trio.lg {
+  font-size: 13px;
+}
+
+.trio .seg {
+  padding: 5px 10px;
+  border-right: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.trio.lg .seg {
+  padding: 8px 14px;
+}
+
+.trio .seg:last-child {
+  border-right: none;
+}
+
+.trio .k {
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trio.lg .k {
+  font-size: 10px;
+}
+
+.trio .v {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.trio.lg .v {
+  font-size: 16px;
+}
+
+.trio .seg.b .v {
+  color: var(--pos);
+}
+
+.trio .seg.h .v {
+  color: var(--text);
+}
+
+.trio .seg.p .v {
+  color: var(--j4);
+}
+
+.trio .seg.dollar .v {
+  color: var(--text);
+  font-family: var(--disp);
+  font-size: 15px;
+}
+
+.trio.lg .seg.dollar .v {
+  font-size: 18px;
+}
+
+/* ---------- period selector (5.2a) ---------- */
+
+.period {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.period .lbl {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-right: 4px;
+}
+
+.period .spacer {
+  flex: 1;
+}
+
+.period button {
+  font-family: var(--mono);
+  font-size: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 12px;
+  color: var(--muted);
+  background: var(--panel);
+}
+
+.period button:hover {
+  color: var(--text);
+  border-color: var(--faint);
+}
+
+.period button[aria-selected='true'] {
+  color: var(--text);
+  background: var(--panel2);
+  border-color: var(--j1);
+}
+
+.period .range {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: 6px;
+}
+
+.period input[type='date'] {
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 4px 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+/* ---------- sub tabs (5.2a) ---------- */
+
+.subtabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 18px;
+}
+
+.subtab {
+  font-family: var(--disp);
+  font-weight: 500;
+  font-size: 14px;
+  padding: 8px 14px;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.subtab:hover {
+  color: var(--text);
+}
+
+.subtab[aria-selected='true'] {
+  color: var(--text);
+  border-bottom-color: var(--j1);
+}
