@@ -1090,3 +1090,104 @@ samp {
   margin-right: 4px;
   vertical-align: middle;
 }
+
+/* ---------- daily breakdown table (5.2c) ---------- */
+
+.dailytable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+.dailytable thead th {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line);
+  font-weight: 500;
+}
+
+.dailytable thead th.num {
+  text-align: right;
+}
+
+.dailytable tbody td {
+  padding: 10px;
+  border-bottom: 1px solid #262a31;
+  vertical-align: top;
+}
+
+.dailytable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.dailytable tbody tr:hover {
+  background: var(--panel2);
+}
+
+.dailytable td.daylabel {
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.dailytable td.daylabel .dayrel {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--faint);
+  display: block;
+  margin-top: 2px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-weight: 400;
+}
+
+.dailycell {
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.dailycell .b {
+  color: var(--pos);
+}
+
+.dailycell .h {
+  color: var(--text);
+}
+
+.dailycell .p {
+  color: var(--j4);
+}
+
+.dailycell.empty {
+  color: var(--faint);
+  text-align: center;
+  font-family: var(--mono);
+}
+
+.dailytable tr.total td {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  font-family: var(--body);
+  color: var(--text);
+}
+
+.dailytable tr.total td.daylabel {
+  font-weight: 600;
+}
+
+.dailytable tr.total td .b,
+.dailytable tr.total td .h,
+.dailytable tr.total td .p {
+  font-weight: 600;
+}
