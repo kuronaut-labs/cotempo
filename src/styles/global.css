@@ -943,3 +943,150 @@ samp {
   color: var(--text);
   border-bottom-color: var(--j1);
 }
+
+/* ---------- reconciliation table (5.2b) ---------- */
+
+.recontable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.recontable thead th {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+  padding: 8px 12px;
+  font-weight: 500;
+}
+
+.recontable tbody td {
+  border-bottom: 1px solid #262a31;
+  padding: 12px;
+  vertical-align: middle;
+}
+
+.recontable tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.recontable tfoot td {
+  border-top: 1px solid var(--line);
+  padding: 14px 12px;
+  font-family: var(--body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.recontable .nm {
+  font-family: var(--body);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.recontable .money {
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---------- reconciliation bars (5.2b) ---------- */
+
+.recon {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.recon .nm {
+  width: 180px;
+  flex: none;
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 13px;
+}
+
+.recon .barwrap {
+  flex: 1;
+  height: 18px;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+.recon .bar {
+  position: absolute;
+  top: 0;
+  height: 100%;
+}
+
+.recon .bar.honest {
+  background: var(--pos);
+  opacity: 0.85;
+}
+
+.recon .bar.premium {
+  background: repeating-linear-gradient(45deg, var(--j4) 0 4px, #6b4e1f 4px 8px);
+  border-left: 1px solid var(--j4);
+}
+
+.recon .bar .lbl {
+  position: absolute;
+  top: 1px;
+  left: 6px;
+  font-size: 10px;
+  color: #0e1013;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+.recon .nums {
+  width: 220px;
+  flex: none;
+  text-align: right;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.recon .nums b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.recon .nums .premium-tag {
+  color: var(--j4);
+}
+
+.reconbars .legend {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  margin: 0 0 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.reconbars .legend .sw {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+  margin-right: 4px;
+  vertical-align: middle;
+}
