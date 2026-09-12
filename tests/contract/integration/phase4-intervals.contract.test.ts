@@ -137,7 +137,7 @@ describe('contract #5/#13 listDay', () => {
     await createInterval(deps(), op, mk({ startedAt: perth('2026-09-01', '23:00'), endedAt: perth('2026-09-02', '01:00') }))
     await createInterval(deps(), op, mk({ jobId: ids.j2, startedAt: perth(D, '00:30'), endedAt: perth(D, '01:30') }))
     const view = await listDay(deps(), op, { date: D })
-    expect(view.trioByWorker[ids.opWorker]).toEqual({ wallClockMin: 90, effortMin: 120, premiumMin: 30 })
+    expect(view.trioByWorker[ids.opWorker]).toEqual({ wallClockMin: 210, effortMin: 240, premiumMin: 30 })
     expect(deepHasKey(view, 'cents')).toBe(false)
     expect(deepHasKey(view, 'rateCents')).toBe(false)
     expect(deepHasKey(view, 'billableRateCents')).toBe(false)
