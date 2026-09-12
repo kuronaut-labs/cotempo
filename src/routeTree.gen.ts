@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as AppAdminRouteRouteImport } from './routes/_app/admin/route'
 import { Route as AppApprovalsRouteImport } from './routes/_app/approvals'
+import { Route as AppInvoiceRouteImport } from './routes/_app/invoice'
 import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppTodayRouteImport } from './routes/_app/today'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
@@ -52,6 +53,11 @@ const AppAdminRouteRoute = AppAdminRouteRouteImport.update({
 const AppApprovalsRoute = AppApprovalsRouteImport.update({
   id: '/approvals',
   path: '/approvals',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppInvoiceRoute = AppInvoiceRouteImport.update({
+  id: '/invoice',
+  path: '/invoice',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppReportsRoute = AppReportsRouteImport.update({
@@ -106,6 +112,7 @@ export interface FileRoutesByFullPath {
   '/set-password': typeof SetPasswordRoute
   '/admin': typeof AppAdminRouteRouteWithChildren
   '/approvals': typeof AppApprovalsRoute
+  '/invoice': typeof AppInvoiceRoute
   '/reports': typeof AppReportsRoute
   '/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
@@ -122,6 +129,7 @@ export interface FileRoutesByTo {
   '/set-password': typeof SetPasswordRoute
   '/admin': typeof AppAdminRouteRouteWithChildren
   '/approvals': typeof AppApprovalsRoute
+  '/invoice': typeof AppInvoiceRoute
   '/reports': typeof AppReportsRoute
   '/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
@@ -140,6 +148,7 @@ export interface FileRoutesById {
   '/set-password': typeof SetPasswordRoute
   '/_app/admin': typeof AppAdminRouteRouteWithChildren
   '/_app/approvals': typeof AppApprovalsRoute
+  '/_app/invoice': typeof AppInvoiceRoute
   '/_app/reports': typeof AppReportsRoute
   '/_app/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
@@ -158,6 +167,7 @@ export interface FileRouteTypes {
     | '/set-password'
     | '/admin'
     | '/approvals'
+    | '/invoice'
     | '/reports'
     | '/today'
     | '/api/health'
@@ -174,6 +184,7 @@ export interface FileRouteTypes {
     | '/set-password'
     | '/admin'
     | '/approvals'
+    | '/invoice'
     | '/reports'
     | '/today'
     | '/api/health'
@@ -191,6 +202,7 @@ export interface FileRouteTypes {
     | '/set-password'
     | '/_app/admin'
     | '/_app/approvals'
+    | '/_app/invoice'
     | '/_app/reports'
     | '/_app/today'
     | '/api/health'
@@ -254,6 +266,13 @@ declare module '@tanstack/react-router' {
       path: '/approvals'
       fullPath: '/approvals'
       preLoaderRoute: typeof AppApprovalsRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/invoice': {
+      id: '/_app/invoice'
+      path: '/invoice'
+      fullPath: '/invoice'
+      preLoaderRoute: typeof AppInvoiceRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/_app/reports': {
@@ -343,6 +362,7 @@ const AppAdminRouteRouteWithChildren = AppAdminRouteRoute._addFileChildren(
 interface AppRouteRouteChildren {
   AppAdminRouteRoute: typeof AppAdminRouteRouteWithChildren
   AppApprovalsRoute: typeof AppApprovalsRoute
+  AppInvoiceRoute: typeof AppInvoiceRoute
   AppReportsRoute: typeof AppReportsRoute
   AppTodayRoute: typeof AppTodayRoute
 }
@@ -350,6 +370,7 @@ interface AppRouteRouteChildren {
 const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppAdminRouteRoute: AppAdminRouteRouteWithChildren,
   AppApprovalsRoute: AppApprovalsRoute,
+  AppInvoiceRoute: AppInvoiceRoute,
   AppReportsRoute: AppReportsRoute,
   AppTodayRoute: AppTodayRoute,
 }

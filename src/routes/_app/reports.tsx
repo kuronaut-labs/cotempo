@@ -18,6 +18,7 @@ import {
   perJobFn,
   reconciliationFn,
 } from '~/server/fns/reports'
+import { exportCsvFn } from '~/server/fns/exports'
 import { listStructureFn } from '~/server/fns/structure'
 import { StructureTree, rateLabel } from '~/components/structureTree'
 import type { SessionContext } from '~/server/context'
@@ -286,12 +287,35 @@ function BillingPanel({
       />
 
       <div className="period-exports">
-        <button type="button" disabled title="Wired in Phase 7">
+        <button
+          type="button"
+          onClick={async () => {
+            // Sub tab 'recon' maps to CSV view 'intervals'; 'daily' maps to 'daily'.
+            const view: 'intervals' | 'daily' = sub === 'recon' ? 'intervals' : 'daily'
+            const res = await exportCsvFn({ data: { from, to, view } })
+            const blob = await res.blob()
+            const url = URL.createObjectURL(blob)
+            const a = document.createElement('a')
+            a.href = url
+            const disp = res.headers.get('content-disposition') ?? ''
+            const m = /filename="([^"]+)"/.exec(disp)
+            a.download = m?.[1] ?? `timesheets-${from}_${to}-${sub}.csv`
+            document.body.appendChild(a)
+            a.click()
+            a.remove()
+            URL.revokeObjectURL(url)
+          }}
+        >
           Export CSV
         </button>
-        <button type="button" disabled title="Wired in Phase 7">
+        <a
+          className="period-exports-link"
+          href={`/invoice?from=${from}&to=${to}`}
+          target="_blank"
+          rel="noreferrer"
+        >
           Export PDF
-        </button>
+        </a>
       </div>
 
       {sub === 'recon' && recon ? (
