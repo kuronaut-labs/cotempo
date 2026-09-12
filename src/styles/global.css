@@ -1191,3 +1191,202 @@ samp {
 .dailytable tr.total td .p {
   font-weight: 600;
 }
+
+/* ---------- worker tag (human/agent) (5.2d) ---------- */
+
+.wtag {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  padding: 2px 6px;
+  display: inline-block;
+}
+
+.wtag.human {
+  background: #233247;
+  color: var(--j1);
+}
+
+.wtag.agent {
+  background: #2b2340;
+  color: var(--j5);
+}
+
+/* ---------- KPI tile (5.2d) ---------- */
+
+.kpi {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.kpi .k {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.kpi .v {
+  font-family: var(--disp);
+  font-weight: 700;
+  font-size: 24px;
+  color: var(--text);
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi .hint {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--faint);
+  margin-top: 2px;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+/* ---------- operator lanes (5.2d) ---------- */
+
+.lane {
+  display: flex;
+  align-items: stretch;
+  margin-bottom: 10px;
+  gap: 14px;
+}
+
+.lanehead {
+  width: 180px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.lanehead .nm {
+  font-family: var(--disp);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lanebody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  padding: 10px 12px;
+}
+
+.lanebody .row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.lanebody .row .daylabel {
+  width: 90px;
+  flex: none;
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 12px;
+}
+
+.lanebody .row .strip {
+  flex: 1;
+  min-width: 0;
+}
+
+.lanebody .row .trio {
+  flex: none;
+}
+
+.lanebody-empty {
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 6px 2px;
+}
+
+/* ---------- effort bars (hourly) (5.2d) ---------- */
+
+.effortbars {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.effortbars .row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.effortbars .row .hr {
+  width: 44px;
+  flex: none;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.effortbars .row .barwrap {
+  flex: 1;
+  height: 14px;
+  background: var(--panel2);
+  border-radius: 3px;
+  overflow: hidden;
+  position: relative;
+}
+
+.effortbars .row .bar {
+  position: absolute;
+  top: 0;
+  height: 100%;
+}
+
+.effortbars .row .bar.wall {
+  background: var(--pos);
+  opacity: 0.85;
+}
+
+.effortbars .row .bar.premium {
+  background: repeating-linear-gradient(45deg, var(--j4) 0 4px, #6b4e1f 4px 8px);
+}
+
+.effortbars .row .nums {
+  width: 110px;
+  flex: none;
+  text-align: right;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.effortbars .row .nums .p {
+  color: var(--j4);
+}
+
+.effortbars-empty {
+  color: var(--faint);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 6px 2px;
+}
