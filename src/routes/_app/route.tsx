@@ -20,12 +20,15 @@ function AppLayout() {
         <Link to="/today" activeProps={{ className: 'active' }}>
           Today
         </Link>
+        <Link to="/reports" activeProps={{ className: 'active' }}>
+          Reports
+        </Link>
         {ctx?.roles.includes('admin') && (
           <Link to="/admin/clients" activeProps={{ className: 'active' }}>
             Admin
           </Link>
         )}
-        {/* Reports, Approvals land in Phases 5–8. */}
+        {/* Approvals lands in Phase 6. */}
         <span className="nav-spacer" />
         <span className="nav-user">{session.name}</span>
         <button
