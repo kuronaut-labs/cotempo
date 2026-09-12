@@ -22,8 +22,6 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run test:contract
-        # Contract suite is allowed to fail until Phase 7 lands; flip to blocking then.
-        continue-on-error: true
       - run: npx vite build
 
   deploy:
