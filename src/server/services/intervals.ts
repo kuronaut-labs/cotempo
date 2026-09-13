@@ -309,6 +309,7 @@ export async function getRecentJobs(
     .innerJoin(schema.jobs, eq(schema.jobs.id, schema.intervals.jobId))
     .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
     .innerJoin(schema.clients, eq(schema.clients.id, schema.projects.clientId))
+    .innerJoin(schema.workers, eq(schema.workers.id, schema.intervals.workerId))
     .where(
       and(
         eq(schema.intervals.workerId, input.workerId),
