@@ -149,13 +149,13 @@ export function WorkerRoster({
                     <td>
                       {w.inviteState === 'pending' ? (
                         <Fragment>
-                          <span className="tag tag-warn">pending</span>{' '}
+                          <span className="tag tag-warn">Invite sent</span>{' '}
                           <button type="button" onClick={() => void resend(w.workerId)}>
                             Resend
                           </button>
                         </Fragment>
                       ) : (
-                        <span className="tag tag-ok">active</span>
+                        <span className="tag tag-ok">Password set</span>
                       )}
                       {inviteMsg?.workerId === w.workerId && (
                         <span className={`status-msg ${inviteMsg.ok ? 'status-ok' : 'field-error'}`} role="status">
@@ -208,7 +208,7 @@ export function WorkerRoster({
                     <td className="mono">{w.model}</td>
                     <td className="mono">{w.framework}</td>
                     <td>
-                      <span className={`tag ${w.status === 'active' ? 'tag-ok' : 'tag-warn'}`}>{w.status}</span>
+                      <span className={`tag ${w.status === 'active' ? 'tag-ok' : 'tag-warn'}`}>{w.status === 'active' ? 'Working' : 'Paused'}</span>
                     </td>
                     <td>
                       <select
@@ -360,8 +360,8 @@ export function AgentForm({ workers, onRefresh }: { workers: WorkerView[]; onRef
       )}
       <div className="entryform-actions">
         <button type="submit" className="btn-primary">
-          Register agent
-        </button>
+        Add an AI assistant
+      </button>
       </div>
     </form>
   )

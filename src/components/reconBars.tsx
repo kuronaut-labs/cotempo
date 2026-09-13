@@ -1,4 +1,4 @@
-import { formatCents, formatDecimalHours } from '~/lib/money'
+import { formatCents, formatHmm } from '~/lib/money'
 import type { ReconciliationReport } from '~/server/services/reports'
 
 /* Bar widths as percent of the largest effort across clients. Pure: same report → same widths. */
@@ -43,16 +43,16 @@ export function ReconBars({ report }: { report: ReconciliationReport }) {
             <div className="nm">{c.name}</div>
             <div className="barwrap">
               <div className="bar honest" style={{ left: 0, width: `${p.wallPct}%` }}>
-                <span className="lbl">{formatDecimalHours(c.wallClockMin)}</span>
+                <span className="lbl">{formatHmm(c.wallClockMin)}</span>
               </div>
               <div className="bar premium" style={{ left: `${p.wallPct}%`, width: `${p.premiumPct}%` }} />
             </div>
             <div className="nums">
-              {showMoney && 'cents' in c ? <b>{formatCents(c.cents)}</b> : <b>{formatDecimalHours(c.effortMin)}</b>}
+              {showMoney && 'cents' in c ? <b>{formatCents(c.cents)}</b> : <b>{formatHmm(c.effortMin)}</b>}
               {c.premiumMin > 0 ? (
                 <>
                   {' · '}
-                  <span className="premium-tag">+{formatDecimalHours(c.premiumMin)} premium</span>
+                  <span className="premium-tag">+{formatHmm(c.premiumMin)} premium</span>
                 </>
               ) : null}
             </div>

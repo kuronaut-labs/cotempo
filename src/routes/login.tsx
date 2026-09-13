@@ -5,7 +5,7 @@ import { authClient } from '~/lib/auth-client'
 import { applyServerError } from '~/components/forms/applyServerError'
 import { getSessionFn } from '~/server/fns/auth'
 
-const LoginInput = z.object({ email: z.email(), password: z.string().min(12) })
+const LoginInput = z.object({ email: z.email(), password: z.string() })
 
 export const Route = createFileRoute('/login')({
   beforeLoad: async () => {

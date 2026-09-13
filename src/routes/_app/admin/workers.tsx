@@ -29,7 +29,7 @@ function WorkersPage() {
         <InviteForm workers={workers} onRefresh={refresh} />
       </section>
       <section className="panel">
-        <h2 className="today-section-title">Register an agent worker</h2>
+        <h2 className="today-section-title">Add an AI assistant</h2>
         <AgentForm workers={workers} onRefresh={refresh} />
       </section>
     </>

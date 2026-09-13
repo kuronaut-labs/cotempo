@@ -1,6 +1,6 @@
 import { and, eq, gt, inArray, isNull, lt } from 'drizzle-orm'
 import { explode, recon as piecesRecon, type Piece } from '~/lib/attribution'
-import { localDayBoundariesUtcMs } from '~/lib/dayMath'
+import { localDateOf, localDayBoundariesUtcMs } from '~/lib/dayMath'
 import { HttpError } from '~/lib/errors'
 import { redFlags, type Flag } from '~/lib/redFlags'
 import { isMonday } from '~/lib/week'
@@ -90,6 +90,16 @@ async function workerNames(db: Db, workerIds: string[]): Promise<Map<string, str
   return new Map(rows.map((r) => [r.workerId, r.userName ?? r.workerName ?? '?']))
 }
 
+async function workerSupervisors(db: Db, workerIds: string[]): Promise<Map<string, string | null>> {
+  if (workerIds.length === 0) return new Map()
+  const rows = await db
+    .select({ id: schema.workers.id, supervisorId: schema.workers.supervisorId })
+    .from(schema.workers)
+    .where(inArray(schema.workers.id, workerIds))
+    .all()
+  return new Map(rows.map((r) => [r.id, r.supervisorId]))
+}
+
 async function loadIntervalsForWeek(db: Db, workerId: string, weekStart: string, tz: string) {
   const start = localDayBoundariesUtcMs(weekStart, tz).startMs
   const end = start + 7 * DAY
@@ -136,7 +146,9 @@ function toIntervalsForRedFlags(rows: Awaited<ReturnType<typeof loadIntervalsFor
   }))
 }
 
-function toPieces(rows: Awaited<ReturnType<typeof loadIntervalsForWeek>>, tz: string): Piece[] {
+function toPieces(rows: Awaited<ReturnType<typeof loadIntervalsForWeek>>, weekStart: string, tz: string): Piece[] {
+  const weekStartMs = localDayBoundariesUtcMs(weekStart, tz).startMs
+  const weekEndMs = weekStartMs + 7 * DAY
   const all: Piece[] = []
   for (const r of rows) {
     const pieces = explode(
@@ -151,7 +163,16 @@ function toPieces(rows: Awaited<ReturnType<typeof loadIntervalsForWeek>>, tz: st
       },
       tz,
     )
-    for (const p of pieces) all.push(p)
+    for (const p of pieces) {
+      // Clip to the week window. loadIntervalsForWeek selects any interval that
+      // *intersects* the week; a Sunday 23:00→Monday 01:00 interval otherwise
+      // contributes the Monday minutes to *this* week and the same minutes to
+      // the next week, double-counting across weeks. (#H4)
+      const s = Math.max(p.startMs, weekStartMs)
+      const e = Math.min(p.endMs, weekEndMs)
+      if (s >= e) continue
+      all.push({ ...p, startMs: s, endMs: e, day: s === p.startMs ? p.day : localDateOf(s, tz) })
+    }
   }
   return all
 }
@@ -205,6 +226,12 @@ export async function submitWeek(deps: Deps, ctx: SessionContext, input: SubmitW
       rejectedReason: null,
       rejectedAt: null,
       rejectedBy: null,
+      // Clear stale approved* fields so a resubmit-after-reject (or any other
+      // path that left them populated) does not carry a prior approver's stamp
+      // into the new 'submitted' state. (#M6)
+      approvedAt: null,
+      approvedBy: null,
+      approvedComment: null,
       updatedAt: now,
     },
   })
@@ -225,7 +252,11 @@ export async function approveWeek(deps: Deps, ctx: SessionContext, input: Approv
   const existing = await loadApprovalRow(db, input.workerId, input.weekStart)
   if (!existing || existing.status !== 'submitted') throw new HttpError(409, 'INVALID_TRANSITION')
   const now = deps.now()
-  await db
+  // Add `status = 'submitted'` to the where clause so a concurrent approve/reject
+  // that already moved the row out of 'submitted' becomes a 0-row no-op rather
+  // than overwriting the later transition. The pre-check above is the primary
+  // guard; this closes the read-update race. (#M6)
+  const updated = await db
     .update(schema.approvals)
     .set({
       status: 'approved',
@@ -234,7 +265,9 @@ export async function approveWeek(deps: Deps, ctx: SessionContext, input: Approv
       approvedComment: input.comment ?? null,
       updatedAt: now,
     })
-    .where(eq(schema.approvals.id, existing.id))
+    .where(and(eq(schema.approvals.id, existing.id), eq(schema.approvals.status, 'submitted')))
+    .returning({ id: schema.approvals.id })
+  if (updated.length === 0) throw new HttpError(409, 'INVALID_TRANSITION')
   await db.insert(schema.approvalEvents).values({
     id: crypto.randomUUID(),
     approvalId: existing.id,
@@ -260,7 +293,7 @@ export async function rejectWeek(deps: Deps, ctx: SessionContext, input: RejectW
   const existing = await loadApprovalRow(db, input.workerId, input.weekStart)
   if (!existing || existing.status !== 'submitted') throw new HttpError(409, 'INVALID_TRANSITION')
   const now = deps.now()
-  await db
+  const updated = await db
     .update(schema.approvals)
     .set({
       status: 'rejected',
@@ -269,7 +302,9 @@ export async function rejectWeek(deps: Deps, ctx: SessionContext, input: RejectW
       rejectedReason: input.reason,
       updatedAt: now,
     })
-    .where(eq(schema.approvals.id, existing.id))
+    .where(and(eq(schema.approvals.id, existing.id), eq(schema.approvals.status, 'submitted')))
+    .returning({ id: schema.approvals.id })
+  if (updated.length === 0) throw new HttpError(409, 'INVALID_TRANSITION')
   await db.insert(schema.approvalEvents).values({
     id: crypto.randomUUID(),
     approvalId: existing.id,
@@ -319,15 +354,16 @@ export async function listPendingWeeks(deps: Deps, ctx: SessionContext): Promise
     .all()
   if (rows.length === 0) return []
   const names = await workerNames(db, rows.map((r) => r.workerId))
+  const supervisors = await workerSupervisors(db, rows.map((r) => r.workerId))
   const keepCents = canSeeMoney(ctx)
   const out: PendingWeek[] = []
   for (const r of rows) {
     const intervals = await loadIntervalsForWeek(db, r.workerId, r.weekStart, tz)
-    const pieces = toPieces(intervals, tz)
+    const pieces = toPieces(intervals, r.weekStart, tz)
     const flagInput = {
       weekStart: r.weekStart,
       tz,
-      worker: { id: r.workerId, supervisorId: null },
+      worker: { id: r.workerId, supervisorId: supervisors.get(r.workerId) ?? null },
       intervals: toIntervalsForRedFlags(intervals),
       pieces,
     }
@@ -348,12 +384,14 @@ export async function getWeekForApproval(deps: Deps, ctx: SessionContext, input:
   assertCanViewWorker(ctx, input.workerId)
   const row = await loadApprovalRow(db, input.workerId, input.weekStart)
   const intervals = await loadIntervalsForWeek(db, input.workerId, input.weekStart, tz)
-  const pieces = toPieces(intervals, tz)
+  const pieces = toPieces(intervals, input.weekStart, tz)
   const keepCents = canSeeMoney(ctx)
   const r = piecesRecon(pieces)
   const recon = makeReconLiteral(r, keepCents)
   const intervalsAudit: WeekIntervalAudit[] = []
   if (intervals.length > 0) {
+    const weekStartMs = localDayBoundariesUtcMs(input.weekStart, tz).startMs
+    const weekEndMs = weekStartMs + 7 * DAY
     const creatorIds = [...new Set(intervals.map((i) => i.createdBy))]
     const creators = await workerNames(db, creatorIds)
     for (const i of intervals) {
@@ -363,17 +401,26 @@ export async function getWeekForApproval(deps: Deps, ctx: SessionContext, input:
         clientName: i.clientName,
         startedAt: i.startedAt,
         endedAt: i.endedAt,
-        minutes: Math.max(0, Math.round((i.endedAt.getTime() - i.startedAt.getTime()) / 60_000)),
+        // Clip to the week window so audit minutes match the clipped recon — a
+        // boundary-crossing interval otherwise shows minutes the approver is
+        // not approving. (#H4)
+        minutes: Math.max(
+          0,
+          Math.round(
+            (Math.min(i.endedAt.getTime(), weekEndMs) - Math.max(i.startedAt.getTime(), weekStartMs)) / 60_000,
+          ),
+        ),
         createdByName: creators.get(i.createdBy) ?? '?',
         createdAt: i.createdAt,
         editCount: i.editCount,
       })
     }
   }
+  const supervisors = await workerSupervisors(db, [input.workerId])
   const flags = redFlags({
     weekStart: input.weekStart,
     tz,
-    worker: { id: input.workerId, supervisorId: null },
+    worker: { id: input.workerId, supervisorId: supervisors.get(input.workerId) ?? null },
     intervals: toIntervalsForRedFlags(intervals),
     pieces,
   })
@@ -400,7 +447,7 @@ export async function getWeekForApproval(deps: Deps, ctx: SessionContext, input:
 
 export async function listMyWeeks(deps: Deps, ctx: SessionContext, input: ListMyWeeksInput): Promise<MyWeek[]> {
   const { db, tz } = deps
-  const weekStart = weekDatesOf(tz, input.weeks)
+  const weekStart = weekDatesOf(tz, input.weeks, deps.now())
   const rows = await db
     .select()
     .from(schema.approvals)
@@ -423,10 +470,11 @@ export async function listMyWeeks(deps: Deps, ctx: SessionContext, input: ListMy
   })
 }
 
-function weekDatesOf(tz: string, count: number): string[] {
-  // The "current week" is the Monday containing the server's now, in tz.
-  const today = new Date()
-  const localIso = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(today)
+function weekDatesOf(tz: string, count: number, now: Date = new Date()): string[] {
+  // The "current week" is the Monday containing `now`, in tz. `now` is injected
+  // so the Deps clock-injection pattern is honoured and tests can use a fixed
+  // clock. (#L8)
+  const localIso = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
   const monday = mondayOf(localIso)
   return Array.from({ length: count }, (_, i) => addDays(monday, -7 * (count - 1 - i)))
 }

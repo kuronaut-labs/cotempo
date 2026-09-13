@@ -41,7 +41,7 @@ export function rateLabel(cents: number | null | undefined): string {
 
 /* ---------- component ---------- */
 
-type RunFn = (op: () => Promise<unknown>) => Promise<void>
+type RunFn = (op: () => Promise<unknown>) => Promise<boolean>
 
 export function StructureTree({
   tree,
@@ -56,13 +56,15 @@ export function StructureTree({
 }) {
   const [error, setError] = useState<string | null>(null)
 
-  async function run(op: () => Promise<unknown>) {
+  async function run(op: () => Promise<unknown>): Promise<boolean> {
     setError(null)
     try {
       await op()
       onRefresh()
+      return true
     } catch (e) {
       setError(serverErrorMessage(e))
+      return false
     }
   }
 
@@ -120,7 +122,11 @@ function ClientActions({ node, run }: { node: ClientNode; run: RunFn }) {
         onSubmit={(e) => {
           e.preventDefault()
           if (!name.trim()) return
-          void run(() => updateClientFn({ data: { id: node.id, name: name.trim() } })).then(() => setRenaming(false))
+          // Only close on success so a rejected save keeps the form open with
+          // the user's input intact. (#L2)
+          void run(() => updateClientFn({ data: { id: node.id, name: name.trim() } })).then((ok) => {
+            if (ok) setRenaming(false)
+          })
         }}
       >
         <input className="tree-input" value={name} onChange={(e) => setName(e.target.value)} aria-label="Client name" />
@@ -163,7 +169,10 @@ function ProjectActions({ node, run }: { node: ProjectNode; run: RunFn }) {
         onSubmit={(e) => {
           e.preventDefault()
           if (!name.trim()) return
-          void run(() => updateProjectFn({ data: { id: node.id, name: name.trim() } })).then(() => setRenaming(false))
+          // Only close on success — see ClientActions (#L2).
+          void run(() => updateProjectFn({ data: { id: node.id, name: name.trim() } })).then((ok) => {
+            if (ok) setRenaming(false)
+          })
         }}
       >
         <input className="tree-input" value={name} onChange={(e) => setName(e.target.value)} aria-label="Project name" />
@@ -217,7 +226,9 @@ function JobRow({ node, manage, run }: { node: JobNode; manage: ManageLevel; run
           setFieldError(null)
           void run(() =>
             updateJobFn({ data: { id: node.id, name: name.trim(), billableRateCents: parsed.cents } }),
-          ).then(() => setEditing(false))
+          ).then((ok) => {
+            if (ok) setEditing(false)
+          })
         }}
       >
         <input className="tree-input" value={name} onChange={(e) => setName(e.target.value)} aria-label="Job name" />
@@ -272,7 +283,10 @@ function AddClientForm({ run }: { run: RunFn }) {
       onSubmit={(e) => {
         e.preventDefault()
         if (!name.trim()) return
-        void run(() => createClientFn({ data: { name: name.trim() } })).then(() => setName(''))
+        // Only clear on success so a rejected save keeps the typed name. (#L2)
+        void run(() => createClientFn({ data: { name: name.trim() } })).then((ok) => {
+          if (ok) setName('')
+        })
       }}
     >
       <input
@@ -297,7 +311,10 @@ function AddProjectForm({ clientId, run }: { clientId: string; run: RunFn }) {
       onSubmit={(e) => {
         e.preventDefault()
         if (!name.trim()) return
-        void run(() => createProjectFn({ data: { clientId, name: name.trim() } })).then(() => setName(''))
+        // Only clear on success — see AddClientForm (#L2).
+        void run(() => createProjectFn({ data: { clientId, name: name.trim() } })).then((ok) => {
+          if (ok) setName('')
+        })
       }}
     >
       <input
@@ -332,9 +349,12 @@ function AddJobForm({ projectId, run }: { projectId: string; run: RunFn }) {
         setFieldError(null)
         void run(() =>
           createJobFn({ data: { projectId, name: name.trim(), billableRateCents: parsed.cents } }),
-        ).then(() => {
-          setName('')
-          setRate('')
+        ).then((ok) => {
+          // Only clear on success — see AddClientForm (#L2).
+          if (ok) {
+            setName('')
+            setRate('')
+          }
         })
       }}
     >

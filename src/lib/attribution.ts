@@ -69,13 +69,16 @@ function dayOfPieceStart(ms: number, tz: string): string {
 }
 
 /** Clip pieces to [startMs, endMs); drops pieces fully outside, trims partial ones. */
-export function clipPieces(pieces: Piece[], startMs: number, endMs: number): Piece[] {
+export function clipPieces(pieces: Piece[], startMs: number, endMs: number, tz: string): Piece[] {
   const out: Piece[] = []
   for (const p of pieces) {
     const s = Math.max(p.startMs, startMs)
     const e = Math.min(p.endMs, endMs)
     if (s < e) {
-      out.push({ ...p, startMs: s, endMs: e, day: s === p.startMs ? p.day : dayOfPieceStart(s, 'UTC') })
+      // Use the org tz for the relabel — the hardcoded 'UTC' was a latent trap
+      // for any future caller that clips pieces to a non-local-midnight window.
+      // (#L9)
+      out.push({ ...p, startMs: s, endMs: e, day: s === p.startMs ? p.day : dayOfPieceStart(s, tz) })
     }
   }
   return out

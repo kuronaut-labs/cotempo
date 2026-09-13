@@ -1,7 +1,8 @@
 import { and, eq, isNull } from 'drizzle-orm'
 import { schema, type Db } from '~/server/db'
 import { HttpError } from '~/lib/errors'
-import type { RawSession, Role, SessionContext } from '~/server/context'
+import type { RawSession, SessionContext } from '~/server/context'
+import { parseRolesOrDefault } from './context'
 
 /* Lives apart from authMw so the middleware file has no module-scope DB references;
    anything left there after `.server()` is stripped ends up in the client bundle (#20). */
@@ -14,7 +15,7 @@ export async function buildSessionContext(db: Db, raw: NonNullable<RawSession>):
     .get()
   if (!human) throw new HttpError(403, 'NO_WORKER_PROFILE')
   if (human.archivedAt) throw new HttpError(403, 'FORBIDDEN') // archive must also revoke access
-  const roles = JSON.parse(human.roles) as Role[]
+  const roles = parseRolesOrDefault(human.roles) // never let a malformed row 500 the session path (#L5)
   if (!roles.includes('operator')) throw new HttpError(403, 'ROLES_MISSING_OPERATOR')
   const supervisees = await db
     .select({ id: schema.workers.id })

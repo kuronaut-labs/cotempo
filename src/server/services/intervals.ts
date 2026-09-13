@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, gte, inArray, isNull, lt, ne, or, type SQL } from 'drizzle-orm'
+import { and, desc, eq, gt, gte, inArray, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm'
 import type { z } from 'zod'
 import { schema, type Db } from '~/server/db'
 import { HttpError } from '~/lib/errors'
@@ -275,4 +275,50 @@ export async function listIntervals(
   const last = trimmed[trimmed.length - 1]
   const nextCursor = hasMore && last ? `${last.startedAt.getTime()}:${last.id}` : null
   return { rows: trimmed, nextCursor }
+}
+
+export type RecentJob = {
+  jobId: string
+  jobName: string
+  projectName: string
+  clientName: string
+  clientId: string
+  lastUsedMs: number
+}
+
+/** Jobs this worker has logged time on, ordered by most-recently-used. Powers the
+   "Recent" optgroup at the top of the entry form's Job select (#P3.15). */
+export async function getRecentJobs(
+  deps: Deps,
+  ctx: SessionContext,
+  input: { workerId: string; limit?: number },
+): Promise<RecentJob[]> {
+  const { db } = deps
+  assertCanViewWorker(ctx, input.workerId)
+  const limit = input.limit ?? 5
+  const rows = await db
+    .select({
+      jobId: schema.intervals.jobId,
+      jobName: schema.jobs.name,
+      projectName: schema.projects.name,
+      clientId: schema.projects.clientId,
+      clientName: schema.clients.name,
+      lastUsedMs: sql<number>`MAX(${schema.intervals.startedAt})`,
+    })
+    .from(schema.intervals)
+    .innerJoin(schema.jobs, eq(schema.jobs.id, schema.intervals.jobId))
+    .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
+    .innerJoin(schema.clients, eq(schema.clients.id, schema.projects.clientId))
+    .where(
+      and(
+        eq(schema.intervals.workerId, input.workerId),
+        isNull(schema.intervals.deletedAt),
+        isNull(schema.workers.archivedAt),
+      ),
+    )
+    .groupBy(schema.intervals.jobId, schema.jobs.name, schema.projects.name, schema.projects.clientId, schema.clients.name)
+    .orderBy(sql`MAX(${schema.intervals.startedAt}) DESC`)
+    .limit(limit)
+    .all()
+  return rows
 }

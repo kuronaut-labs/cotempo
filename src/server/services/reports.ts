@@ -78,11 +78,16 @@ async function loadIntervalsInRange(
   ]
   if (filter.workerIds && filter.workerIds.length > 0) conds.push(inArray(schema.intervals.workerId, filter.workerIds))
   if (filter.clientId) {
+    // Archived jobs keep their historical time everywhere — archiving stops
+    // *new* entries (guarded at interval create) but billing for past work
+    // stays. The previous filter dropped the time from invoice/client views
+    // while keeping it in reconciliation, exports, and operator lanes, so
+    // totals disagreed. (#H5)
     const jobIds = await db
       .select({ id: schema.jobs.id })
       .from(schema.jobs)
       .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
-      .where(and(eq(schema.projects.clientId, filter.clientId), isNull(schema.jobs.archivedAt)))
+      .where(eq(schema.projects.clientId, filter.clientId))
       .all()
     if (jobIds.length === 0) return []
     conds.push(inArray(schema.intervals.jobId, jobIds.map((j) => j.id)))
@@ -137,7 +142,7 @@ export async function loadPieces(
       },
       tz,
     )
-    for (const p of clipPieces(pieces, startMs, endMs)) all.push(p)
+    for (const p of clipPieces(pieces, startMs, endMs, tz)) all.push(p)
   }
   return all
 }
@@ -296,7 +301,9 @@ export async function adminKpis(deps: Deps, ctx: SessionContext, input: KpiInput
       workerId,
       name: nameMap.get(workerId) ?? '?',
       wallClockMin: r.wallClockMin,
-      utilization: humans > 0 ? r.wallClockMin / (humans * dayMinutes) : 0,
+      // Per-worker denominator is a single 8h day, not the org-wide headcount
+      // × 8h. The aggregate `utilization` below keeps the org-wide form. (#M1)
+      utilization: r.wallClockMin / dayMinutes,
     }
   })
 
@@ -304,7 +311,17 @@ export async function adminKpis(deps: Deps, ctx: SessionContext, input: KpiInput
   for (let h = 0; h < 24; h++) {
     const hourStart = dayStart + h * 3_600_000
     const hourEnd = hourStart + 3_600_000
-    const hourPieces = dayPieces.filter((p) => p.startMs < hourEnd && p.endMs > hourStart)
+    // Clip pieces to [hourStart, hourEnd) before recon — otherwise a 2h
+    // interval contributes 120min to *both* hour bins and the chart double-
+    // counts. (#H7)
+    const hourPieces: Piece[] = []
+    for (const p of dayPieces) {
+      if (p.startMs < hourEnd && p.endMs > hourStart) {
+        const s = Math.max(p.startMs, hourStart)
+        const e = Math.min(p.endMs, hourEnd)
+        if (s < e) hourPieces.push({ ...p, startMs: s, endMs: e })
+      }
+    }
     if (hourPieces.length === 0) continue
     const r = recon(hourPieces)
     effortSeries.push({ hour: h, effortMin: r.effortMin, wallClockMin: r.wallClockMin })

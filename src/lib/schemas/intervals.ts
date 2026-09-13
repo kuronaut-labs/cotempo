@@ -27,6 +27,10 @@ export const UpdateIntervalInput = z
 
 export const DeleteIntervalInput = z.object({ id: z.string().min(1) })
 export const DayQuery = z.object({ date: z.iso.date(), workerId: z.string().min(1).optional() })
+export const GetRecentJobsInput = z.object({
+  workerId: z.string().min(1),
+  limit: z.number().int().min(1).max(20).default(5),
+})
 export const ListIntervalsInput = z.object({
   workerId: z.string().min(1).optional(),
   jobId: z.string().min(1).optional(),
@@ -41,3 +45,4 @@ export type UpdateIntervalInput = z.infer<typeof UpdateIntervalInput>
 export type DeleteIntervalInput = z.infer<typeof DeleteIntervalInput>
 export type DayQuery = z.infer<typeof DayQuery>
 export type ListIntervalsInput = z.infer<typeof ListIntervalsInput>
+export type GetRecentJobsInput = z.infer<typeof GetRecentJobsInput>

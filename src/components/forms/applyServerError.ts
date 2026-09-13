@@ -1,4 +1,5 @@
 import type { AnyFormApi } from '@tanstack/react-form'
+import { parseHttpError } from '~/lib/errors'
 
 const messages: Record<string, string> = {
   END_BEFORE_START: 'End must be after start.',
@@ -19,15 +20,16 @@ const messages: Record<string, string> = {
 
 /** Non-form surfaces (tree rows, roster actions) show the same mapped text. */
 export function serverErrorMessage(err: unknown): string {
-  const e = err as { code?: string; message?: string } | null
-  return messages[e?.code ?? 'UNKNOWN'] ?? e?.message ?? 'Something went wrong.'
+  const parsed = parseHttpError(err)
+  const fallback = (err as { message?: string } | null)?.message
+  return (parsed && messages[parsed.code]) || fallback || 'Something went wrong.'
 }
 
 // Server errors name a field when one applies (#25); otherwise land form-level.
 export function applyServerError(form: AnyFormApi, err: unknown) {
-  const e = err as { code?: string; field?: string } | null
+  const parsed = parseHttpError(err)
   const message = serverErrorMessage(err)
-  const field = e?.field
+  const field = parsed?.field
   if (field && field in form.state.values) {
     form.setFieldMeta(field as never, (m) => ({ ...m, errorMap: { onServer: message } }))
   } else {

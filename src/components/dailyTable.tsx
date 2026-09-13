@@ -1,4 +1,4 @@
-import { formatDecimalHours } from '~/lib/money'
+import { formatHmm } from '~/lib/money'
 import type { DailyReport, RoleRecon } from '~/server/services/reports'
 
 /* A single day×client cell: billable on top, wall-clock middle, premium with `+` prefix.
@@ -14,9 +14,9 @@ function DailyCell({ recon }: { recon: RoleRecon }) {
   }
   return (
     <td className="dailycell">
-      <div className="b">{formatDecimalHours(recon.billableMin)}</div>
-      <div className="h">{formatDecimalHours(recon.wallClockMin)}</div>
-      <div className="p">+{formatDecimalHours(recon.premiumMin)}</div>
+      <div className="b">{formatHmm(recon.billableMin)}</div>
+      <div className="h">{formatHmm(recon.wallClockMin)}</div>
+      <div className="p">+{formatHmm(recon.premiumMin)}</div>
     </td>
   )
 }

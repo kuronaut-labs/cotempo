@@ -2,13 +2,21 @@ import { useState } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { applyServerError } from '~/components/forms/applyServerError'
-import { isHttpError } from '~/lib/errors'
-import { localHHMM } from '~/lib/dayMath'
+import { formatWeekLabel, localDateTimeOf, localHHMM } from '~/lib/dayMath'
 import { RedFlagList } from '~/components/redFlagList'
 import { TrioChip } from '~/components/trioChip'
+import { STATUS_LABEL } from '~/components/weekStatus'
 import type { Role } from '~/server/context'
 import { approveWeekFn, rejectWeekFn, unlockWeekFn } from '~/server/fns/approvals'
 import type { WeekForApproval } from '~/server/services/approvals'
+
+const EVENT_LABEL: Record<WeekForApproval['events'][number]['kind'], string> = {
+  submit: 'Submitted',
+  approve: 'Approved',
+  reject: 'Sent back',
+  unlock: 'Unlocked',
+  edited_after_submit: 'Edited after submitting',
+}
 
 const CommentSchema = z.object({ comment: z.string().max(500).optional() })
 const ReasonSchema = z.object({ reason: z.string().min(1, 'Reason required').max(500) })
@@ -16,16 +24,17 @@ const ReasonSchema = z.object({ reason: z.string().min(1, 'Reason required').max
 export function ApproverView({
   week,
   role,
+  tz,
   onAction,
 }: {
   week: WeekForApproval
   role: Role[]
+  tz: string
   onAction: () => Promise<void>
 }) {
   const [hover, setHover] = useState<string | undefined>(undefined)
   const isAdmin = role.includes('admin')
   const isBilling = role.includes('billing') || isAdmin
-  const showTz = Intl.DateTimeFormat().resolvedOptions().timeZone
   const target = { workerId: week.workerId, weekStart: week.weekStart }
 
   return (
@@ -33,18 +42,18 @@ export function ApproverView({
       <header className="approverview-head">
         <div>
           <h2>{week.workerName}</h2>
-          <span className="approverview-week">{week.weekStart}</span>
+          <span className="approverview-week">{formatWeekLabel(week.weekStart)}</span>
           <span className={`weekstatus-badge ${week.status}`} style={{ marginLeft: 12 }}>
-            {week.status}
+            {STATUS_LABEL[week.status]}
           </span>
         </div>
         <TrioChip recon={week.recon} size="lg" />
       </header>
 
       <section className="card">
-        <h2>Intervals ({week.intervals.length})</h2>
+        <h2>Entries ({week.intervals.length})</h2>
         {week.intervals.length === 0 ? (
-          <div className="lanebody-empty">No intervals this week.</div>
+          <div className="lanebody-empty">No entries this week.</div>
         ) : (
           <table className="intervalaudit">
             <thead>
@@ -61,17 +70,17 @@ export function ApproverView({
               {week.intervals.map((iv) => {
                 const isHover = Boolean(hover && iv.id === hover)
                 return (
-                  <tr key={iv.id} className={isHover ? 'flag-hover' : undefined}>
+                  <tr key={iv.id} id={iv.id} tabIndex={0} className={isHover ? 'flag-hover' : undefined}>
                     <td>
-                      {localHHMM(iv.startedAt.getTime(), showTz)}–
-                      {localHHMM(iv.endedAt.getTime(), showTz)}
+                      {localHHMM(iv.startedAt.getTime(), tz)}–
+                      {localHHMM(iv.endedAt.getTime(), tz)}
                     </td>
                     <td>{iv.minutes}</td>
                     <td>
                       {iv.jobName} / {iv.clientName}
                     </td>
                     <td>{iv.createdByName}</td>
-                    <td>{iv.createdAt.toISOString().slice(0, 16).replace('T', ' ')}</td>
+                    <td>{localDateTimeOf(iv.createdAt.getTime(), tz)}</td>
                     <td>{iv.editCount}</td>
                   </tr>
                 )
@@ -83,7 +92,17 @@ export function ApproverView({
 
       <section className="card">
         <h2>Red flags ({week.flags.length})</h2>
-        <RedFlagList flags={week.flags} onHover={setHover} />
+        <RedFlagList
+          flags={week.flags}
+          onHover={setHover}
+          onFocus={(intervalId) => {
+            if (!intervalId) return
+            const el = document.getElementById(intervalId)
+            if (!el) return
+            el.scrollIntoView({ block: 'nearest' })
+            ;(el as HTMLElement).focus()
+          }}
+        />
       </section>
 
       {isBilling && week.status === 'submitted' ? (
@@ -136,8 +155,8 @@ export function ApproverView({
           <ol className="audit-trail">
             {week.events.map((e) => (
               <li key={e.id}>
-                <span className="audit-at">{e.at.toISOString().slice(0, 16).replace('T', ' ')}</span>
-                <span className="audit-kind">{e.kind}</span>
+                <span className="audit-at">{localDateTimeOf(e.at.getTime(), tz)}</span>
+                <span className="audit-kind">{EVENT_LABEL[e.kind] ?? e.kind}</span>
                 <span className="audit-actor">{e.actorName}</span>
                 {e.reason ? <span className="audit-reason">— {e.reason}</span> : null}
               </li>
@@ -145,10 +164,6 @@ export function ApproverView({
           </ol>
         )}
       </section>
-
-      <span style={{ display: 'none' }} aria-hidden>
-        {isHttpError.name}
-      </span>
     </div>
   )
 }

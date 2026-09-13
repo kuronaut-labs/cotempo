@@ -91,6 +91,27 @@ describe('stripBlocks', () => {
     expect(layout.overlaps[2]).toMatchObject({ startMs: hrs(13), endMs: hrs(14), count: 2 })
   })
 
+  it('merges touching same-count runs into one region with full width (#M12)', () => {
+    //   a: 09–12   b: 10–14   c: 12–15
+    //   Sweep: 10–12 is a∩b (×2), then at 12 a ends and c starts (net 0),
+    //   so the ×2 run continues uninterrupted to 14 (b∩c). Two touching
+    //   same-count runs must merge into one region spanning 10–14. Pre-fix,
+    //   the merged width was measured from the merge point (12) instead of
+    //   the region's start (10), rendering it at half width.
+    const layout = stripBlocks(day, [
+      { id: 'a', jobId: 'j1', startMs: hrs(9), endMs: hrs(12) },
+      { id: 'b', jobId: 'j2', startMs: hrs(10), endMs: hrs(14) },
+      { id: 'c', jobId: 'j3', startMs: hrs(12), endMs: hrs(15) },
+    ])
+    expect(layout.overlaps).toHaveLength(1)
+    const o = layout.overlaps[0]!
+    expect(o.startMs).toBe(hrs(10))
+    expect(o.endMs).toBe(hrs(14))
+    expect(o.count).toBe(2)
+    expect(o.leftPct).toBeCloseTo((10 / 24) * 100)
+    expect(o.widthPct).toBeCloseTo((4 / 24) * 100)
+  })
+
   it('preserves stable leftPct/widthPct within rounding', () => {
     const layout = stripBlocks(day, [{ id: 'a', jobId: 'j1', startMs: hrs(0, 1), endMs: hrs(0, 2) }])
     expect(layout.blocks[0]!.leftPct).toBeGreaterThan(0)

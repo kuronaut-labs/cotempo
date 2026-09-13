@@ -1,7 +1,7 @@
-import { formatDecimalHours } from '~/lib/money'
 import type { Flag } from '~/lib/redFlags'
 
-/* Plain-language per-kind label; hover (when wired) calls onHover(intervalId). */
+/* Plain-language per-kind label; hover and keyboard activation both focus the
+   linked interval row via onHover(intervalId) / onFocus(intervalId). */
 const LABELS: Record<Flag['kind'], (f: Flag) => string> = {
   gap: (f) => (f.day ? `Gap on ${f.day}` : 'Gap'),
   late_entry: () => 'Entered after the late-entry window',
@@ -12,7 +12,15 @@ const LABELS: Record<Flag['kind'], (f: Flag) => string> = {
 
 const KIND_ORDER: Flag['kind'][] = ['gap', 'late_entry', 'multi_edit', 'retroactive', 'non_supervisor']
 
-export function RedFlagList({ flags, onHover }: { flags: Flag[]; onHover: (intervalId?: string) => void }) {
+export function RedFlagList({
+  flags,
+  onHover,
+  onFocus,
+}: {
+  flags: Flag[]
+  onHover: (intervalId?: string) => void
+  onFocus: (intervalId?: string) => void
+}) {
   if (flags.length === 0) return <div className="flaglist-empty">No flags.</div>
   const byKind = new Map<Flag['kind'], Flag[]>()
   for (const f of flags) {
@@ -27,13 +35,18 @@ export function RedFlagList({ flags, onHover }: { flags: Flag[]; onHover: (inter
           <div className="flaglist-kind-h">{kind.replace('_', ' ')}</div>
           <ul>
             {byKind.get(kind)!.map((f, i) => (
-              <li
-                key={i}
-                className="flaglist-row"
-                onMouseEnter={() => onHover(f.intervalId)}
-                onMouseLeave={() => onHover(undefined)}
-              >
-                {LABELS[kind](f)}
+              <li key={i} className="flaglist-row">
+                <button
+                  type="button"
+                  className="flaglist-button"
+                  onMouseEnter={() => onHover(f.intervalId)}
+                  onMouseLeave={() => onHover(undefined)}
+                  onFocus={() => onFocus(f.intervalId)}
+                  onBlur={() => onFocus(undefined)}
+                  onClick={() => onFocus(f.intervalId)}
+                >
+                  {LABELS[kind](f)}
+                </button>
               </li>
             ))}
           </ul>
@@ -42,5 +55,3 @@ export function RedFlagList({ flags, onHover }: { flags: Flag[]; onHover: (inter
     </ul>
   )
 }
-
-void formatDecimalHours

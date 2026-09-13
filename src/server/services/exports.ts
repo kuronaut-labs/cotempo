@@ -21,10 +21,10 @@ export const INTERVALS_CSV_COLUMNS = [
   'end',
   'minutes',
   'billable_minutes',
-  'rate_cents',
-  'amount_cents',
-  'wall_clock_minutes',
-  'premium_minutes',
+  'rate_dollars',
+  'amount_dollars',
+  'clock_minutes',
+  'overlap_minutes',
   'entered_by',
   'created_at',
   'edit_count',
@@ -35,15 +35,19 @@ export const DAILY_CSV_COLUMNS = [
   'day',
   'client',
   'billable_minutes',
-  'wall_clock_minutes',
-  'premium_minutes',
-  'amount_cents',
+  'clock_minutes',
+  'overlap_minutes',
+  'amount_dollars',
   'org_timezone',
 ] as const
 
 function csvCell(v: string | number | null | undefined): string {
   if (v === null || v === undefined) return ''
-  const s = String(v)
+  let s = String(v)
+  // Excel/Sheets execute a cell whose first char is one of these as a formula.
+  // Worker/job/client names and the operator-controlled `note` reach billing
+  // staff, so prefix with a single quote to force text rendering. (#M9)
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s
   if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`
   return s
 }
@@ -121,10 +125,11 @@ async function workerNamesForBilling(db: Db): Promise<Map<string, { name: string
 
 function wallAndPremiumForWorkerDay(pieces: Piece[], workerId: string, day: string): { wallMin: number; premiumMin: number } {
   const dayPieces = pieces.filter((p) => p.workerId === workerId && p.day === day)
-  const effort = dayPieces.reduce((s, p) => s + (p.endMs - p.startMs) / 60_000, 0)
-  // Per-worker union = sum of disjoint pieces (no day-crossing after explode)
-  const wall = dayPieces.reduce((s, p) => s + (p.endMs - p.startMs) / 60_000, 0)
-  return { wallMin: Math.round(wall), premiumMin: Math.max(0, Math.round(effort - wall)) }
+  // `recon` computes wall-clock as the union of merged ranges via dayMath.mergeRanges,
+  // so a worker's concurrent-job overlap reduces wall without reducing effort.
+  // The old `effort === wall` reduce was structurally always 0. (#M2)
+  const r = piecesRecon(dayPieces)
+  return { wallMin: r.wallClockMin, premiumMin: r.premiumMin }
 }
 
 export async function exportCsv(
@@ -137,7 +142,10 @@ export async function exportCsv(
   const start = localDayBoundariesUtcMs(input.from, tz).startMs
   const end = localDayBoundariesUtcMs(input.to, tz).endMs
 
-  const allWorkerIds = (await db.select({ id: schema.workers.id }).from(schema.workers).where(isNull(schema.workers.archivedAt)).all()).map((w) => w.id)
+  // Archived workers keep their historical time in the intervals CSV — same
+  // policy as the invoice/client views after #H5 (archiving stops *new*
+  // entries, not billing for past work). (#M10)
+  const allWorkerIds = (await db.select({ id: schema.workers.id }).from(schema.workers).all()).map((w) => w.id)
   const rows = await loadIntervalRowsForCsv(db, allWorkerIds, start, end)
   const wnames = await workerNamesForBilling(db)
   const filename = `timesheets-${input.from}_${input.to}-${input.view}.csv`
@@ -157,17 +165,21 @@ export async function exportCsv(
         },
         tz,
       )
-      for (const p of clipPieces(pieces, start, end)) allPieces.push(p)
+      for (const p of clipPieces(pieces, start, end, tz)) allPieces.push(p)
     }
     const out: string[] = [csvRow(INTERVALS_CSV_COLUMNS as unknown as string[])]
     for (const p of allPieces) {
       const interval = rows.find((r) => r.id === p.intervalId)!
       const minutes = Math.round((p.endMs - p.startMs) / 60_000)
       const billableMin = p.rateCents === null ? 0 : minutes
-      const amount = moneyCents([{ minutes, rateCents: p.rateCents }])
+      const amountCents = moneyCents([{ minutes, rateCents: p.rateCents }])
       const { wallMin, premiumMin } = wallAndPremiumForWorkerDay(allPieces, p.workerId, p.day)
       const wn = wnames.get(p.workerId)
       const creator = wnames.get(interval.createdBy)
+      // CSV is for billing staff who think in dollars, not cents; divide by 100 at the cell so the
+      // on-screen format and the exported format stay aligned. Empty rate → empty cell. (#P3.18)
+      const rateDollars = p.rateCents === null ? '' : (p.rateCents / 100).toFixed(2)
+      const amountDollars = amountCents === 0 ? '0.00' : (amountCents / 100).toFixed(2)
       out.push(
         csvRow([
           wn?.name ?? p.workerId, // worker
@@ -180,10 +192,10 @@ export async function exportCsv(
           new Date(p.endMs).toISOString(), // end
           minutes, // minutes
           billableMin, // billable_minutes
-          p.rateCents ?? '', // rate_cents
-          amount, // amount_cents
-          wallMin, // wall_clock_minutes
-          premiumMin, // premium_minutes
+          rateDollars, // rate_dollars
+          amountDollars, // amount_dollars
+          wallMin, // clock_minutes
+          premiumMin, // overlap_minutes
           creator?.name ?? interval.createdBy, // entered_by
           interval.createdAt.toISOString(), // created_at
           interval.editCount, // edit_count
@@ -215,7 +227,7 @@ export async function exportCsv(
           r.billableMin,
           r.wallClockMin,
           r.premiumMin,
-          r.cents,
+          r.cents === 0 ? '0.00' : (r.cents / 100).toFixed(2),
           tz,
         ]),
       )

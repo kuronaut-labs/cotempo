@@ -94,31 +94,32 @@ describe('explode — splits intervals at local-day boundaries', () => {
 describe('clipPieces — drops pieces fully outside, trims partial ones', () => {
   const periodStart = Date.UTC(2026, 8, 4, 0) // 00:00 UTC Sep 4
   const periodEnd = Date.UTC(2026, 8, 5, 0) // 00:00 UTC Sep 5
+  const tz = 'UTC'
   it('drops pieces fully before the period', () => {
     const pieces = [piece({ intervalId: 'p1', startMs: periodStart - 3_600_000, endMs: periodStart - 1_800_000 })]
-    expect(clipPieces(pieces, periodStart, periodEnd)).toEqual([])
+    expect(clipPieces(pieces, periodStart, periodEnd, tz)).toEqual([])
   })
   it('drops pieces fully after the period', () => {
     const pieces = [piece({ intervalId: 'p1', startMs: periodEnd + 1_800_000, endMs: periodEnd + 3_600_000 })]
-    expect(clipPieces(pieces, periodStart, periodEnd)).toEqual([])
+    expect(clipPieces(pieces, periodStart, periodEnd, tz)).toEqual([])
   })
   it('trims a piece whose start is before the period', () => {
     const pieces = [piece({ intervalId: 'p1', startMs: periodStart - 1_800_000, endMs: periodStart + 1_800_000 })]
-    const out = clipPieces(pieces, periodStart, periodEnd)
+    const out = clipPieces(pieces, periodStart, periodEnd, tz)
     expect(out).toHaveLength(1)
     expect(out[0]!.startMs).toBe(periodStart)
     expect(out[0]!.endMs).toBe(periodStart + 1_800_000)
   })
   it('trims a piece whose end is after the period', () => {
     const pieces = [piece({ intervalId: 'p1', startMs: periodEnd - 1_800_000, endMs: periodEnd + 1_800_000 })]
-    const out = clipPieces(pieces, periodStart, periodEnd)
+    const out = clipPieces(pieces, periodStart, periodEnd, tz)
     expect(out).toHaveLength(1)
     expect(out[0]!.startMs).toBe(periodEnd - 1_800_000)
     expect(out[0]!.endMs).toBe(periodEnd)
   })
   it('keeps an interior piece untouched', () => {
     const pieces = [piece({ intervalId: 'p1', startMs: periodStart + 60_000, endMs: periodStart + 120_000 })]
-    const out = clipPieces(pieces, periodStart, periodEnd)
+    const out = clipPieces(pieces, periodStart, periodEnd, tz)
     expect(out).toEqual(pieces)
   })
 })

@@ -1,4 +1,4 @@
-import { formatCents, formatDecimalHours } from '~/lib/money'
+import { formatCents, formatHmm } from '~/lib/money'
 import type { RoleRecon } from '~/server/services/reports'
 
 /* Reconciliation trio (billable / wall-clock / premium) plus an optional $-only segment
@@ -7,18 +7,18 @@ import type { RoleRecon } from '~/server/services/reports'
 export function TrioChip({ recon, size = 'sm' }: { recon: RoleRecon; size?: 'sm' | 'lg' }) {
   const showMoney = 'cents' in recon
   return (
-    <div className={`trio${size === 'lg' ? ' lg' : ''}`} role="group" aria-label="Reconciliation trio">
-      <div className="seg b">
+    <div className={`trio${size === 'lg' ? ' lg' : ''}`} role="group" aria-label="Time summary">
+      <div className="seg b" title={`Billable — ${formatHmm(recon.billableMin)}. Time that can be billed to a client.`}>
         <span className="k">Billable</span>
-        <span className="v">{formatDecimalHours(recon.billableMin)}</span>
+        <span className="v">{formatHmm(recon.billableMin)}</span>
       </div>
-      <div className="seg h">
-        <span className="k">Wall-clock</span>
-        <span className="v">{formatDecimalHours(recon.wallClockMin)}</span>
+      <div className="seg h" title={`On the clock — ${formatHmm(recon.wallClockMin)}. Time covered; overlaps counted once.`}>
+        <span className="k">On the clock</span>
+        <span className="v">{formatHmm(recon.wallClockMin)}</span>
       </div>
-      <div className="seg p">
-        <span className="k">Premium</span>
-        <span className="v">+{formatDecimalHours(recon.premiumMin)}</span>
+      <div className="seg p" title={`Overlap — ${formatHmm(recon.premiumMin)}. Extra minutes from working two jobs at once.`}>
+        <span className="k">Overlap</span>
+        <span className="v">+{formatHmm(recon.premiumMin)}</span>
       </div>
       {showMoney ? (
         <div className="seg dollar">

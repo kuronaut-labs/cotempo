@@ -8,7 +8,7 @@ import { ReconBars } from '~/components/reconBars'
 import { ReconTable } from '~/components/reconTable'
 import { DailyTable } from '~/components/dailyTable'
 import { SubTabs } from '~/components/subTabs'
-import { formatCents, formatDecimalHours } from '~/lib/money'
+import { formatCents, formatHmm } from '~/lib/money'
 import { getSessionCtxFn } from '~/server/fns/auth'
 import { getTodayFn } from '~/server/fns/intervals'
 import {
@@ -51,7 +51,7 @@ function defaultTab(ctx: SessionContext | null): TabId {
 }
 
 function visibleTabs(ctx: SessionContext | null): { id: TabId; label: string }[] {
-  const tabs: { id: TabId; label: string }[] = [{ id: 'operator', label: 'Operator' }]
+  const tabs: { id: TabId; label: string }[] = [{ id: 'operator', label: 'My time' }]
   if (ctx?.roles.includes('billing') || ctx?.roles.includes('admin')) tabs.unshift({ id: 'billing', label: 'Billing' })
   if (ctx?.roles.includes('admin')) tabs.unshift({ id: 'admin', label: 'Admin' })
   return tabs
@@ -205,8 +205,8 @@ function AdminPanel({
           hint={`${kpis.structure.jobs} jobs`}
         />
         <KpiTile label="Billable" value={formatCents(kpis.todayBillableCents)} hint={kpis.date} />
-        <KpiTile label="Premium" value={`+${formatDecimalHours(kpis.todayPremiumMin)}`} hint="h.hh" />
-        <KpiTile label="Utilization" value={`${(kpis.utilization * 100).toFixed(0)}%`} hint="wall / (humans × 8h)" />
+        <KpiTile label="Overlap" value={`+${formatHmm(kpis.todayPremiumMin)}`} />
+        <KpiTile label="Utilization" value={`${(kpis.utilization * 100).toFixed(0)}%`} hint="share of an 8-hour day" />
       </div>
 
       <section className="card">
@@ -222,7 +222,7 @@ function AdminPanel({
                   style={{ width: `${Math.min(100, w.utilization * 100)}%` }}
                 />
               </span>
-              <span className="val">{formatDecimalHours(w.wallClockMin)}</span>
+              <span className="val">{formatHmm(w.wallClockMin)}</span>
             </li>
           ))}
         </ul>
@@ -279,7 +279,7 @@ function BillingPanel({
 
       <SubTabs
         tabs={[
-          { id: 'recon', label: 'Reconciliation' },
+          { id: 'recon', label: 'Totals' },
           { id: 'daily', label: 'Daily' },
         ]}
         active={sub}
@@ -321,11 +321,11 @@ function BillingPanel({
       {sub === 'recon' && recon ? (
         <>
           <section className="card">
-            <h2>Per-client reconciliation</h2>
+            <h2>Per-client totals</h2>
             <ReconTable report={recon} />
           </section>
           <section className="card">
-            <h2>Reconciliation bars</h2>
+            <h2>Totals bars</h2>
             <ReconBars report={recon} />
           </section>
         </>
@@ -345,7 +345,7 @@ function OperatorPanel({ lanes, tz }: { lanes: import('~/server/services/reports
   return (
     <div className="reports-panel">
       <header className="reports-subhead">
-        <h2>Operator · self + supervisees</h2>
+        <h2>My time and my team's</h2>
       </header>
       <OperatorLanes lanes={lanes} tz={tz} />
     </div>

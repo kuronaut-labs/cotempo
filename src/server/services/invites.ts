@@ -89,7 +89,8 @@ export async function resendInvite(
     .select({ email: schema.user.email })
     .from(schema.humanWorkers)
     .innerJoin(schema.user, eq(schema.user.id, schema.humanWorkers.userId))
-    .where(eq(schema.humanWorkers.workerId, input.workerId))
+    .innerJoin(schema.workers, eq(schema.workers.id, schema.humanWorkers.workerId))
+    .where(and(eq(schema.humanWorkers.workerId, input.workerId), isNull(schema.workers.archivedAt)))
     .get()
   if (!row) throw new HttpError(404, 'NOT_FOUND', 'workerId')
   return { mailed: await sendInvite(deps.auth, row.email, deps.appUrl) }

@@ -4,8 +4,10 @@ import { ApprovalsQueue } from '~/components/approvalsQueue'
 import { ApproverView } from '~/components/approverView'
 import { WeekStatus } from '~/components/weekStatus'
 import { canSeeMoney, hasRole, type SessionContext } from '~/server/context'
+import { formatWeekLabel } from '~/lib/dayMath'
 import { getSessionCtxFn } from '~/server/fns/auth'
 import { getWeekForApprovalFn, listMyWeeksFn, listPendingWeeksFn, submitWeekFn } from '~/server/fns/approvals'
+import { getTodayFn } from '~/server/fns/intervals'
 import { listWorkersFn } from '~/server/fns/workers'
 import { submitWeek as submitWeekSvc } from '~/server/services/approvals'
 import { assertCanEditWorker } from '~/server/guards/worker'
@@ -24,7 +26,9 @@ export const Route = createFileRoute('/_app/approvals')({
   loaderDeps: ({ search }) => ({ worker: search.worker, week: search.week }),
   loader: async ({ deps }) => {
     const ctx = await getSessionCtxFn()
-    if (!ctx) return { ctx: null as SessionContext | null }
+    if (!ctx) return { ctx: null as SessionContext | null, tz: '' as string }
+    const today = await getTodayFn()
+    const tz = today.tz
     const canApprove = hasRole(ctx, 'billing')
     if (canApprove) {
       const queue = await listPendingWeeksFn()
@@ -32,7 +36,7 @@ export const Route = createFileRoute('/_app/approvals')({
       if (deps.worker && deps.week) {
         view = await getWeekForApprovalFn({ data: { workerId: deps.worker, weekStart: deps.week } })
       }
-      return { ctx, mode: 'approver' as const, queue, view, selected: deps.worker && deps.week ? { workerId: deps.worker, weekStart: deps.week } : null }
+      return { ctx, tz, mode: 'approver' as const, queue, view, selected: deps.worker && deps.week ? { workerId: deps.worker, weekStart: deps.week } : null }
     }
     const weeks = await listMyWeeksFn({ data: { weeks: 8 } })
     let view: WeekForApproval | null = null
@@ -40,7 +44,7 @@ export const Route = createFileRoute('/_app/approvals')({
       view = await getWeekForApprovalFn({ data: { workerId: deps.worker, weekStart: deps.week } })
     }
     const workers = await listWorkersFn()
-    return { ctx, mode: 'operator' as const, weeks, view, workers, selected: deps.worker && deps.week ? { workerId: deps.worker, weekStart: deps.week } : null }
+    return { ctx, tz, mode: 'operator' as const, weeks, view, workers, selected: deps.worker && deps.week ? { workerId: deps.worker, weekStart: deps.week } : null }
   },
   component: ApprovalsView,
 })
@@ -52,8 +56,8 @@ function goSearch(navigate: ReturnType<typeof useNavigate>, next: { worker?: str
 function ApprovalsView() {
   const data = Route.useLoaderData() as
     | { ctx: null }
-    | { ctx: SessionContext; mode: 'approver'; queue: PendingWeek[]; view: WeekForApproval | null; selected: { workerId: string; weekStart: string } | null }
-    | { ctx: SessionContext; mode: 'operator'; weeks: MyWeek[]; view: WeekForApproval | null; workers: { workerId: string; name: string; kind: 'human' | 'agent' }[]; selected: { workerId: string; weekStart: string } | null }
+    | { ctx: SessionContext; tz: string; mode: 'approver'; queue: PendingWeek[]; view: WeekForApproval | null; selected: { workerId: string; weekStart: string } | null }
+    | { ctx: SessionContext; tz: string; mode: 'operator'; weeks: MyWeek[]; view: WeekForApproval | null; workers: { workerId: string; name: string; kind: 'human' | 'agent' }[]; selected: { workerId: string; weekStart: string } | null }
   const navigate = useNavigate()
   const router = (Route as unknown as { useRouter?: () => { invalidate: () => Promise<void> } }).useRouter?.()
   const invalidate = async () => {
@@ -82,7 +86,7 @@ function ApprovalsView() {
           </aside>
           <section className="approvals-detail-pane">
             {data.view ? (
-              <ApproverView week={data.view} role={data.ctx.roles} onAction={invalidate} />
+              <ApproverView week={data.view} role={data.ctx.roles} tz={data.tz} onAction={invalidate} />
             ) : (
               <div className="approvals-empty">Select a submitted week to review.</div>
             )}
@@ -108,9 +112,9 @@ function ApprovalsView() {
               const isSel = data.selected && data.selected.workerId === w.workerId && data.selected.weekStart === w.weekStart
               return (
                 <li key={`${w.workerId}-${w.weekStart}`} className={isSel ? 'selected' : undefined}>
-                  <button type="button" onClick={() => goSearch(navigate, { worker: w.workerId, week: w.weekStart })}>
-                    <div className="nm">{data.workers.find((x) => x.workerId === w.workerId)?.name ?? w.workerId}</div>
-                    <div className="wk">{w.weekStart}</div>
+              <button type="button" onClick={() => goSearch(navigate, { worker: w.workerId, week: w.weekStart })}>
+                <div className="nm">{data.workers.find((x) => x.workerId === w.workerId)?.name ?? w.workerId}</div>
+                <div className="wk">{formatWeekLabel(w.weekStart)}</div>
                     <WeekStatusChip week={w} />
                   </button>
                 </li>
@@ -124,6 +128,7 @@ function ApprovalsView() {
             <ApproverView
               week={data.view}
               role={[]}
+              tz={data.tz}
               onAction={async () => {
                 /* read-only */
               }}
@@ -138,13 +143,11 @@ function ApprovalsView() {
 }
 
 function WeekStatusChip({ week }: { week: MyWeek }) {
-  const canSubmit = true // for self in the My Weeks list
-  const hasIntervals = week.status !== 'none' || true // the user is on this page because they have data
   return (
     <WeekStatus
       week={week}
-      canSubmit={canSubmit}
-      hasIntervals={hasIntervals}
+      canSubmit
+      hasIntervals
       onSubmit={async () => {
         // Submit through the fn so the role check runs server-side.
         await submitWeekFn({ data: { workerId: week.workerId, weekStart: week.weekStart } })

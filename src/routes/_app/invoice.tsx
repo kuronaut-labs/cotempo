@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { z } from 'zod'
-import { formatCents, formatDecimalHours } from '~/lib/money'
+import { formatCents, formatHmm } from '~/lib/money'
 import { localHHMM } from '~/lib/dayMath'
 import { getSessionCtxFn } from '~/server/fns/auth'
 import { getTodayFn } from '~/server/fns/intervals'
@@ -141,7 +141,7 @@ function InvoicePage({ invoice }: { invoice: Invoice }) {
             <tr key={l.jobId}>
               <td>{l.job}</td>
               <td>{l.project}</td>
-              <td className="num">{formatDecimalHours(l.billableMin)}</td>
+              <td className="num">{formatHmm(l.billableMin)}</td>
               <td className="num">{l.rateCents !== null ? `$${(l.rateCents / 100).toFixed(2)}/h` : '—'}</td>
               <td className="num">{formatCents(l.cents)}</td>
             </tr>
@@ -161,15 +161,15 @@ function InvoicePage({ invoice }: { invoice: Invoice }) {
         <div className="trio">
           <div className="seg b">
             <span className="k">Billable</span>
-            <span className="v">{formatDecimalHours(invoice.recon.billableMin)}</span>
+            <span className="v">{formatHmm(invoice.recon.billableMin)}</span>
           </div>
           <div className="seg h">
-            <span className="k">Wall-clock</span>
-            <span className="v">{formatDecimalHours(invoice.recon.wallClockMin)}</span>
+            <span className="k">On the clock</span>
+            <span className="v">{formatHmm(invoice.recon.wallClockMin)}</span>
           </div>
           <div className="seg p">
-            <span className="k">Premium</span>
-            <span className="v">+{formatDecimalHours(invoice.recon.premiumMin)}</span>
+            <span className="k">Overlap</span>
+            <span className="v">+{formatHmm(invoice.recon.premiumMin)}</span>
           </div>
           <div className="seg dollar">
             <span className="k">Subtotal</span>
@@ -177,8 +177,7 @@ function InvoicePage({ invoice }: { invoice: Invoice }) {
           </div>
         </div>
         <p className="invoice-disclosure">
-          The premium is the concurrent-work disclosure — what billing books beyond
-          actual time spent. Showing it here is the audit posture from the plan.
+          <strong>How overlap time is calculated:</strong> when work on two jobs happens at the same time, each job is billed for its own minutes. &ldquo;On the clock&rdquo; counts that shared time once. The overlap above is the difference &mdash; the extra minutes that come from working on two jobs at once. We show it so you can see exactly what you&rsquo;re being billed for and why.
         </p>
       </section>
 

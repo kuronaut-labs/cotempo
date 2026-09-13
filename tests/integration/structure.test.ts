@@ -289,3 +289,32 @@ describe('archiveWorker (#24)', () => {
     expect(all).not.toContain(ids.billingWorker)
   })
 })
+
+describe('archived-worker guards (#M8)', () => {
+  it('archiveWorker 404s on an unknown id', async () => {
+    await expect(
+      archiveWorker(deps(), asUser('admin'), { workerId: 'no-such-worker' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND', field: 'workerId' })
+  })
+
+  it('archiveWorker 404s when the target is already archived', async () => {
+    await archiveWorker(deps(), asUser('admin'), { workerId: ids.billingWorker })
+    await expect(
+      archiveWorker(deps(), asUser('admin'), { workerId: ids.billingWorker }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND', field: 'workerId' })
+  })
+
+  it('setRoles refuses an archived worker', async () => {
+    await archiveWorker(deps(), asUser('admin'), { workerId: ids.billingWorker })
+    await expect(
+      setRoles(deps(), asUser('admin'), { workerId: ids.billingWorker, roles: ['operator'] }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND', field: 'workerId' })
+  })
+
+  it('setSupervisor refuses an archived target', async () => {
+    await archiveWorker(deps(), asUser('admin'), { workerId: ids.billingWorker })
+    await expect(
+      setSupervisor(deps(), asUser('admin'), { workerId: ids.billingWorker, supervisorId: ids.opWorker }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND', field: 'workerId' })
+  })
+})
