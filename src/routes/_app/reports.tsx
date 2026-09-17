@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { z } from 'zod'
 import { KpiTile } from '~/components/kpiTile'
+import { Button, buttonClass } from '~/components/ui/button'
 import { EffortBars } from '~/components/effortBars'
 import { OperatorLanes } from '~/components/operatorLanes'
 import { PeriodSelector, thisWeek } from '~/components/periodSelector'
@@ -287,8 +288,7 @@ function BillingPanel({
       />
 
       <div className="period-exports">
-        <button
-          type="button"
+        <Button variant="secondary" size="sm" type="button"
           onClick={async () => {
             // Sub tab 'recon' maps to CSV view 'intervals'; 'daily' maps to 'daily'.
             const view: 'intervals' | 'daily' = sub === 'recon' ? 'intervals' : 'daily'
@@ -307,9 +307,9 @@ function BillingPanel({
           }}
         >
           Export CSV
-        </button>
+        </Button>
         <a
-          className="period-exports-link"
+          className={buttonClass('secondary', 'sm')}
           href={`/invoice?from=${from}&to=${to}`}
           target="_blank"
           rel="noreferrer"
