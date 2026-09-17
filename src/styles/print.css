@@ -16,7 +16,7 @@
 }
 
 .invoice-actions a {
-  color: var(--j1);
+  color: var(--color-primary);
   font-family: var(--mono);
   font-size: 12px;
 }
@@ -24,10 +24,10 @@
 .invoice-actions button {
   font-family: var(--mono);
   font-size: 12px;
-  border: 1px solid var(--j1);
+  border: 1px solid var(--color-primary);
   border-radius: 6px;
   padding: 5px 14px;
-  color: var(--j1);
+  color: var(--color-primary);
   background: var(--panel);
 }
 
@@ -64,7 +64,7 @@
 }
 
 .invoice-picker-list a:hover {
-  border-color: var(--j1);
+  border-color: var(--color-primary);
 }
 
 .invoice-page {
@@ -137,7 +137,7 @@
 
 .invoice-lines td {
   padding: 8px 10px;
-  border-bottom: 1px solid #262a31;
+  border-bottom: 1px solid var(--divider);
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
 }

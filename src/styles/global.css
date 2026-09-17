@@ -128,8 +128,8 @@ samp {
 }
 
 .panel {
-  background: var(--panel);
-  border: 1px solid var(--line);
+  background: var(--surface-card);
+  border: 1px solid var(--border-card);
   border-radius: 10px;
   padding: 16px;
 }
@@ -177,9 +177,9 @@ samp {
 
 .form-error {
   font-size: 13px;
-  color: var(--err);
-  background: #2a1c19;
-  border: 1px solid #4a2f28;
+  color: var(--color-error);
+  background: transparent;
+  border: 1px solid var(--color-error);
   border-radius: 6px;
   padding: 8px 12px;
 }
@@ -221,37 +221,39 @@ samp {
   font-family: var(--disp);
   font-weight: 600;
   font-size: 14px;
-  background: var(--j1);
-  color: #0e1013;
+  background: var(--color-primary);
+  color: var(--color-secondary);
   border-radius: 7px;
   padding: 10px 14px;
 }
 
 .btn-primary:hover {
-  filter: brightness(1.1);
+  background: var(--color-secondary);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
 }
 
 /* ---------- job color utilities (entry-ux palette) ---------- */
 
 .job-c1 {
   background: var(--j1);
-  color: #0e1013;
+  color: var(--j-ink);
 }
 .job-c2 {
   background: var(--j2);
-  color: #0e1013;
+  color: var(--j-ink);
 }
 .job-c3 {
   background: var(--j3);
-  color: #0e1013;
+  color: var(--j-ink);
 }
 .job-c4 {
   background: var(--j4);
-  color: #0e1013;
+  color: var(--j-ink);
 }
 .job-c5 {
   background: var(--j5);
-  color: #0e1013;
+  color: var(--j-ink);
 }
 
 .job-dot-c1 { background: var(--j1); }
@@ -289,12 +291,12 @@ samp {
 }
 
 .dm.premium {
-  border-color: #4a3f2e;
-  background: #241f16;
+  background: transparent;
+  border: 1px solid var(--premium-fill);
 }
 
 .dm.premium b {
-  color: var(--j4);
+  color: var(--premium-text);
 }
 
 /* ---------- overlap hatching ---------- */
@@ -307,9 +309,9 @@ samp {
 .ovltag {
   font-family: var(--mono);
   font-size: 9px;
-  color: var(--j4);
-  background: #241f16;
-  border: 1px solid #4a3f2e;
+  color: var(--premium-text);
+  background: var(--surface-base);
+  border: 1px solid var(--premium-fill);
   border-radius: 3px;
   padding: 0 5px;
 }
@@ -379,7 +381,7 @@ samp {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #0e1013;
+  color: var(--j-ink);
   overflow: hidden;
   min-width: 1px;
 }
@@ -400,9 +402,9 @@ samp {
   transform: translateX(-50%);
   font-family: var(--mono);
   font-size: 9px;
-  color: var(--j4);
-  background: #241f16;
-  border: 1px solid #4a3f2e;
+  color: var(--premium-text);
+  background: var(--surface-base);
+  border: 1px solid var(--premium-fill);
   border-radius: 3px;
   padding: 0 4px;
   line-height: 12px;
@@ -428,7 +430,7 @@ samp {
 }
 
 .intervallist tbody td {
-  border-bottom: 1px solid #262a31;
+  border-bottom: 1px solid var(--divider);
   padding: 9px 10px;
   vertical-align: middle;
 }
@@ -573,7 +575,7 @@ samp {
 
 .admin-subnav a.active {
   color: var(--text);
-  border-bottom-color: var(--j1);
+  border-bottom-color: var(--color-primary);
 }
 
 .admin-head {
@@ -612,15 +614,15 @@ samp {
 }
 
 .tag-ok {
-  border-color: #33452f;
-  background: #16211a;
-  color: var(--pos);
+  border-color: var(--color-success);
+  background: transparent;
+  color: var(--color-success);
 }
 
 .tag-warn {
-  border-color: #4a3f2e;
-  background: #241f16;
-  color: var(--j4);
+  border-color: var(--premium-fill);
+  background: transparent;
+  color: var(--premium-text);
 }
 
 .tree {
@@ -746,7 +748,7 @@ samp {
 .roster button.danger:hover,
 .tree-edit button.danger:hover {
   color: var(--err);
-  border-color: #4a2f28;
+  border-color: var(--color-error);
 }
 
 .admin-form {
@@ -918,7 +920,7 @@ samp {
 .period button[aria-selected='true'] {
   color: var(--text);
   background: var(--panel2);
-  border-color: var(--j1);
+  border-color: var(--color-primary);
 }
 
 .period .range {
@@ -963,7 +965,7 @@ samp {
 
 .subtab[aria-selected='true'] {
   color: var(--text);
-  border-bottom-color: var(--j1);
+  border-bottom-color: var(--color-primary);
 }
 
 /* ---------- reconciliation table (5.2b) ---------- */
@@ -987,7 +989,7 @@ samp {
 }
 
 .recontable tbody td {
-  border-bottom: 1px solid #262a31;
+  border-bottom: 1px solid var(--divider);
   padding: 12px;
   vertical-align: middle;
 }
@@ -1061,8 +1063,8 @@ samp {
 }
 
 .recon .bar.premium {
-  background: repeating-linear-gradient(45deg, var(--j4) 0 4px, #6b4e1f 4px 8px);
-  border-left: 1px solid var(--j4);
+  background: repeating-linear-gradient(45deg, var(--premium-fill) 0 4px, transparent 4px 8px);
+  border-left: 1px solid var(--premium-fill);
 }
 
 .recon .bar .lbl {
@@ -1070,7 +1072,7 @@ samp {
   top: 1px;
   left: 6px;
   font-size: 10px;
-  color: #0e1013;
+  color: var(--j-ink);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
@@ -1139,7 +1141,7 @@ samp {
 
 .dailytable tbody td {
   padding: 10px;
-  border-bottom: 1px solid #262a31;
+  border-bottom: 1px solid var(--divider);
   vertical-align: top;
 }
 
@@ -1227,13 +1229,14 @@ samp {
 }
 
 .wtag.human {
-  background: #233247;
-  color: var(--j1);
+  background: var(--color-primary);
+  color: var(--color-secondary);
 }
 
 .wtag.agent {
-  background: #2b2340;
-  color: var(--j5);
+  background: transparent;
+  border: 1px solid var(--color-tertiary);
+  color: var(--color-info);
 }
 
 /* ---------- KPI tile (5.2d) ---------- */
@@ -1391,7 +1394,8 @@ samp {
 }
 
 .effortbars .row .bar.premium {
-  background: repeating-linear-gradient(45deg, var(--j4) 0 4px, #6b4e1f 4px 8px);
+  background: repeating-linear-gradient(45deg, var(--premium-fill) 0 4px, transparent 4px 8px);
+  border-left: 1px solid var(--premium-fill);
 }
 
 .effortbars .row .nums {
@@ -1448,7 +1452,7 @@ samp {
 
 .reports .tab[aria-selected='true'] {
   color: var(--text);
-  border-bottom-color: var(--j1);
+  border-bottom-color: var(--color-primary);
 }
 
 .reports .tab:hover {
@@ -1571,11 +1575,11 @@ samp {
 .util-row .fill {
   display: block;
   height: 100%;
-  background: var(--j1);
+  background: var(--color-primary);
 }
 
 .util-row .fill.high {
-  background: var(--j4);
+  background: var(--premium-fill);
 }
 
 .util-row .val {
@@ -1627,8 +1631,8 @@ samp {
 }
 
 .weekstatus-badge.submitted {
-  color: var(--j1);
-  border-color: var(--j1);
+  color: var(--color-info);
+  border-color: var(--color-tertiary);
 }
 
 .weekstatus-badge.approved {
@@ -1644,15 +1648,15 @@ samp {
 .weekstatus-submit {
   font-family: var(--mono);
   font-size: 11px;
-  border: 1px solid var(--j1);
+  background: transparent;
+  border: 1px solid var(--color-primary);
   border-radius: 6px;
   padding: 4px 12px;
-  color: var(--j1);
-  background: var(--panel);
+  color: var(--color-primary);
 }
 
 .weekstatus-submit:hover {
-  background: var(--panel2);
+  background: var(--fill-hover);
 }
 
 .weekstatus-submit:disabled {
@@ -1746,8 +1750,8 @@ samp {
 }
 
 .approvalsqueue li.selected button {
-  border-color: var(--j1);
-  background: var(--panel);
+  border-color: var(--color-primary);
+  background: var(--surface-card);
 }
 
 .approvalsqueue .nm {
@@ -1799,14 +1803,14 @@ samp {
 
 .intervalaudit td {
   padding: 6px 8px;
-  border-bottom: 1px solid #262a31;
+  border-bottom: 1px solid var(--divider);
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
 }
 
 .intervalaudit tr.flag-hover {
-  background: #241f16;
-  outline: 1px solid var(--j4);
+  background: var(--fill-hover);
+  outline: 1px solid var(--premium-fill);
 }
 
 .flaglist .flaglist-kind-h {
@@ -1846,7 +1850,7 @@ samp {
   font-family: var(--mono);
   font-size: 11px;
   color: var(--text);
-  border-bottom: 1px dotted #262a31;
+  border-bottom: 1px dotted var(--divider);
 }
 
 .audit-trail .audit-at {
@@ -1854,7 +1858,7 @@ samp {
 }
 
 .audit-trail .audit-kind {
-  color: var(--j1);
+  color: var(--color-info);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 10px;
@@ -1907,7 +1911,7 @@ samp {
 
 .approverview-approve {
   background: var(--pos);
-  color: #0e1013;
+  color: var(--color-secondary);
   border: 1px solid var(--pos);
   border-radius: 6px;
   padding: 4px 14px;
@@ -1918,7 +1922,7 @@ samp {
 
 .approverview-reject {
   background: var(--err);
-  color: #0e1013;
+  color: var(--color-secondary);
   border: 1px solid var(--err);
   border-radius: 6px;
   padding: 4px 14px;
@@ -1929,7 +1933,7 @@ samp {
 
 .approverview-unlock {
   background: var(--j4);
-  color: #0e1013;
+  color: var(--color-secondary);
   border: 1px solid var(--j4);
   border-radius: 6px;
   padding: 4px 14px;
