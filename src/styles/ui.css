@@ -92,3 +92,53 @@
   color: var(--color-secondary);
   border-color: var(--color-primary);
 }
+
+/* Tooltips — DESIGN "Tooltips". Attribute convention: any element with
+   data-tip gets a bubble above it on hover AND keyboard focus.
+   200ms show delay, 0ms hide, via state-dependent transition-delay. */
+[data-tip] {
+  position: relative;
+}
+
+[data-tip]::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--surface-inverse);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0ms linear, visibility 0ms linear;
+  pointer-events: none;
+}
+
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-inverse);
+  color: var(--color-secondary);
+  font: 400 12px/1.5 var(--font-body);
+  padding: 8px 12px;
+  max-width: 200px;
+  white-space: normal;
+  text-align: left;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0ms linear, visibility 0ms linear;
+  pointer-events: none;
+  z-index: 10;
+}
+
+[data-tip]:hover::before,
+[data-tip]:hover::after,
+[data-tip]:focus-within::before,
+[data-tip]:focus-within::after {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 150ms linear 200ms, visibility 0ms linear 200ms;
+}
