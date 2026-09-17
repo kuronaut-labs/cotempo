@@ -27,6 +27,9 @@ function AdminLayout() {
         <Link to="/admin/workers" activeProps={{ className: 'active' }}>
           Workers &amp; invites
         </Link>
+        <Link to="/admin/settings" activeProps={{ className: 'active' }}>
+          Settings
+        </Link>
       </nav>
       <Outlet />
     </div>

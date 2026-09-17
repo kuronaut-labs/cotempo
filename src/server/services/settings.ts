@@ -2,7 +2,9 @@ import { eq } from 'drizzle-orm'
 import { schema } from '~/server/db'
 import { canSeeMoney, isAdmin, type SessionContext } from '~/server/context'
 import { HttpError } from '~/lib/errors'
-import type { OrgSettingsInput, OrgSettingsView } from '~/lib/schemas/settings'
+import { OrgSettingsInput, type OrgSettingsView } from '~/lib/schemas/settings'
+
+export type { OrgSettingsView }
 import type { Deps } from './deps'
 
 export const FALLBACK_DAY_MINUTES = 480

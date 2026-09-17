@@ -23,6 +23,7 @@ import { Route as DevComponentsRouteImport } from './routes/dev.components'
 import { Route as AppAdminClientsRouteImport } from './routes/_app/admin/clients'
 import { Route as AppAdminJobsRouteImport } from './routes/_app/admin/jobs'
 import { Route as AppAdminProjectsRouteImport } from './routes/_app/admin/projects'
+import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
 import { Route as AppAdminWorkersRouteImport } from './routes/_app/admin/workers'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
 
@@ -95,6 +96,11 @@ const AppAdminProjectsRoute = AppAdminProjectsRouteImport.update({
   path: '/projects',
   getParentRoute: () => AppAdminRouteRoute,
 } as any)
+const AppAdminSettingsRoute = AppAdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppAdminRouteRoute,
+} as any)
 const AppAdminWorkersRoute = AppAdminWorkersRouteImport.update({
   id: '/workers',
   path: '/workers',
@@ -120,6 +126,7 @@ export interface FileRoutesByFullPath {
   '/admin/clients': typeof AppAdminClientsRoute
   '/admin/jobs': typeof AppAdminJobsRoute
   '/admin/projects': typeof AppAdminProjectsRoute
+  '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/workers': typeof AppAdminWorkersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
@@ -137,6 +144,7 @@ export interface FileRoutesByTo {
   '/admin/clients': typeof AppAdminClientsRoute
   '/admin/jobs': typeof AppAdminJobsRoute
   '/admin/projects': typeof AppAdminProjectsRoute
+  '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/workers': typeof AppAdminWorkersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/_app/admin/clients': typeof AppAdminClientsRoute
   '/_app/admin/jobs': typeof AppAdminJobsRoute
   '/_app/admin/projects': typeof AppAdminProjectsRoute
+  '/_app/admin/settings': typeof AppAdminSettingsRoute
   '/_app/admin/workers': typeof AppAdminWorkersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
@@ -175,6 +184,7 @@ export interface FileRouteTypes {
     | '/admin/clients'
     | '/admin/jobs'
     | '/admin/projects'
+    | '/admin/settings'
     | '/admin/workers'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
@@ -192,6 +202,7 @@ export interface FileRouteTypes {
     | '/admin/clients'
     | '/admin/jobs'
     | '/admin/projects'
+    | '/admin/settings'
     | '/admin/workers'
     | '/api/auth/$'
   id:
@@ -210,6 +221,7 @@ export interface FileRouteTypes {
     | '/_app/admin/clients'
     | '/_app/admin/jobs'
     | '/_app/admin/projects'
+    | '/_app/admin/settings'
     | '/_app/admin/workers'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
@@ -324,6 +336,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminProjectsRouteImport
       parentRoute: typeof AppAdminRouteRoute
     }
+    '/_app/admin/settings': {
+      id: '/_app/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AppAdminSettingsRouteImport
+      parentRoute: typeof AppAdminRouteRoute
+    }
     '/_app/admin/workers': {
       id: '/_app/admin/workers'
       path: '/workers'
@@ -345,6 +364,7 @@ interface AppAdminRouteRouteChildren {
   AppAdminClientsRoute: typeof AppAdminClientsRoute
   AppAdminJobsRoute: typeof AppAdminJobsRoute
   AppAdminProjectsRoute: typeof AppAdminProjectsRoute
+  AppAdminSettingsRoute: typeof AppAdminSettingsRoute
   AppAdminWorkersRoute: typeof AppAdminWorkersRoute
 }
 
@@ -352,6 +372,7 @@ const AppAdminRouteRouteChildren: AppAdminRouteRouteChildren = {
   AppAdminClientsRoute: AppAdminClientsRoute,
   AppAdminJobsRoute: AppAdminJobsRoute,
   AppAdminProjectsRoute: AppAdminProjectsRoute,
+  AppAdminSettingsRoute: AppAdminSettingsRoute,
   AppAdminWorkersRoute: AppAdminWorkersRoute,
 }
 
