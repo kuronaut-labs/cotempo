@@ -186,35 +186,69 @@ samp {
 
 /* ---------- shared form primitives ---------- */
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.field input,
-.field select,
-.field textarea {
-  background: var(--panel2);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 13px;
-  padding: 8px 10px;
-  text-transform: none;
-  letter-spacing: 0;
+/* Inputs — DESIGN "Input Fields". Element-level so bare inputs (login,
+   date nav) get the same treatment without wrappers. */
+input,
+select,
+textarea {
+  background: var(--surface-card);
+  border: 1px solid var(--color-tertiary);
+  color: var(--color-primary);
+  font: 400 14px/1.4 var(--font-body);
+  height: 40px;
+  padding: 0 12px;
   cursor: auto;
 }
 
-.field textarea {
-  resize: vertical;
+textarea {
+  height: auto;
   min-height: 64px;
+  padding: 8px 12px;
+  resize: vertical;
+}
+
+input:hover,
+select:hover,
+textarea:hover {
+  border-color: var(--border-input-hover);
+}
+
+/* DESIGN input focus is a 2px border, not the base outline. */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border: 2px solid var(--color-primary);
+  outline: none;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background: var(--fill-hover);
+  border-color: var(--border-card);
+  color: var(--border-input-hover);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font: 400 12px/1.5 var(--font-body);
+  color: var(--color-info);
+}
+
+.field:has(.field-error) input,
+.field:has(.field-error) select,
+.field:has(.field-error) textarea {
+  border-color: var(--color-error);
+}
+
+.checkline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font: 400 12px/1.5 var(--font-body);
+  color: var(--color-info);
 }
 
 .btn-primary {
