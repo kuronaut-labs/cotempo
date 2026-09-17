@@ -511,31 +511,22 @@ input[type='radio']:disabled:checked::after {
 .entryform {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 18px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--surface-card);
+  border: 1px solid var(--border-card);
 }
-
-.entryform .field > span {
-  display: block;
-}
-
 .entryform-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: var(--space-3);
 }
-
-.entryform textarea {
-  font-family: var(--body);
-  font-size: 13px;
-}
-
-.entryform-actions {
-  display: flex;
-  gap: 8px;
+.entryform textarea { font-size: 14px; }
+.entryform-actions { display: flex; gap: var(--space-2); }
+.entryform-duration {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-info);
 }
 
 /* ---------- /today page ---------- */

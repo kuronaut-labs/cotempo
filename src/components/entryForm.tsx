@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { localHHMM } from '~/lib/dayMath'
 import { CreateIntervalInput, UpdateIntervalInput } from '~/lib/schemas/intervals'
 import { applyServerError } from '~/components/forms/applyServerError'
+import { Button } from '~/components/ui/button'
 import type { ClientNode } from '~/server/services/structure'
 import type { WorkerView } from '~/server/services/workers'
 
@@ -271,13 +272,13 @@ export function EntryForm({
       )}
 
       <div className="entryform-actions">
-        <button type="submit" className="btn-primary">
+        <Button type="submit" variant="primary">
           {isEdit ? 'Save' : 'Add'}
-        </button>
+        </Button>
         {isEdit && onCancel && (
-          <button type="button" onClick={onCancel}>
+          <Button type="button" variant="secondary" onClick={onCancel}>
             Cancel
-          </button>
+          </Button>
         )}
       </div>
     </form>
