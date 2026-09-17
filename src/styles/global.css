@@ -1552,3 +1552,44 @@ input[type='radio']:disabled:checked::after {
 .approverview-actions input {
   flex: 1;
 }
+/* ---------- leave ---------- */
+.leave {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-4);
+  max-width: 1100px;
+}
+.leave h1 {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+.leave-balances {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-2);
+}
+.leave-balance {
+  background: var(--surface-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-3) var(--space-4);
+  display: grid;
+  gap: var(--space-1);
+}
+.leave-balance .k {
+  font: 500 14px/1.3 var(--font-body);
+  color: var(--color-muted);
+}
+.leave-balance .v {
+  font: 600 20px/1.3 var(--font-body);
+  color: var(--color-primary);
+  font-variant-numeric: tabular-nums;
+}
+.leave-balance .hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-muted);
+}

@@ -16,6 +16,7 @@ import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as AppAdminRouteRouteImport } from './routes/_app/admin/route'
 import { Route as AppApprovalsRouteImport } from './routes/_app/approvals'
 import { Route as AppInvoiceRouteImport } from './routes/_app/invoice'
+import { Route as AppLeaveRouteImport } from './routes/_app/leave'
 import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppTodayRouteImport } from './routes/_app/today'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
@@ -59,6 +60,11 @@ const AppApprovalsRoute = AppApprovalsRouteImport.update({
 const AppInvoiceRoute = AppInvoiceRouteImport.update({
   id: '/invoice',
   path: '/invoice',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppLeaveRoute = AppLeaveRouteImport.update({
+  id: '/leave',
+  path: '/leave',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppReportsRoute = AppReportsRouteImport.update({
@@ -119,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AppAdminRouteRouteWithChildren
   '/approvals': typeof AppApprovalsRoute
   '/invoice': typeof AppInvoiceRoute
+  '/leave': typeof AppLeaveRoute
   '/reports': typeof AppReportsRoute
   '/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
@@ -137,6 +144,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AppAdminRouteRouteWithChildren
   '/approvals': typeof AppApprovalsRoute
   '/invoice': typeof AppInvoiceRoute
+  '/leave': typeof AppLeaveRoute
   '/reports': typeof AppReportsRoute
   '/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
@@ -157,6 +165,7 @@ export interface FileRoutesById {
   '/_app/admin': typeof AppAdminRouteRouteWithChildren
   '/_app/approvals': typeof AppApprovalsRoute
   '/_app/invoice': typeof AppInvoiceRoute
+  '/_app/leave': typeof AppLeaveRoute
   '/_app/reports': typeof AppReportsRoute
   '/_app/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/approvals'
     | '/invoice'
+    | '/leave'
     | '/reports'
     | '/today'
     | '/api/health'
@@ -195,6 +205,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/approvals'
     | '/invoice'
+    | '/leave'
     | '/reports'
     | '/today'
     | '/api/health'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '/_app/admin'
     | '/_app/approvals'
     | '/_app/invoice'
+    | '/_app/leave'
     | '/_app/reports'
     | '/_app/today'
     | '/api/health'
@@ -285,6 +297,13 @@ declare module '@tanstack/react-router' {
       path: '/invoice'
       fullPath: '/invoice'
       preLoaderRoute: typeof AppInvoiceRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/leave': {
+      id: '/_app/leave'
+      path: '/leave'
+      fullPath: '/leave'
+      preLoaderRoute: typeof AppLeaveRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/_app/reports': {
@@ -384,6 +403,7 @@ interface AppRouteRouteChildren {
   AppAdminRouteRoute: typeof AppAdminRouteRouteWithChildren
   AppApprovalsRoute: typeof AppApprovalsRoute
   AppInvoiceRoute: typeof AppInvoiceRoute
+  AppLeaveRoute: typeof AppLeaveRoute
   AppReportsRoute: typeof AppReportsRoute
   AppTodayRoute: typeof AppTodayRoute
 }
@@ -392,6 +412,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppAdminRouteRoute: AppAdminRouteRouteWithChildren,
   AppApprovalsRoute: AppApprovalsRoute,
   AppInvoiceRoute: AppInvoiceRoute,
+  AppLeaveRoute: AppLeaveRoute,
   AppReportsRoute: AppReportsRoute,
   AppTodayRoute: AppTodayRoute,
 }
