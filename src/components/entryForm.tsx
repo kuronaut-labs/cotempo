@@ -3,7 +3,7 @@ import { TZDate } from '@date-fns/tz'
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { Check } from 'reicon-react'
-import { localHHMM } from '~/lib/dayMath'
+import { localDateOf, localHHMM } from '~/lib/dayMath'
 import { CreateIntervalInput, UpdateIntervalInput } from '~/lib/schemas/intervals'
 import { applyServerError } from '~/components/forms/applyServerError'
 import { Button } from '~/components/ui/button'
@@ -65,8 +65,9 @@ export function EntryForm({
       jobId: initial?.jobId ?? '',
       startTime: initial?.startedAt ? localHHMM(Date.parse(initial.startedAt), tz) : '09:00',
       endTime: initial?.endedAt ? localHHMM(Date.parse(initial.endedAt), tz) : '10:00',
+      // Org-tz semantics (#19), not UTC bytes: a Perth morning session spans a UTC boundary.
       crossesMidnight: initial?.startedAt && initial?.endedAt
-        ? new Date(initial.endedAt).getUTCDate() !== new Date(initial.startedAt).getUTCDate()
+        ? localDateOf(Date.parse(initial.startedAt), tz) !== localDateOf(Date.parse(initial.endedAt), tz)
         : false,
       note: initial?.note ?? '',
     } as {
@@ -228,7 +229,7 @@ export function EntryForm({
                   const [sh, sm] = start.split(':').map(Number) as [number, number]
                   const [eh, em] = end.split(':').map(Number) as [number, number]
                   let totalMin = eh * 60 + em - (sh * 60 + sm)
-                  if (totalMin < 0) totalMin += 24 * 60
+                  if (totalMin < 0 && s.values.crossesMidnight) totalMin += 24 * 60
                   const hh = Math.floor(totalMin / 60)
                   const mm = totalMin % 60
                   return `${hh}:${String(mm).padStart(2, '0')}`

@@ -300,6 +300,16 @@ export async function adminKpis(deps: Deps, ctx: SessionContext, input: KpiInput
         .all()
     : []
   const nameMap = new Map(humanNames.map((u) => [u.workerId, u.name]))
+  // Agents carry their display name on the workers row (mirrors operatorLanes).
+  const missingIds = workerIds.filter((id) => !nameMap.has(id))
+  if (missingIds.length > 0) {
+    const rows = await db
+      .select({ id: schema.workers.id, name: schema.workers.name })
+      .from(schema.workers)
+      .where(inArray(schema.workers.id, missingIds))
+      .all()
+    for (const w of rows) if (!nameMap.has(w.id)) nameMap.set(w.id, w.name ?? '?')
+  }
 
   const perWorker = workerIds.map((workerId) => {
     const r = recon(byWorker.get(workerId)!)

@@ -1,6 +1,6 @@
 import { groupBy, type Piece } from './attribution'
 import { localDateOf } from './dayMath'
-import { localDayBoundariesUtcMs, type Range } from './dayMath'
+import { localDayBoundariesUtcMs, mergeRanges, type Range } from './dayMath'
 import { weekDates } from './week'
 
 export type FlagKind = 'gap' | 'late_entry' | 'multi_edit' | 'retroactive' | 'non_supervisor'
@@ -19,15 +19,20 @@ export type RedFlagInput = {
 
 const DAY = 86_400_000
 
-/* Per-day wall-clock across the worker's pieces on that local day. Pieces from
-   attribution are already split at day boundaries, so wall-clock is the sum of
-   per-piece minutes (one worker filtered; concurrency was resolved at explode). */
+/* Per-day wall-clock across the worker's pieces on that local day, UNIONED like
+   recon() (attribution's explode does NOT resolve concurrency — pieces overlap,
+   so summing them would overcount on concurrent-coverage days). */
 function wallMinByDay(pieces: Piece[], workerId: string): Map<string, number> {
-  const out = new Map<string, number>()
+  const byDay = new Map<string, Range[]>()
   for (const p of pieces) {
     if (p.workerId !== workerId) continue
-    const min = (p.endMs - p.startMs) / 60_000
-    out.set(p.day, (out.get(p.day) ?? 0) + min)
+    const ranges = byDay.get(p.day) ?? []
+    ranges.push({ startMs: p.startMs, endMs: p.endMs })
+    byDay.set(p.day, ranges)
+  }
+  const out = new Map<string, number>()
+  for (const [day, ranges] of byDay) {
+    out.set(day, mergeRanges(ranges).reduce((s, r) => s + (r.endMs - r.startMs) / 60_000, 0))
   }
   return out
 }
