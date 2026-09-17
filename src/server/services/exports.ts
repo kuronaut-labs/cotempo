@@ -1,13 +1,14 @@
 import { and, eq, gt, inArray, isNull, lt } from 'drizzle-orm'
 import { clipPieces, explode, recon as piecesRecon, type Piece, type Recon } from '~/lib/attribution'
 import { localDayBoundariesUtcMs } from '~/lib/dayMath'
-import { moneyCents } from '~/lib/money'
+import { moneyCents, formatDecimalHours } from '~/lib/money'
 import { HttpError } from '~/lib/errors'
 import { canSeeMoney, type SessionContext } from '~/server/context'
 import { schema, type Db } from '~/server/db'
 import type { ExportCsvInput, InvoiceInput } from '~/lib/schemas/reports'
 import { groupBy } from '~/lib/attribution'
 import { loadPieces } from './reports'
+import { leaveExportRows } from './leave'
 import type { Deps } from './deps'
 
 export const INTERVALS_CSV_COLUMNS = [
@@ -29,6 +30,16 @@ export const INTERVALS_CSV_COLUMNS = [
   'created_at',
   'edit_count',
   'org_timezone',
+] as const
+
+export const LEAVE_CSV_COLUMNS = [
+  'worker',
+  'type',
+  'startDay',
+  'endDay',
+  'hours',
+  'status',
+  'decidedBy',
 ] as const
 
 export const DAILY_CSV_COLUMNS = [
@@ -200,6 +211,25 @@ export async function exportCsv(
           interval.createdAt.toISOString(), // created_at
           interval.editCount, // edit_count
           tz, // org_timezone
+        ]),
+      )
+    }
+    return { filename, body: out.join('\n') + '\n' }
+  }
+
+  if (input.view === 'leave') {
+    const leaveRows = await leaveExportRows(deps, ctx, { from: input.from, to: input.to })
+    const out: string[] = [csvRow(LEAVE_CSV_COLUMNS as unknown as string[])]
+    for (const r of leaveRows) {
+      out.push(
+        csvRow([
+          r.workerName, // worker
+          r.typeName, // type
+          r.startDay,
+          r.endDay,
+          formatDecimalHours(r.minutes), // hours
+          r.status, // status verbatim — data export, not UI copy
+          r.decidedBy ?? '', // decidedBy
         ]),
       )
     }

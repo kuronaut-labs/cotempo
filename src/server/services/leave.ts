@@ -504,3 +504,48 @@ function toViewShell(
     decisionReason: r.decisionReason,
   }
 }
+
+export type LeaveExportRow = {
+  workerName: string
+  typeName: string
+  startDay: string
+  endDay: string
+  minutes: number
+  status: LeaveRequestView['status']
+  decidedBy: string | null
+}
+
+export async function leaveExportRows(
+  deps: Deps,
+  ctx: SessionContext,
+  input: { from: string; to: string },
+): Promise<LeaveExportRow[]> {
+  if (!hasRole(ctx, 'billing')) throw new HttpError(403, 'FORBIDDEN')
+  const rows = await deps.db
+    .select({
+      workerId: leaveRequests.workerId,
+      typeId: leaveRequests.typeId,
+      startDay: leaveRequests.startDay,
+      endDay: leaveRequests.endDay,
+      minutesPerDay: leaveRequests.minutesPerDay,
+      status: leaveRequests.status,
+      decidedById: leaveRequests.decidedBy,
+    })
+    .from(leaveRequests)
+    .where(and(gte(leaveRequests.startDay, input.from), lte(leaveRequests.startDay, input.to)))
+    .all()
+  const workerIds = [...new Set(rows.flatMap((r) => [r.workerId, r.decidedById].filter((x): x is string => !!x)))]
+  const names = new Map<string, string>()
+  for (const id of workerIds) names.set(id, await workerDisplayName(deps, id))
+  const typeRows = await deps.db.select({ id: leaveTypes.id, name: leaveTypes.name }).from(leaveTypes).all()
+  const typeNames = new Map(typeRows.map((t) => [t.id, t.name] as const))
+  return rows.map((r) => ({
+    workerName: names.get(r.workerId) ?? '?',
+    typeName: typeNames.get(r.typeId) ?? '?',
+      startDay: r.startDay,
+      endDay: r.endDay,
+      minutes: requestMinutes(r.startDay, r.endDay, r.minutesPerDay),
+    status: r.status,
+    decidedBy: r.decidedById ? (names.get(r.decidedById) ?? '?') : null,
+  }))
+}

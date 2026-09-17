@@ -21,6 +21,7 @@ import {
   reconciliationFn,
 } from '~/server/fns/reports'
 import { exportCsvFn } from '~/server/fns/exports'
+import { leaveReportFn } from '~/server/fns/leave'
 import { listStructureFn } from '~/server/fns/structure'
 import { StructureTree, rateLabel } from '~/components/structureTree'
 import type { SessionContext } from '~/server/context'
@@ -29,7 +30,7 @@ import type { ClientNode } from '~/server/services/structure'
 
 const searchSchema = z.object({
   tab: z.enum(['admin', 'billing', 'operator']).optional(),
-  sub: z.enum(['recon', 'daily']).optional(),
+  sub: z.enum(['recon', 'daily', 'leave']).optional(),
   from: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD')
@@ -42,7 +43,7 @@ const searchSchema = z.object({
 
 type Search = z.infer<typeof searchSchema>
 type TabId = 'admin' | 'billing' | 'operator'
-type SubId = 'recon' | 'daily'
+type SubId = 'recon' | 'daily' | 'leave'
 
 /* Default tab = highest role; default sub = 'recon' under billing. */
 function defaultTab(ctx: SessionContext | null): TabId {
@@ -88,6 +89,10 @@ export const Route = createFileRoute('/_app/reports')({
         const [daily, jobs] = await Promise.all([dailyFn({ data: period }), perJobFn({ data: period })])
         return { today: today.date, tz, ctx, tab, sub, from, to, daily, jobs }
       }
+      if (sub === 'leave') {
+        const leave = await leaveReportFn({ data: period })
+        return { today: today.date, tz, ctx, tab, sub, from, to, leave }
+      }
       const [recon, jobs] = await Promise.all([reconciliationFn({ data: period }), perJobFn({ data: period })])
       return { today: today.date, tz, ctx, tab, sub, from, to, recon, jobs }
     }
@@ -116,6 +121,7 @@ function ReportsView() {
     daily?: import('~/server/services/reports').DailyReport
     jobs?: import('~/server/services/reports').JobRecon[]
     lanes?: import('~/server/services/reports').OperatorLane[]
+    leave?: import('~/server/fns/leave').LeaveReportView[]
   }
   const navigate = useNavigate()
   const { today, tz, ctx, tab, sub, from, to } = data
@@ -163,6 +169,7 @@ function ReportsView() {
           tz={tz}
           recon={data.recon}
           daily={data.daily}
+          leave={data.leave}
           onPeriodChange={(p) => goSearch(navigate, { from: p.from, to: p.to })}
           onSubChange={(s) => goSearch(navigate, { sub: s })}
         />
@@ -273,6 +280,7 @@ function BillingPanel({
   tz,
   recon,
   daily,
+  leave,
   onPeriodChange,
   onSubChange,
 }: {
@@ -283,6 +291,7 @@ function BillingPanel({
   tz: string
   recon?: import('~/server/services/reports').ReconciliationReport
   daily?: import('~/server/services/reports').DailyReport
+  leave?: import('~/server/fns/leave').LeaveReportView[]
   onPeriodChange: (next: { from: string; to: string }) => void
   onSubChange: (next: SubId) => void
 }) {
@@ -294,6 +303,7 @@ function BillingPanel({
         tabs={[
           { id: 'recon', label: 'Totals' },
           { id: 'daily', label: 'Daily' },
+          { id: 'leave', label: 'Leave' },
         ]}
         active={sub}
         onChange={(id) => onSubChange(id as SubId)}
@@ -302,8 +312,9 @@ function BillingPanel({
       <div className="period-exports">
         <Button variant="secondary" size="sm" type="button"
           onClick={async () => {
-            // Sub tab 'recon' maps to CSV view 'intervals'; 'daily' maps to 'daily'.
-            const view: 'intervals' | 'daily' = sub === 'recon' ? 'intervals' : 'daily'
+            // Sub tab 'recon' maps to CSV view 'intervals'; 'daily' to 'daily'; 'leave' to 'leave'.
+            const view: 'intervals' | 'daily' | 'leave' =
+              sub === 'recon' ? 'intervals' : sub === 'daily' ? 'daily' : 'leave'
             const res = await exportCsvFn({ data: { from, to, view } })
             const blob = await res.blob()
             const url = URL.createObjectURL(blob)
@@ -347,6 +358,34 @@ function BillingPanel({
         <section className="card">
           <h2>Daily breakdown</h2>
           <DailyTable report={daily} />
+        </section>
+      ) : null}
+
+      {sub === 'leave' && leave ? (
+        <section className="card">
+          <h2>Leave</h2>
+          <table className="recontable">
+            <thead>
+              <tr>
+                <th className="nm">Worker</th>
+                <th className="nm">Type</th>
+                <th>Taken</th>
+                <th>Pending</th>
+                <th>Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leave.map((r) => (
+                <tr key={`${r.workerId}-${r.typeId}`}>
+                  <td className="nm">{r.workerName}</td>
+                  <td>{r.typeName}</td>
+                  <td className="money">{formatHmm(r.takenMinutes)}</td>
+                  <td className="money">{formatHmm(r.pendingMinutes)}</td>
+                  <td className="money">{formatHmm(r.balanceMinutes)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </section>
       ) : null}
     </div>
