@@ -320,6 +320,7 @@ input[type='radio']:disabled:checked::after {
   border: 1px solid var(--color-tertiary);
   padding: 6px 12px;
   background: var(--surface-card);
+  border-radius: var(--radius-xs);
 }
 
 .dm .k {
@@ -360,6 +361,7 @@ input[type='radio']:disabled:checked::after {
   background: var(--fill-hover);
   border: 1px solid var(--color-tertiary);
   overflow: hidden;
+  border-radius: var(--radius-xs);
 }
 
 .ministrip-track {
@@ -387,7 +389,7 @@ input[type='radio']:disabled:checked::after {
   position: absolute;
   bottom: 2px;
   height: 6px;
-  background: repeating-linear-gradient(45deg, transparent 0 3px, rgba(10, 10, 10, 0.45) 3px 5px);
+  background: repeating-linear-gradient(45deg, transparent 0 3px, rgba(55, 53, 47, 0.45) 3px 5px);
 }
 
 .ministrip-overlap-tag {
@@ -457,6 +459,8 @@ input[type='radio']:disabled:checked::after {
   border: 1px solid var(--border-card);
   padding: var(--space-4);
   font-size: 14px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
 }
 
 /* ---------- entry form (retro, 4.4d) ---------- */
