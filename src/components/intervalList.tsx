@@ -1,3 +1,4 @@
+import { Button } from '~/components/ui/button'
 import { localHHMM } from '~/lib/dayMath'
 import { formatHmm } from '~/lib/money'
 import type { DayIntervalRow } from '~/server/services/intervals'
@@ -61,12 +62,12 @@ export function IntervalList({
               <td className="intervallist-actions">
                 {editable && (
                   <>
-                    <button type="button" onClick={() => onEdit(r.id)} aria-label="Edit">
+                    <Button variant="ghost" size="sm" onClick={() => onEdit(r.id)} aria-label="Edit">
                       Edit
-                    </button>
-                    <button type="button" onClick={() => onDelete(r.id)} aria-label="Delete">
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => onDelete(r.id)} aria-label="Delete">
                       Delete
-                    </button>
+                    </Button>
                   </>
                 )}
               </td>
