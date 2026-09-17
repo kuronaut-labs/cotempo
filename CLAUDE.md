@@ -70,6 +70,8 @@ Do not: refactor code outside the task, add dependencies, change config files (`
 | Test helpers | `tests/integration/helpers.ts` (`db`, `deps()`, `asUser()`, `resetDb()`, `setWeekStatus()`, `at()`) |
 | Org settings (defaults) | `src/lib/schemas/settings.ts`, `src/server/services/settings.ts`, `src/server/fns/settings.ts` |
 | Settings admin page | `src/routes/_app/admin/settings.tsx` |
+| Leave types/requests math | `src/lib/leaveMath.ts` |
+| Leave service + fns | `src/server/services/leave.ts`, `src/server/fns/leave.ts` |
 | Design system | `docs/DESIGN.md` (spec) → `src/styles/tokens.css` (values) |
 
 ## Comments
