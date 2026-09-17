@@ -7,6 +7,7 @@ import { getTodayFn } from '~/server/fns/intervals'
 import { invoiceDataFn } from '~/server/fns/exports'
 import { listStructureFn } from '~/server/fns/structure'
 import { thisWeek } from '~/components/periodSelector'
+import { Button, buttonClass } from '~/components/ui/button'
 import type { ClientNode } from '~/server/services/structure'
 import type { Invoice } from '~/server/services/exports'
 
@@ -61,10 +62,10 @@ function InvoiceView() {
   return (
     <main className="invoice">
       <header className="invoice-actions no-print">
-        <Link to="/reports">← Back to reports</Link>
-        <button type="button" onClick={() => window.print()}>
+        <Link to="/reports" className={buttonClass('secondary', 'sm')}>← Back to reports</Link>
+        <Button variant="secondary" size="sm" onClick={() => window.print()}>
           Print / Save as PDF
-        </button>
+        </Button>
       </header>
 
       {!data.invoice ? (
@@ -81,7 +82,7 @@ function ClientPicker({ tree, period }: { tree: ClientNode[]; period: { from: st
   return (
     <section className="invoice-picker">
       <h1>Invoices</h1>
-      <p className="invoice-period">
+      <p className="invoice-picker-period">
         Period: {period.from} – {period.to}
       </p>
       <ul className="invoice-picker-list">

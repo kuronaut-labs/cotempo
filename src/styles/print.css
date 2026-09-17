@@ -1,184 +1,154 @@
-/* ---------- invoice route (7.2) ---------- */
+/* ---------- invoice route (7.2) — screen layer ---------- */
 
 .invoice {
   max-width: 900px;
   margin: 0 auto;
-  padding: 24px;
-  color: var(--text);
-  font-family: var(--body);
+  padding: var(--space-5) var(--space-4);
+  color: var(--color-primary);
+  font-family: var(--font-body);
 }
 
 .invoice-actions {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
 }
 
 .invoice-actions a {
   color: var(--color-primary);
-  font-family: var(--mono);
-  font-size: 12px;
-}
-
-.invoice-actions button {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 12px;
   border: 1px solid var(--color-primary);
-  border-radius: 6px;
-  padding: 5px 14px;
-  color: var(--color-primary);
-  background: var(--panel);
+  padding: var(--space-1) var(--space-3);
+  text-decoration: none;
 }
 
-.invoice-picker h1 {
-  font-family: var(--disp);
-  font-size: 24px;
-  margin-bottom: 8px;
-}
-
-.invoice-period {
-  font-family: var(--mono);
+.invoice-picker h1 { font: 600 28px/1.2 var(--font-body); margin: 0 0 var(--space-2); }
+.invoice-picker-period {
+  font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 16px;
+  color: var(--color-info);
+  margin-bottom: var(--space-4);
 }
 
-.invoice-picker-list {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
+.invoice-picker-list { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); }
 .invoice-picker-list a {
-  display: block;
-  padding: 10px 14px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  color: var(--text);
-  font-family: var(--body);
-  font-size: 14px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  height: 48px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-card);
+  color: var(--color-primary);
+  font: 400 14px/1.6 var(--font-body);
+  text-decoration: none;
 }
-
-.invoice-picker-list a:hover {
-  border-color: var(--color-primary);
-}
+.invoice-picker-list a:hover { border-color: var(--color-primary); }
 
 .invoice-page {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 32px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-card);
+  padding: var(--space-6);
 }
 
 .invoice-head {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 24px;
-  gap: 16px;
+  justify-content: space-between;
+  gap: var(--space-3);
   flex-wrap: wrap;
+  margin-bottom: var(--space-6);
 }
 
-.invoice-head h1 {
-  font-family: var(--disp);
-  font-size: 30px;
-  font-weight: 700;
-}
+.invoice-head h1 { font: 700 28px/1.1 var(--font-body); margin: 0; }
 
 .invoice-client {
-  font-family: var(--body);
-  font-size: 16px;
-  color: var(--muted);
-  margin-top: 4px;
+  font: 300 16px/1.65 var(--font-body);
+  color: var(--color-info);
+  margin-top: var(--space-1);
 }
 
 .invoice-meta {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-family: var(--mono);
+  gap: var(--space-1);
+  font-family: var(--font-mono);
   font-size: 11px;
   text-align: right;
 }
 
-.invoice-k {
-  color: var(--muted);
+.invoice-meta .invoice-k {
+  color: var(--color-info);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-size: 9px;
-  margin-right: 6px;
+  margin-right: var(--space-1);
 }
 
-.invoice-v {
-  color: var(--text);
-}
+.invoice-meta .invoice-v { color: var(--color-primary); }
 
 .invoice-lines {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 24px;
-  font-size: 13px;
+  font-size: 14px;
+  margin-bottom: var(--space-6);
 }
 
 .invoice-lines th {
-  font-family: var(--mono);
-  font-size: 10px;
+  font: 500 10px/1.2 var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--muted);
+  color: var(--color-info);
   text-align: left;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--line);
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-tertiary);
 }
 
 .invoice-lines td {
-  padding: 8px 10px;
+  padding: var(--space-2);
   border-bottom: 1px solid var(--divider);
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
-.invoice-lines .num {
-  text-align: right;
-}
+.invoice-lines .num { text-align: right; }
 
 .invoice-lines tfoot td {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--color-tertiary);
   border-bottom: none;
-  padding-top: 12px;
+  padding-top: var(--space-3);
   font-weight: 600;
 }
 
 .invoice-subtotal-label {
   text-align: right;
-  color: var(--muted);
+  color: var(--color-info);
   text-transform: uppercase;
   font-size: 10px;
   letter-spacing: 0.08em;
 }
 
 .invoice-subtotal {
-  color: var(--pos);
+  color: var(--color-primary);
   font-size: 16px;
+  font-weight: 600;
 }
 
 .invoice-trio {
   display: flex;
   flex-direction: column;
-  gap: 12px;
   align-items: flex-start;
-  margin-top: 24px;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
 }
 
 .invoice-disclosure {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--faint);
   line-height: 1.6;
+  color: var(--color-info);
   max-width: 60ch;
 }
 
