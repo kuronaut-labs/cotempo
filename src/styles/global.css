@@ -1593,3 +1593,36 @@ input[type='radio']:disabled:checked::after {
   font-size: 11px;
   color: var(--color-muted);
 }
+
+/* leave moderation queue */
+.leavequeue { display: grid; gap: var(--space-2); }
+.leavequeue-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-muted);
+  background: var(--fill-hover);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-full);
+  padding: 1px 8px;
+  margin-left: var(--space-2);
+}
+.leavequeue-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  background: var(--surface-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-1);
+  padding: var(--space-3);
+}
+.leavequeue-main { display: grid; gap: 2px; }
+.leavequeue-who { font: 600 14px/1.4 var(--font-body); color: var(--color-primary); }
+.leavequeue-what { font: 400 13px/1.5 var(--font-body); color: var(--color-primary); }
+.leavequeue-days { font-family: var(--font-mono); font-size: 11px; color: var(--color-muted); }
+.leavequeue-reason { font: 400 12px/1.5 var(--font-body); color: var(--color-muted); }
+.leavequeue-actions { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
+.leavequeue-reject { display: flex; gap: var(--space-2); }
+.leavequeue-reject input { width: 220px; }
