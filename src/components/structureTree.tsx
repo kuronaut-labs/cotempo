@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { serverErrorMessage } from '~/components/forms/applyServerError'
+import { Button } from '~/components/ui/button'
 import type { ClientNode, JobNode, ProjectNode } from '~/server/services/structure'
 import {
   archiveClientFn,
@@ -130,30 +131,31 @@ function ClientActions({ node, run }: { node: ClientNode; run: RunFn }) {
         }}
       >
         <input className="tree-input" value={name} onChange={(e) => setName(e.target.value)} aria-label="Client name" />
-        <button type="submit" className="btn-primary">
+        <Button type="submit" variant="primary">
           Save
-        </button>
-        <button type="button" onClick={() => setRenaming(false)}>
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => setRenaming(false)}>
           Cancel
-        </button>
+        </Button>
       </form>
     )
   }
 
   return (
     <span className="tree-actions">
-      <button type="button" onClick={() => setRenaming(true)}>
+      <Button variant="ghost" size="sm" onClick={() => setRenaming(true)}>
         Rename
-      </button>
-      <button
-        type="button"
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
         className="danger"
         onClick={() => {
           if (window.confirm(`Archive client ${node.name}?`)) void run(() => archiveClientFn({ data: { id: node.id } }))
         }}
       >
         Archive
-      </button>
+      </Button>
     </span>
   )
 }
@@ -176,30 +178,31 @@ function ProjectActions({ node, run }: { node: ProjectNode; run: RunFn }) {
         }}
       >
         <input className="tree-input" value={name} onChange={(e) => setName(e.target.value)} aria-label="Project name" />
-        <button type="submit" className="btn-primary">
+        <Button type="submit" variant="primary">
           Save
-        </button>
-        <button type="button" onClick={() => setRenaming(false)}>
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => setRenaming(false)}>
           Cancel
-        </button>
+        </Button>
       </form>
     )
   }
 
   return (
     <span className="tree-actions">
-      <button type="button" onClick={() => setRenaming(true)}>
+      <Button variant="ghost" size="sm" onClick={() => setRenaming(true)}>
         Rename
-      </button>
-      <button
-        type="button"
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
         className="danger"
         onClick={() => {
           if (window.confirm(`Archive project ${node.name}?`)) void run(() => archiveProjectFn({ data: { id: node.id } }))
         }}
       >
         Archive
-      </button>
+      </Button>
     </span>
   )
 }
@@ -239,12 +242,12 @@ function JobRow({ node, manage, run }: { node: JobNode; manage: ManageLevel; run
           placeholder="$/hr"
           aria-label="Hourly rate in dollars"
         />
-        <button type="submit" className="btn-primary">
+        <Button type="submit" variant="primary">
           Save
-        </button>
-        <button type="button" onClick={() => setEditing(false)}>
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
           Cancel
-        </button>
+        </Button>
         {fieldError && <span className="field-error">{fieldError}</span>}
       </form>
     )
@@ -257,18 +260,19 @@ function JobRow({ node, manage, run }: { node: JobNode; manage: ManageLevel; run
       {node.archivedAt && <span className="tag">archived</span>}
       {manage === 'job' && live && (
         <span className="tree-actions">
-          <button type="button" onClick={() => setEditing(true)}>
+          <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
             Edit
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             className="danger"
             onClick={() => {
               if (window.confirm(`Archive job ${node.name}?`)) void run(() => archiveJobFn({ data: { id: node.id } }))
             }}
           >
             Archive
-          </button>
+          </Button>
         </span>
       )}
     </div>
@@ -296,9 +300,9 @@ function AddClientForm({ run }: { run: RunFn }) {
         placeholder="New client name"
         aria-label="New client name"
       />
-      <button type="submit" className="btn-primary" disabled={!name.trim()}>
+      <Button type="submit" variant="primary" disabled={!name.trim()}>
         Add client
-      </button>
+      </Button>
     </form>
   )
 }
@@ -324,9 +328,9 @@ function AddProjectForm({ clientId, run }: { clientId: string; run: RunFn }) {
         placeholder="New project name"
         aria-label="New project name"
       />
-      <button type="submit" className="btn-primary" disabled={!name.trim()}>
+      <Button type="submit" variant="primary" disabled={!name.trim()}>
         Add project
-      </button>
+      </Button>
     </form>
   )
 }
@@ -372,9 +376,9 @@ function AddJobForm({ projectId, run }: { projectId: string; run: RunFn }) {
         placeholder="$/hr (blank = non-billable)"
         aria-label="Hourly rate in dollars, blank for non-billable"
       />
-      <button type="submit" className="btn-primary" disabled={!name.trim()}>
+      <Button type="submit" variant="primary" disabled={!name.trim()}>
         Add job
-      </button>
+      </Button>
       {fieldError && <span className="field-error">{fieldError}</span>}
     </form>
   )
