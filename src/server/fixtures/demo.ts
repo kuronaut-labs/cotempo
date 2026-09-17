@@ -18,13 +18,16 @@ export const ids = {
   j2: 'demo-0000-job-2',
   j3: 'demo-0000-job-3',
   j4: 'demo-0000-job-4',
+  // positions — rate override demo (#positions-plan)
+  posSenior: 'pos-senior-dev',
+  posDesigner: 'pos-designer',
 } as const
 
-export type DemoHuman = { workerId: string; email: string; name: string; roles: readonly Role[] }
+export type DemoHuman = { workerId: string; email: string; name: string; roles: readonly Role[]; positionId?: string }
 export const demoHumans: readonly DemoHuman[] = [
   { workerId: ids.adminWorker, email: 'admin@example.com', name: 'Demo Admin', roles: ['operator', 'billing', 'admin'] },
   { workerId: ids.billingWorker, email: 'billing@example.com', name: 'Demo Billing', roles: ['operator', 'billing'] },
-  { workerId: ids.opWorker, email: 'ops@example.com', name: 'Demo Operator', roles: ['operator'] },
+  { workerId: ids.opWorker, email: 'ops@example.com', name: 'Demo Operator', roles: ['operator'], positionId: ids.posSenior },
 ]
 
 /** Monday 2026-08-31 00:00 UTC. Tests anchor here; the seed passes the current week. */
@@ -98,6 +101,10 @@ export async function insertDemo(db: Db, opts: { anchorMs?: number } = {}) {
       .onConflictDoNothing(),
     db.insert(schema.orgSettings).values({ id: 'org', defaultBillableRateCents: 10_000, defaultDayMinutes: 480, defaultWeeklyTargetHours: 40, updatedAt: now }).onConflictDoNothing(),
     db.insert(schema.leaveTypes).values(leaveTypeRows).onConflictDoNothing(),
+    db.insert(schema.positions).values([
+      { id: ids.posSenior, name: 'Senior developer', rateCents: 12_000, createdAt: now },
+      { id: ids.posDesigner, name: 'Designer', rateCents: 9_000, createdAt: now },
+    ]).onConflictDoNothing(),
   ])
 
   const iv = (id: string, workerId: string, jobId: string, rateCents: number | null, d: number, h1: number, h2: number) => ({
@@ -161,7 +168,7 @@ export type PasswordHasher = { $context: Promise<{ password: { hash(p: string): 
 export async function seedAuthUsers(
   db: Db,
   auth: PasswordHasher,
-  users: { workerId: string; email: string; name: string; password: string; roles: readonly string[] }[],
+  users: { workerId: string; email: string; name: string; password: string; roles: readonly string[]; positionId?: string }[],
 ) {
   const ctx = await auth.$context
   const now = new Date()
@@ -193,7 +200,11 @@ export async function seedAuthUsers(
     }
     await db
       .insert(schema.humanWorkers)
-      .values({ workerId: u.workerId, userId, roles: JSON.stringify(u.roles) })
-      .onConflictDoNothing()
+      .values({ workerId: u.workerId, userId, roles: JSON.stringify(u.roles), positionId: u.positionId ?? null })
+      .onConflictDoUpdate({
+        target: schema.humanWorkers.workerId,
+        // re-seed re-asserts roles/assignment (position_id would otherwise stick stale)
+        set: { roles: JSON.stringify(u.roles), positionId: u.positionId ?? null },
+      })
   }
 }

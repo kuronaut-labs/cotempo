@@ -70,6 +70,15 @@ export const workers = sqliteTable('workers', {
   archivedAt: ts('archived_at'),
 })
 
+export const positions = sqliteTable('positions', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  // cents/hour — money (#5); only ever served through canSeeMoney paths
+  rateCents: integer('rate_cents').notNull(),
+  createdAt: ts('created_at').notNull(),
+  archivedAt: ts('archived_at'),
+})
+
 export const humanWorkers = sqliteTable('human_workers', {
   workerId: text('worker_id')
     .primaryKey()
@@ -79,6 +88,7 @@ export const humanWorkers = sqliteTable('human_workers', {
     .unique()
     .references(() => user.id),
   roles: text('roles').notNull().default('["operator"]'), // JSON array (#5/#8)
+  positionId: text('position_id').references(() => positions.id),
 })
 
 export const agentWorkers = sqliteTable('agent_workers', {
