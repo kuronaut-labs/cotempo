@@ -523,13 +523,11 @@ input[type='radio']:disabled:checked::after {
 .admin-subnav {
   display: flex;
   gap: var(--space-1);
-  border-bottom: 1px solid var(--color-tertiary);
+  border-bottom: 1px solid var(--border-card);
 }
 
 .admin-subnav a {
-  font: 500 12px/1 var(--font-body);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font: 500 14px/1 var(--font-body);
   color: var(--color-info);
   text-decoration: none;
   padding: var(--space-2) var(--space-3);
@@ -559,27 +557,19 @@ input[type='radio']:disabled:checked::after {
   flex: 1;
 }
 
-.tag {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  border: 1px solid var(--color-tertiary);
-  padding: 1px 6px;
-  color: var(--color-info);
-}
-
-.tag-ok {
-  border-color: var(--color-success);
-  background: transparent;
-  color: var(--color-success);
-}
-
+.tag,
+.tag-ok,
 .tag-warn {
-  border-color: var(--premium-fill);
-  background: transparent;
-  color: var(--premium-text);
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  font: 600 11px/1.4 var(--font-body);
 }
+
+.tag { background: var(--tint-gray); color: var(--tint-gray-text); }
+.tag-ok { background: var(--tint-mint); color: var(--tint-mint-text); }
+.tag-warn { background: var(--tint-yellow); color: var(--tint-yellow-text); }
 
 .tree {
   display: grid;
@@ -599,6 +589,7 @@ input[type='radio']:disabled:checked::after {
 .tree-client {
   background: var(--surface-card);
   border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
   display: grid;
   gap: var(--space-3);
@@ -619,6 +610,7 @@ input[type='radio']:disabled:checked::after {
 .tree-project {
   background: var(--surface-base);
   border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
   padding: var(--space-3);
   display: grid;
   gap: var(--space-2);
@@ -657,6 +649,7 @@ input[type='radio']:disabled:checked::after {
 .tree-edit {
   background: var(--surface-card);
   border: 1px dashed var(--color-tertiary);
+  border-radius: var(--radius-md);
 }
 
 .tree-actions {
@@ -686,7 +679,7 @@ input[type='radio']:disabled:checked::after {
 .status-ok {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--color-success);
+  color: var(--color-success-text);
 }
 .status-msg {
   font-family: var(--font-mono);
@@ -940,21 +933,17 @@ input[type='radio']:disabled:checked::after {
 /* ---------- worker tag (human/agent) (5.2d) ---------- */
 
 .wtag {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.1em;
+  font: 600 10px/1.2 var(--font-mono);
+  letter-spacing: 0.05em;
   text-transform: uppercase;
-  padding: 2px 6px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
   display: inline-block;
 }
 
-.wtag.human { background: var(--color-primary); color: var(--color-secondary); }
+.wtag.human { background: var(--tint-mint); color: var(--tint-mint-text); }
 
-.wtag.agent {
-  background: transparent;
-  border: 1px solid var(--color-tertiary);
-  color: var(--color-info);
-}
+.wtag.agent { background: var(--tint-lavender); color: var(--tint-lavender-text); }
 
 /* ---------- KPI tile (5.2d) ---------- */
 
