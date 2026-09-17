@@ -186,6 +186,60 @@ export const approvalEvents = sqliteTable('approval_events', {
   at: ts('at').notNull(),
 })
 
+// ---- Leave ----
+// minutesPerYear / minutesPerDay / accrualRatePer10k are integer minutes;
+// minutes never round (#23-adjacent). accrualRatePer10k = leave minutes
+// accrued per 10,000 worked minutes (12.07% UK part-time = 1207).
+export const leaveTypes = sqliteTable('leave_types', {
+  id: text('id').primaryKey(),
+  key: text('key').notNull().unique(),
+  name: text('name').notNull(),
+  paid: integer('paid', { mode: 'boolean' }).notNull().default(true),
+  accrualMethod: text('accrual_method').notNull().default('monthly_prorata'),
+  minutesPerYear: integer('minutes_per_year').notNull().default(0),
+  accrualRatePer10k: integer('accrual_rate_per_10k').notNull().default(0),
+  maxCarryOverMinutes: integer('max_carry_over_minutes').notNull().default(0),
+  yearBasis: text('year_basis').notNull().default('calendar'),
+  archivedAt: ts('archived_at'),
+  createdAt: ts('created_at').notNull(),
+  updatedAt: ts('updated_at').notNull(),
+})
+
+export const leaveRequests = sqliteTable(
+  'leave_requests',
+  {
+    id: text('id').primaryKey(),
+    workerId: text('worker_id')
+      .notNull()
+      .references(() => workers.id),
+    typeId: text('type_id')
+      .notNull()
+      .references(() => leaveTypes.id),
+    startDay: text('start_day').notNull(), // 'YYYY-MM-DD' org tz, like approvals.weekStart
+    endDay: text('end_day').notNull(),
+    minutesPerDay: integer('minutes_per_day').notNull(),
+    status: text('status', { enum: ['submitted', 'approved', 'rejected', 'cancelled'] }).notNull().default('submitted'),
+    reason: text('reason'),
+    submittedAt: ts('submitted_at').notNull(),
+    submittedBy: text('submitted_by').notNull(),
+    decidedAt: ts('decided_at'),
+    decidedBy: text('decided_by'),
+    decisionReason: text('decision_reason'),
+  },
+  (t) => [index('leave_requests_worker_status_idx').on(t.workerId, t.status), index('leave_requests_status_idx').on(t.status)],
+)
+
+export const leaveEvents = sqliteTable('leave_events', {
+  id: text('id').primaryKey(),
+  requestId: text('request_id')
+    .notNull()
+    .references(() => leaveRequests.id),
+  kind: text('kind', { enum: ['submit', 'approve', 'reject', 'cancel'] }).notNull(),
+  actorWorkerId: text('actor_worker_id').notNull(),
+  reason: text('reason'),
+  at: ts('at').notNull(),
+})
+
 // ---- Org settings (#3: single row, id 'org') ----
 export const orgSettings = sqliteTable('org_settings', {
   id: text('id').primaryKey(),

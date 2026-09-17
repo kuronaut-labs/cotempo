@@ -15,6 +15,13 @@
       "when": 1789622662972,
       "tag": "0001_smiling_captain_cross",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789624503075,
+      "tag": "0002_happy_cloak",
+      "breakpoints": true
     }
   ]
 }

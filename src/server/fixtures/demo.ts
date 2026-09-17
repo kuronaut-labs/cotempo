@@ -35,6 +35,25 @@ export async function insertDemo(db: Db, opts: { anchorMs?: number } = {}) {
   const anchor = opts.anchorMs ?? DEMO_ANCHOR_MS
   const at = (dayOffset: number, h: number, m = 0) => new Date(anchor + dayOffset * 86_400_000 + (h * 60 + m) * 60_000)
 
+  const lt = (id: string, key: string, name: string, paid: boolean, accrualMethod: string, minutesPerYear: number, maxCarryOverMinutes: number, yearBasis = 'calendar') => ({
+    id,
+    key,
+    name,
+    paid,
+    accrualMethod,
+    minutesPerYear,
+    accrualRatePer10k: 0,
+    maxCarryOverMinutes,
+    yearBasis,
+    createdAt: at(0, 0),
+    updatedAt: at(0, 0),
+  })
+  const leaveTypeRows = [
+    lt('lt-annual', 'annual', 'Annual leave', true, 'monthly_prorata', 20 * 480, 5 * 480),
+    lt('lt-sick', 'sick', 'Sick leave (paid)', true, 'annual_allotment', 10 * 480, 0, 'anniversary'),
+    lt('lt-unpaid', 'unpaid', 'Unpaid leave', false, 'annual_allotment', 0, 0),
+  ]
+
   await db.batch([
     db
       .insert(schema.workers)
@@ -77,6 +96,7 @@ export async function insertDemo(db: Db, opts: { anchorMs?: number } = {}) {
       ])
       .onConflictDoNothing(),
     db.insert(schema.orgSettings).values({ id: 'org', defaultBillableRateCents: 10_000, defaultDayMinutes: 480, defaultWeeklyTargetHours: 40, updatedAt: now }).onConflictDoNothing(),
+    db.insert(schema.leaveTypes).values(leaveTypeRows).onConflictDoNothing(),
   ])
 
   const iv = (id: string, workerId: string, jobId: string, rateCents: number | null, d: number, h1: number, h2: number) => ({
@@ -103,6 +123,34 @@ export async function insertDemo(db: Db, opts: { anchorMs?: number } = {}) {
       iv('08', ids.opWorker, ids.j4, null, 3, 9, 11), // non-billable
     ])
     .onConflictDoNothing()
+
+  await db.batch([
+    db
+      .insert(schema.leaveRequests)
+      .values({
+        id: 'lr-demo-1',
+        workerId: ids.opWorker,
+        typeId: 'lt-annual',
+        startDay: '2026-09-24',
+        endDay: '2026-09-25',
+        minutesPerDay: 480,
+        status: 'approved',
+        reason: 'Family trip',
+        submittedAt: at(-14, 0),
+        submittedBy: ids.opWorker,
+        decidedAt: at(-13, 0),
+        decidedBy: ids.billingWorker,
+        decisionReason: 'Enjoy',
+      })
+      .onConflictDoNothing(),
+    db.insert(schema.leaveEvents).values({
+      id: 'le-demo-1',
+      requestId: 'lr-demo-1',
+      kind: 'approve',
+      actorWorkerId: ids.billingWorker,
+      at: at(-13, 0),
+    }).onConflictDoNothing(),
+  ])
 }
 
 export type PasswordHasher = { $context: Promise<{ password: { hash(p: string): Promise<string> } }> }
