@@ -68,7 +68,7 @@
 .invoice-head h1 { font: 600 28px/1.1 var(--font-body); margin: 0; }
 
 .invoice-client {
-  font: 300 16px/1.65 var(--font-body);
+  font: 400 16px/1.65 var(--font-body);
   color: var(--color-info);
   margin-top: var(--space-1);
 }
