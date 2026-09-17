@@ -139,7 +139,7 @@ samp {
 }
 
 .field-error {
-  color: var(--color-error);
+  color: var(--color-error-text);
   font-size: 11px;
   letter-spacing: 0;
   text-transform: none;
@@ -147,21 +147,21 @@ samp {
 
 .form-error {
   font-size: 13px;
-  color: var(--color-error);
+  color: var(--color-error-text);
 }
 
 /* ---------- shared form primitives ---------- */
 
-/* Inputs — DESIGN "Input Fields". Element-level so bare inputs (login,
-   date nav) get the same treatment without wrappers. */
+/* Inputs — Notion text-input: 44px, hairline-strong border, purple focus. */
 input,
 select,
 textarea {
   background: var(--surface-card);
   border: 1px solid var(--color-tertiary);
+  border-radius: var(--radius-md);
   color: var(--color-primary);
   font: 400 14px/1.4 var(--font-body);
-  height: 40px;
+  height: 44px;
   padding: 0 12px;
   cursor: auto;
 }
@@ -179,11 +179,10 @@ textarea:hover {
   border-color: var(--border-input-hover);
 }
 
-/* DESIGN input focus is a 2px border, not the base outline. */
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-  border: 2px solid var(--color-primary);
+  border: 2px solid var(--color-accent);
   outline: none;
 }
 
@@ -192,14 +191,14 @@ select:disabled,
 textarea:disabled {
   background: var(--fill-hover);
   border-color: var(--border-card);
-  color: var(--border-input-hover);
+  color: var(--color-faint);
 }
 
 .field {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  font: 400 12px/1.5 var(--font-body);
+  font: 400 13px/1.4 var(--font-body);
   color: var(--color-info);
 }
 
@@ -213,12 +212,12 @@ textarea:disabled {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  font: 400 12px/1.5 var(--font-body);
+  font: 400 13px/1.4 var(--font-body);
   color: var(--color-info);
 }
 
-/* Checkboxes & radios — DESIGN "Checkboxes"/"Radio Buttons". 18px, square,
-   appearance:none so the ✓ and the dot are ours. */
+/* Checkboxes & radios — 18px custom controls; 4px radius, round radio dot
+   (geometry follows the hybrid's Notion scale). */
 input[type='checkbox'],
 input[type='radio'] {
   appearance: none;
@@ -227,10 +226,15 @@ input[type='radio'] {
   padding: 0;
   background: var(--surface-card);
   border: 1px solid var(--color-tertiary);
+  border-radius: var(--radius-xs);
   cursor: pointer;
   flex: none;
   display: grid;
   place-content: center;
+}
+
+input[type='radio'] {
+  border-radius: var(--radius-full);
 }
 
 input[type='checkbox']:hover,
@@ -246,15 +250,15 @@ input[type='checkbox']:checked {
 input[type='checkbox']:checked::after {
   content: '✓';
   color: var(--color-secondary);
-  font: 700 12px/1 var(--font-body);
+  font: 600 12px/1 var(--font-body);
 }
 
-/* Square dot: DESIGN's radius-zero rule applies to the dot too. */
 input[type='radio']:checked::after {
   content: '';
   width: 8px;
   height: 8px;
   background: var(--color-primary);
+  border-radius: var(--radius-full);
 }
 
 input[type='checkbox']:disabled,
@@ -267,12 +271,13 @@ input[type='radio']:disabled {
 input[type='checkbox']:disabled:checked,
 input[type='radio']:disabled:checked {
   background: var(--fill-hover);
+  border-color: var(--border-card);
 }
 
 input[type='checkbox']:disabled:checked::after,
 input[type='radio']:disabled:checked::after {
-  color: var(--border-input-hover);
-  background: var(--border-input-hover);
+  color: var(--color-faint);
+  background: var(--color-faint);
 }
 
 /* ---------- job color utilities (entry-ux palette) ---------- */
