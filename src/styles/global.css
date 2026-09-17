@@ -75,21 +75,20 @@ samp {
   min-height: 100vh;
 }
 
+/* Notion top-nav: 64px white bar, hairline bottom, 500/14 slate links. */
 .app-nav {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  height: 48px;
+  height: 64px;
   padding: 0 var(--space-4);
-  border-bottom: 1px solid var(--color-tertiary);
+  border-bottom: 1px solid var(--border-card);
   background: var(--surface-base);
 }
 
 .app-nav a {
-  font: 500 12px/1 var(--font-body);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-info);
+  font: 500 14px/1 var(--font-body);
+  color: var(--color-muted);
   text-decoration: none;
   padding: 4px 0;
   border-bottom: 2px solid transparent;
@@ -107,12 +106,14 @@ samp {
 .nav-user {
   font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--color-info);
+  color: var(--color-muted);
 }
 
 .panel {
   background: var(--surface-card);
   border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
   padding: var(--space-3);
 }
 
@@ -132,6 +133,8 @@ samp {
 .login-form {
   background: var(--surface-card);
   border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
   padding: var(--space-4);
   display: flex;
   flex-direction: column;
