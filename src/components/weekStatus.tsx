@@ -1,5 +1,7 @@
 import type { MyWeek } from '~/server/services/approvals'
 import { formatWeekLabel } from '~/lib/dayMath'
+import { StatusChip } from '~/components/ui/chip'
+import { Button } from '~/components/ui/button'
 
 export const STATUS_LABEL: Record<MyWeek['status'], string> = {
   none: 'Not started',
@@ -8,6 +10,14 @@ export const STATUS_LABEL: Record<MyWeek['status'], string> = {
   approved: 'Approved',
   rejected: 'Sent back',
 }
+
+const badgeKind = {
+  none: 'outline',
+  draft: 'outline',
+  submitted: 'inverse',
+  approved: 'solid',
+  rejected: 'error',
+} as const
 
 /* Status badge + submit affordance. Disabled when no entries or not submit-eligible
    (already submitted/approved). A rejected week shows the reason as a visible
@@ -26,7 +36,7 @@ export function WeekStatus({
 }) {
   const status = week.status
   const label = STATUS_LABEL[status]
-  const badge = <span className={`weekstatus-badge ${status}`}>{label}</span>
+  const badge = <StatusChip kind={badgeKind[status]}>{label}</StatusChip>
   const reason = status === 'rejected' && week.rejectedReason ? week.rejectedReason : null
 
   const eligible = canSubmit && hasIntervals && (status === 'draft' || status === 'rejected' || status === 'none')
@@ -50,13 +60,13 @@ export function WeekStatus({
         </p>
       ) : null}
       {eligible ? (
-        <button type="button" className="weekstatus-submit" onClick={onSubmit}>
+        <Button variant="secondary" size="sm" type="button" onClick={onSubmit}>
           Submit week
-        </button>
+        </Button>
       ) : (
-        <button type="button" className="weekstatus-submit" disabled title={disabledReason}>
+        <Button variant="secondary" size="sm" type="button" disabled title={disabledReason}>
           Submit week
-        </button>
+        </Button>
       )}
     </div>
   )
