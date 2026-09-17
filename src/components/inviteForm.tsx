@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { applyServerError } from '~/components/forms/applyServerError'
 import { humanOptions, rolesFromChecks } from '~/components/workerRoster'
+import { Button } from '~/components/ui/button'
 import type { WorkerView } from '~/server/services/workers'
 import { inviteUserFn } from '~/server/fns/invites'
 
@@ -139,9 +140,9 @@ export function InviteForm({ workers, onRefresh }: { workers: WorkerView[]; onRe
         </p>
       )}
       <div className="entryform-actions">
-        <button type="submit" className="btn-primary">
+        <Button type="submit" variant="primary">
           Send invite
-        </button>
+        </Button>
       </div>
     </form>
   )

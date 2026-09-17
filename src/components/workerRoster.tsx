@@ -10,6 +10,7 @@ import {
   setSupervisorFn,
   updateAgentWorkerFn,
 } from '~/server/fns/workers'
+import { Button } from '~/components/ui/button'
 
 type HumanView = Extract<WorkerView, { kind: 'human' }>
 type AgentView = Extract<WorkerView, { kind: 'agent' }>
@@ -128,7 +129,6 @@ export function WorkerRoster({
                     </td>
                     <td>
                       <select
-                        className="roster-select"
                         value={w.supervisorId ?? ''}
                         onChange={(e) =>
                           void run(w.workerId, () =>
@@ -150,9 +150,9 @@ export function WorkerRoster({
                       {w.inviteState === 'pending' ? (
                         <Fragment>
                           <span className="tag tag-warn">Invite sent</span>{' '}
-                          <button type="button" onClick={() => void resend(w.workerId)}>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => void resend(w.workerId)}>
                             Resend
-                          </button>
+                          </Button>
                         </Fragment>
                       ) : (
                         <span className="tag tag-ok">Password set</span>
@@ -165,15 +165,16 @@ export function WorkerRoster({
                       )}
                     </td>
                     <td className="intervallist-actions">
-                      <button
+                      <Button
                         type="button"
-                        className="danger"
+                        variant="ghost"
+                        size="sm"
                         onClick={() => {
                           if (window.confirm(`Archive ${w.name}?`)) void run(w.workerId, () => archiveWorkerFn({ data: { workerId: w.workerId } }))
                         }}
                       >
                         Archive
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                   {errAfter(w.workerId)}
@@ -212,7 +213,6 @@ export function WorkerRoster({
                     </td>
                     <td>
                       <select
-                        className="roster-select"
                         value={w.supervisorId ?? ''}
                         onChange={(e) =>
                           e.target.value &&
@@ -230,15 +230,16 @@ export function WorkerRoster({
                       </select>
                     </td>
                     <td className="intervallist-actions">
-                      <button
+                      <Button
                         type="button"
-                        className="danger"
+                        variant="ghost"
+                        size="sm"
                         onClick={() => {
                           if (window.confirm(`Archive agent ${w.name}?`)) void run(w.workerId, () => archiveWorkerFn({ data: { workerId: w.workerId } }))
                         }}
                       >
                         Archive
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                   {errAfter(w.workerId)}
@@ -359,9 +360,9 @@ export function AgentForm({ workers, onRefresh }: { workers: WorkerView[]; onRef
         </p>
       )}
       <div className="entryform-actions">
-        <button type="submit" className="btn-primary">
-        Add an AI assistant
-      </button>
+        <Button type="submit" variant="primary">
+          Add an AI assistant
+        </Button>
       </div>
     </form>
   )

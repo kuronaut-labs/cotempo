@@ -233,22 +233,6 @@ textarea:disabled {
   color: var(--color-info);
 }
 
-.btn-primary {
-  font-family: var(--disp);
-  font-weight: 600;
-  font-size: 14px;
-  background: var(--color-primary);
-  color: var(--color-secondary);
-  border-radius: 7px;
-  padding: 10px 14px;
-}
-
-.btn-primary:hover {
-  background: var(--color-secondary);
-  color: var(--color-primary);
-  border: 1px solid var(--color-primary);
-}
-
 /* Checkboxes & radios — DESIGN "Checkboxes"/"Radio Buttons". 18px, square,
    appearance:none so the ✓ and the dot are ours. */
 input[type='checkbox'],
@@ -707,75 +691,33 @@ input[type='radio']:disabled:checked::after {
   gap: var(--space-2);
 }
 
-.roster button {
-  font-family: var(--mono);
-  font-size: 11px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  padding: 4px 10px;
-  color: var(--muted);
-}
-
-.roster button:hover {
-  color: var(--text);
-  border-color: var(--faint);
-}
-
-.roster button.danger:hover {
-  color: var(--err);
-  border-color: var(--color-error);
-}
-
-.admin-form {
-  display: grid;
-  gap: 12px;
-}
-
-.status-ok {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--pos);
-}
-
-.status-msg {
-  font-family: var(--mono);
-  font-size: 11px;
+.roster { display: grid; gap: var(--space-4); }
+.roster-email {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-info);
 }
 
 .rolecheck {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-  margin-right: 8px;
+  gap: var(--space-1);
+  font: 400 12px/1.5 var(--font-body);
+  color: var(--color-info);
+  margin-right: var(--space-2);
 }
+.rolecheck input[disabled] { opacity: 0.6; }
 
-.rolecheck input[disabled] {
-  opacity: 0.6;
-}
-
-.roster {
-  display: grid;
-  gap: 16px;
-}
-
-.roster-email {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--muted);
-}
-
-.roster-select {
-  background: var(--panel2);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  color: var(--text);
-  font-family: var(--mono);
+.admin-form { display: grid; gap: var(--space-3); }
+.status-ok {
+  font-family: var(--font-mono);
   font-size: 12px;
-  padding: 4px 6px;
-  cursor: auto;
+  color: var(--color-success);
+}
+.status-msg {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-info);
 }
 
 /* ---------- reconciliation trio chip (5.2a) ---------- */
@@ -1194,19 +1136,15 @@ input[type='radio']:disabled:checked::after {
 /* ---------- worker tag (human/agent) (5.2d) ---------- */
 
 .wtag {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 9px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  border-radius: 3px;
   padding: 2px 6px;
   display: inline-block;
 }
 
-.wtag.human {
-  background: var(--color-primary);
-  color: var(--color-secondary);
-}
+.wtag.human { background: var(--color-primary); color: var(--color-secondary); }
 
 .wtag.agent {
   background: transparent;
