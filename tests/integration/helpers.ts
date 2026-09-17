@@ -51,7 +51,7 @@ export async function resetDb() {
     .onConflictDoNothing()
   await db
     .insert(schema.humanWorkers)
-    .values(demoHumans.map((h) => ({ workerId: h.workerId, userId: userIdOf(h.workerId), roles: JSON.stringify(h.roles) })))
+    .values(demoHumans.map((h) => ({ workerId: h.workerId, userId: userIdOf(h.workerId), roles: JSON.stringify(h.roles), positionId: h.positionId ?? null })))
     .onConflictDoNothing()
 }
 
