@@ -28,7 +28,7 @@ const baseInput = {
 describe('createInterval (#7, #17, #18, #22, #26)', () => {
   it('snapshots rateCents from the job; null for a non-billable job (#18)', async () => {
     const a = await createInterval(deps(), op, baseInput)
-    expect(a.rateCents).toBe(14000)
+    expect(a.rateCents).toBe(12_000) // position (Senior developer) overrides j1's 14_000
     const b = await createInterval(deps(), op, {
       ...baseInput,
       startedAt: iso(at(4, 11, 0)),
@@ -84,6 +84,59 @@ describe('createInterval (#7, #17, #18, #22, #26)', () => {
   })
 })
 
+describe('position rate override', () => {
+  // inline $0-billable job (demo seed has none; A1 assigns opWorker → Senior developer 12_000)
+  const zeroJob = {
+    id: 'test-job-zero-rate',
+    projectId: ids.p1,
+    name: 'Zero rate',
+    billableRateCents: 0,
+    createdAt: new Date(),
+  }
+
+  beforeEach(async () => {
+    await db.insert(schema.jobs).values(zeroJob).onConflictDoNothing()
+  })
+
+  it('new entries snapshot the position rate over the job rate', async () => {
+    const row = await createInterval(deps(), op, baseInput)
+    expect(row.rateCents).toBe(12_000)
+  })
+
+  it('non-billable job stays null even with a position', async () => {
+    const row = await createInterval(deps(), op, {
+      ...baseInput,
+      jobId: ids.j4,
+    })
+    expect(row.rateCents).toBeNull()
+  })
+
+  it('worker with no position gets the job rate', async () => {
+    const row = await createInterval(deps(), asUser('billing'), {
+      ...baseInput,
+      workerId: ids.billingWorker,
+    })
+    expect(row.rateCents).toBe(14_000)
+  })
+
+  it('$0-billable job + position → position rate', async () => {
+    const row = await createInterval(deps(), op, {
+      ...baseInput,
+      jobId: zeroJob.id,
+    })
+    expect(row.rateCents).toBe(12_000)
+  })
+
+  it('changing the job re-snapshots with the current position', async () => {
+    const created = await createInterval(deps(), op, baseInput)
+    const moved = await updateInterval(deps(), op, {
+      id: created.id,
+      jobId: zeroJob.id,
+    })
+    expect(moved.rateCents).toBe(12_000)
+  })
+})
+
 describe('updateInterval (#18, #26)', () => {
   it('increments edit_count; job change re-snapshots rate; time-only edit keeps it', async () => {
     const a = await createInterval(deps(), op, baseInput)
@@ -91,7 +144,7 @@ describe('updateInterval (#18, #26)', () => {
     expect((await updateInterval(deps(), op, { id: a.id, note: 'y' })).note).toBe('y')
     let row = await db.select().from(schema.intervals).where(eq(schema.intervals.id, a.id)).get()
     expect(row?.editCount).toBe(2)
-    expect(row?.rateCents).toBe(14000)
+    expect(row?.rateCents).toBe(12_000) // snapshot from creation; position was 12_000
 
     await updateInterval(deps(), op, { id: a.id, jobId: ids.j3 })
     row = await db.select().from(schema.intervals).where(eq(schema.intervals.id, a.id)).get()

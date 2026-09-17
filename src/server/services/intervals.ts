@@ -38,6 +38,17 @@ async function liveJob(db: Db, jobId: string) {
   return job
 }
 
+// position rate for a human worker, else null; archived positions stop overriding
+async function positionRateCents(db: Db, workerId: string): Promise<number | null> {
+  const row = await db
+    .select({ rateCents: schema.positions.rateCents })
+    .from(schema.humanWorkers)
+    .innerJoin(schema.positions, eq(schema.humanWorkers.positionId, schema.positions.id))
+    .where(and(eq(schema.humanWorkers.workerId, workerId), isNull(schema.positions.archivedAt)))
+    .get()
+  return row?.rateCents ?? null
+}
+
 async function assertNoSameJobOverlap(
   db: Db,
   workerId: string,
@@ -82,7 +93,10 @@ export async function createInterval(
     jobId: input.jobId,
     startedAt: new Date(range.startMs),
     endedAt: new Date(range.endMs),
-    rateCents: job.billableRateCents,
+    rateCents:
+      job.billableRateCents !== null
+        ? ((await positionRateCents(db, input.workerId)) ?? job.billableRateCents)
+        : null, // position overrides billable jobs only; non-billable stays null
     note: input.note ?? null,
     createdBy: ctx.workerId,
     editCount: 0,
@@ -124,6 +138,14 @@ export async function updateInterval(
   const keys = [...new Set([...weekKeysTouched(before, tz), ...weekKeysTouched(after, tz)])]
   await assertWeeksEditable(db, cur.workerId, keys)
 
+  // snapshot only moves with the job (#18); the position rate applies at write time
+  const rateCents: number | null =
+    job === null
+      ? cur.rateCents
+      : job.billableRateCents !== null
+        ? ((await positionRateCents(db, cur.workerId)) ?? job.billableRateCents)
+        : null
+
   const now = deps.now()
   await db
     .update(schema.intervals)
@@ -131,7 +153,7 @@ export async function updateInterval(
       startedAt: new Date(after.startMs),
       endedAt: new Date(after.endMs),
       jobId,
-      rateCents: job ? job.billableRateCents : cur.rateCents, // snapshot only moves with the job (#18)
+      rateCents,
       note: input.note === undefined ? cur.note : input.note,
       editCount: cur.editCount + 1,
       updatedAt: now,
@@ -143,7 +165,7 @@ export async function updateInterval(
     startedAt: new Date(after.startMs),
     endedAt: new Date(after.endMs),
     jobId,
-    rateCents: job ? job.billableRateCents : cur.rateCents,
+    rateCents,
     note: input.note === undefined ? cur.note : input.note,
     editCount: cur.editCount + 1,
     updatedAt: now,
