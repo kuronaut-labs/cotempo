@@ -1,24 +1,51 @@
-/* StudioBlank core (docs/references/DESIGN.md — Colors) */
+/* Hybrid core — StudioBlank structure, Notion skin (see plan header) */
 :root {
-  --color-primary: #0a0a0a;
-  --color-secondary: #fafafa;
-  --color-tertiary: #d4d4d8;
-  --surface-base: #fafafa;
-  --surface-inverse: #0a0a0a;
-  --surface-card: #ffffff;
-  --color-success: #16a34a;
-  --color-warning: #ca8a04;
-  --color-warning-text: #a16207;
-  --color-error: #dc2626;
-  --color-info: #71717a;
+  --color-primary: #37352f;
+  --color-secondary: #ffffff;
+  --color-tertiary: #c8c4be;
+  --color-info: #5d5b54;
+  --color-muted: #787671;
+  --color-faint: #a4a097;
+  --color-accent: #5645d4;
+  --color-accent-pressed: #4534b3;
+  --color-link: #005bab;
+  --color-link-hi: #0075de;
 
-  /* Named by the DESIGN component tables */
-  --border-card: #e5e5e5;
-  --border-input-hover: #a1a1aa;
-  --fill-hover: #f4f4f5;
-  --divider: #f4f4f5;
+  --surface-base: #ffffff;
+  --surface-card: #ffffff;
+  --surface-inverse: #1a1a1a;
+  --fill-hover: #f6f5f4;
+  --fill-quiet: #fafaf9;
+
+  --border-card: #e5e3df;
+  --border-soft: #ede9e4;
+  --divider: #ede9e4;
+  --border-input-hover: #787671;
+
+  /* Fills are dots/bars only; the -text variants carry ≥4.5:1 text. */
+  --color-success: #1aae39;
+  --color-success-text: #15803d;
+  --color-warning: #dd5b00;
+  --color-warning-text: #793400;
+  --color-error: #e03131;
+  --color-error-text: #b91c1c;
+
+  /* Pastel badge tints + deep text pairs (Notion card-tint family). */
+  --tint-mint: #d9f3e1;
+  --tint-rose: #fde0ec;
+  --tint-lavender: #e6e0f5;
+  --tint-sky: #dcecfa;
+  --tint-yellow: #fef7d6;
+  --tint-gray: #f0eeec;
+  --tint-mint-text: #15803d;
+  --tint-rose-text: #b91c1c;
+  --tint-lavender-text: #391c57;
+  --tint-sky-text: #005bab;
+  --tint-yellow-text: #793400;
+  --tint-gray-text: #5d5b54;
+
   --premium-fill: #ca8a04;
-  --premium-text: #a16207;
+  --premium-text: #793400;
 
   /* Spacing — base 16 */
   --space-1: 4px;
@@ -30,7 +57,16 @@
   --space-7: 96px;
   --space-8: 128px;
 
-  --radius-none: 0;
+  /* Radius — Notion scale; tables and data strips stay square by convention. */
+  --radius-xs: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* Elevation — Notion levels 1–2 only (no mockup/modal shadows here). */
+  --shadow-1: 0 1px 2px rgba(15, 15, 15, 0.04);
+  --shadow-2: 0 4px 12px rgba(15, 15, 15, 0.08);
+  --shadow-3: 0 16px 48px -8px rgba(15, 15, 15, 0.16);
 
   /* Metric-close fallbacks: none of these families ship a metric-compatible
      fallback, so we fall back to the generic class and accept the reflow. */
@@ -38,8 +74,7 @@
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 
   /* Functional job palette — data encoding, not decoration (#6, #13, #11).
-     Dark-on-light re-tune; --j-ink text sits ≥4.5:1 on every --jN.
-     One chroma exception: DESIGN's monochrome rule governs chrome, not data. */
+     One chroma exception alongside the accent: chrome stays ink. */
   --j1: #1d4ed8;
   --j2: #c2410c;
   --j3: #15803d;

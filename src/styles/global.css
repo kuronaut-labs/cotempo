@@ -13,27 +13,23 @@ html {
 body {
   background: var(--surface-base);
   color: var(--color-primary);
-  font: 300 16px/1.65 var(--font-body);
-}
-
-/* radius-none is a system invariant (DESIGN "Border Radius" + "Don'ts"):
-   no component ever rounds, so enforce it globally rather than per-rule. */
-*,
-*::before,
-*::after {
-  border-radius: 0 !important;
+  font: 400 16px/1.55 var(--font-body);
 }
 
 a {
-  color: var(--color-primary);
+  color: var(--color-link);
+}
+
+a:hover {
+  color: var(--color-link-hi);
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
-/* DESIGN "Don'ts": transitions ≤ 200ms. 120ms reads instant, not animated. */
+/* Transitions ≤ 200ms (both source systems agree); 150ms ease is Notion's. */
 button,
 a,
 input,
@@ -41,9 +37,10 @@ select,
 textarea,
 summary {
   transition:
-    background-color 120ms linear,
-    border-color 120ms linear,
-    color 120ms linear;
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease;
 }
 
 h1,
@@ -53,7 +50,8 @@ h3 {
 }
 
 h1 {
-  font: 700 40px/1.1 var(--font-body);
+  font: 600 40px/1.15 var(--font-body);
+  letter-spacing: -0.5px;
 }
 
 h2 {
