@@ -4,6 +4,8 @@ import { DateNav } from '~/components/dateNav'
 import { EntryForm } from '~/components/entryForm'
 import { IntervalList } from '~/components/intervalList'
 import { MiniStrip } from '~/components/miniStrip'
+import { Button } from '~/components/ui/button'
+import { FilterChip, StatusChip } from '~/components/ui/chip'
 import type { DayIntervalRow } from '~/server/services/intervals'
 import type { ClientNode } from '~/server/services/structure'
 import type { AgentWorkerView, HumanWorkerView } from '~/server/services/workers'
@@ -152,6 +154,74 @@ function DevComponents() {
             // fixture: no-op; real route wires this to createIntervalFn
           }}
         />
+      </section>
+      <section>
+        <h2 style={{ marginBottom: 8 }}>Primitives</h2>
+        <div style={{ display: 'grid', gap: 16 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Button variant="primary" size="sm">Save</Button>
+            <Button variant="primary" size="md">Save</Button>
+            <Button variant="primary" size="lg">Save</Button>
+            <Button variant="secondary" size="sm">Cancel</Button>
+            <Button variant="secondary" size="md">Cancel</Button>
+            <Button variant="secondary" size="lg">Cancel</Button>
+            <Button variant="ghost" size="sm">Edit</Button>
+            <Button variant="ghost" size="md">Edit</Button>
+            <Button variant="ghost" size="lg">Edit</Button>
+            <Button variant="destructive" size="sm">Delete</Button>
+            <Button variant="destructive" size="md">Delete</Button>
+            <Button variant="destructive" size="lg">Delete</Button>
+            <Button variant="primary" disabled>Disabled</Button>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <FilterChip>Filter A</FilterChip>
+            <FilterChip selected>Filter B</FilterChip>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <StatusChip kind="solid">Solid</StatusChip>
+            <StatusChip kind="outline">Outline</StatusChip>
+            <StatusChip kind="inverse">Inverse</StatusChip>
+            <StatusChip kind="muted">Muted</StatusChip>
+            <StatusChip kind="error">Error</StatusChip>
+            <StatusChip kind="success">Success</StatusChip>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input placeholder="Default input" />
+            <input placeholder="Disabled input" disabled />
+            <label className="field">
+              <span>Sample field</span>
+              <input defaultValue="bad value" />
+              <span className="field-error">Sample field error</span>
+            </label>
+          </div>
+          <div style={{ display: 'flex', gap: 24 }}>
+            <label className="checkline">
+              <input type="checkbox" /> unchecked
+            </label>
+            <label className="checkline">
+              <input type="checkbox" defaultChecked /> checked
+            </label>
+            <label className="checkline">
+              <input type="checkbox" defaultChecked disabled /> disabled-checked
+            </label>
+            <fieldset style={{ display: 'flex', gap: 16, border: 'none', margin: 0, padding: 0 }}>
+              <label className="checkline">
+                <input type="radio" name="dev-radio" defaultChecked /> option 1
+              </label>
+              <label className="checkline">
+                <input type="radio" name="dev-radio" /> option 2
+              </label>
+            </fieldset>
+          </div>
+          <div>
+            <span data-tip="Hover or focus me" tabIndex={0}>hover target</span>
+          </div>
+          <ul className="list">
+            <li className="row">Row one</li>
+            <li className="row active">Row two (active)</li>
+            <li className="row">Row three</li>
+          </ul>
+        </div>
       </section>
     </main>
   )

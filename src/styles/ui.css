@@ -142,3 +142,27 @@
   visibility: visible;
   transition: opacity 150ms linear 200ms, visibility 0ms linear 200ms;
 }
+
+/* Lists — DESIGN "Lists". 48px rows, hairline dividers, hover fill. */
+.list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 48px;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--divider);
+  font: 400 14px/1.6 var(--font-body);
+}
+
+.row:hover { background: var(--fill-hover); }
+
+.row.active {
+  background: var(--color-primary);
+  color: var(--color-secondary);
+}
