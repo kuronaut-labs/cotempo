@@ -1284,7 +1284,7 @@ input[type='radio']:disabled:checked::after {
 }
 
 .weekstatus-rejected {
-  color: var(--color-error);
+  color: var(--color-error-text);
   font-size: 12px;
 }
 
@@ -1311,9 +1311,10 @@ input[type='radio']:disabled:checked::after {
 .approvals-count {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--color-info);
-  background: var(--fill-hover);
-  border: 1px solid var(--color-tertiary);
+  color: var(--tint-gray-text);
+  background: var(--tint-gray);
+  border: none;
+  border-radius: var(--radius-full);
   padding: 3px var(--space-2);
 }
 
@@ -1328,6 +1329,8 @@ input[type='radio']:disabled:checked::after {
 .approvals-detail-pane {
   background: var(--surface-card);
   border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
   padding: var(--space-3);
 }
 
@@ -1356,11 +1359,13 @@ input[type='radio']:disabled:checked::after {
   border: 1px solid var(--color-tertiary);
   padding: var(--space-2) var(--space-3);
   color: var(--color-primary);
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
 .approvalsqueue li button:hover {
   background: var(--fill-hover);
+  box-shadow: var(--shadow-1);
 }
 
 .approvalsqueue li.selected button {
@@ -1386,7 +1391,7 @@ input[type='radio']:disabled:checked::after {
   text-align: right;
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--color-success);
+  color: var(--color-success-text);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1432,7 +1437,7 @@ input[type='radio']:disabled:checked::after {
 }
 
 .intervalaudit tr.flag-hover {
-  background: var(--fill-hover);
+  background: var(--tint-yellow);
   outline: 1px solid var(--premium-fill);
 }
 
@@ -1449,6 +1454,7 @@ input[type='radio']:disabled:checked::after {
   font-size: 12px;
   color: var(--color-primary);
   padding: var(--space-1);
+  border-radius: var(--radius-xs);
 }
 
 .flaglist-row:hover {
