@@ -84,54 +84,48 @@ samp {
 /* ---------- shell ---------- */
 
 .app-shell {
-  display: flex;
-  flex-direction: column;
   min-height: 100vh;
 }
 
 .app-nav {
   display: flex;
   align-items: center;
-  gap: 18px;
-  padding: 14px 24px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
-  font-family: var(--disp);
-  font-weight: 500;
-  font-size: 14px;
+  gap: var(--space-3);
+  height: 48px;
+  padding: 0 var(--space-4);
+  border-bottom: 1px solid var(--color-tertiary);
+  background: var(--surface-base);
 }
 
 .app-nav a {
-  color: var(--muted);
+  font: 500 12px/1 var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-info);
   text-decoration: none;
-  padding: 6px 10px;
-  border-radius: 6px;
+  padding: 4px 0;
+  border-bottom: 2px solid transparent;
 }
 
-.app-nav a:hover {
-  color: var(--text);
-}
+.app-nav a:hover { color: var(--color-primary); }
 
 .app-nav a.active {
-  color: var(--text);
-  background: var(--panel2);
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
 }
 
-.app-nav .nav-spacer {
-  flex: 1;
-}
+.nav-spacer { flex: 1; }
 
-.app-nav .nav-user {
-  font-family: var(--mono);
+.nav-user {
+  font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--muted);
+  color: var(--color-info);
 }
 
 .panel {
   background: var(--surface-card);
   border: 1px solid var(--border-card);
-  border-radius: 10px;
-  padding: 16px;
+  padding: var(--space-3);
 }
 
 /* ---------- login / set-password pages ---------- */

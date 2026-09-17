@@ -1,4 +1,5 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate } from '@tanstack/react-router'
+import { Button } from '~/components/ui/button'
 import { authClient } from '~/lib/auth-client'
 import { getSessionCtxFn, getSessionFn } from '~/server/fns/auth'
 
@@ -33,14 +34,16 @@ function AppLayout() {
         )}
         <span className="nav-spacer" />
         <span className="nav-user">{session.name}</span>
-        <button
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={async () => {
             await authClient.signOut()
             navigate({ to: '/login' })
           }}
         >
           Sign out
-        </button>
+        </Button>
       </nav>
       <Outlet />
     </div>
