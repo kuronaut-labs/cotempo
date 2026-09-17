@@ -58,9 +58,10 @@ export async function insertDemo(db: Db, opts: { anchorMs?: number } = {}) {
     db
       .insert(schema.workers)
       .values([
-        { id: ids.opWorker, kind: 'human', createdAt: now },
-        { id: ids.billingWorker, kind: 'human', createdAt: now },
-        { id: ids.adminWorker, kind: 'human', createdAt: now },
+        // hire dates fixed before the demo anchor so balances have room to accrue
+        { id: ids.opWorker, kind: 'human', createdAt: at(-200, 0) },
+        { id: ids.billingWorker, kind: 'human', createdAt: at(-150, 0) },
+        { id: ids.adminWorker, kind: 'human', createdAt: at(-300, 0) },
         { id: ids.agent1, kind: 'agent', name: 'Atlas', supervisorId: ids.opWorker, createdAt: now },
         { id: ids.agent2, kind: 'agent', name: 'Beacon', supervisorId: ids.opWorker, createdAt: now },
       ])
