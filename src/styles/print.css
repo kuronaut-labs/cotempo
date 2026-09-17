@@ -44,13 +44,16 @@
   color: var(--color-primary);
   font: 400 14px/1.6 var(--font-body);
   text-decoration: none;
+  border-radius: var(--radius-md);
 }
-.invoice-picker-list a:hover { border-color: var(--color-primary); }
+.invoice-picker-list a:hover { border-color: var(--color-primary); box-shadow: var(--shadow-1); }
 
 .invoice-page {
   background: var(--surface-card);
   border: 1px solid var(--border-card);
   padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
 }
 
 .invoice-head {
@@ -62,7 +65,7 @@
   margin-bottom: var(--space-6);
 }
 
-.invoice-head h1 { font: 700 28px/1.1 var(--font-body); margin: 0; }
+.invoice-head h1 { font: 600 28px/1.1 var(--font-body); margin: 0; }
 
 .invoice-client {
   font: 300 16px/1.65 var(--font-body);
