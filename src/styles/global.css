@@ -267,6 +267,64 @@ textarea:disabled {
   border: 1px solid var(--color-primary);
 }
 
+/* Checkboxes & radios — DESIGN "Checkboxes"/"Radio Buttons". 18px, square,
+   appearance:none so the ✓ and the dot are ours. */
+input[type='checkbox'],
+input[type='radio'] {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  background: var(--surface-card);
+  border: 1px solid var(--color-tertiary);
+  cursor: pointer;
+  flex: none;
+  display: grid;
+  place-content: center;
+}
+
+input[type='checkbox']:hover,
+input[type='radio']:hover {
+  border-color: var(--border-input-hover);
+}
+
+input[type='checkbox']:checked {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+input[type='checkbox']:checked::after {
+  content: '✓';
+  color: var(--color-secondary);
+  font: 700 12px/1 var(--font-body);
+}
+
+/* Square dot: DESIGN's radius-zero rule applies to the dot too. */
+input[type='radio']:checked::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: var(--color-primary);
+}
+
+input[type='checkbox']:disabled,
+input[type='radio']:disabled {
+  background: var(--fill-hover);
+  border-color: var(--border-card);
+  cursor: not-allowed;
+}
+
+input[type='checkbox']:disabled:checked,
+input[type='radio']:disabled:checked {
+  background: var(--fill-hover);
+}
+
+input[type='checkbox']:disabled:checked::after,
+input[type='radio']:disabled:checked::after {
+  color: var(--border-input-hover);
+  background: var(--border-input-hover);
+}
+
 /* ---------- job color utilities (entry-ux palette) ---------- */
 
 .job-c1 {
