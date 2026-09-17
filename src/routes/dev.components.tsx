@@ -127,7 +127,7 @@ function DevComponents() {
       <section>
         <h2 style={{ marginBottom: 8 }}>MiniStrip</h2>
         <MiniStrip day={day} tz="UTC" intervals={intervals} jobColorIndex={colors} />
-        <p style={{ marginTop: 8, fontSize: 11, color: 'var(--muted)' }}>
+        <p style={{ marginTop: 8, fontSize: 11, color: 'var(--color-info)' }}>
           Two overlapping (×2), one separate, one midnight-crossing (trailing clip).
         </p>
       </section>

@@ -239,10 +239,10 @@ function AdminPanel({
         <StructureTree tree={structure} manage="job" showArchived={false} onRefresh={() => {}} />
         <div className="legend" style={{ marginTop: 8 }}>
           <span>
-            <span className="sw" style={{ background: 'var(--pos)' }} />billable
+            <span className="sw" style={{ background: 'var(--color-success)' }} />billable
           </span>
           <span>
-            <span className="sw" style={{ background: 'var(--muted)' }} />non-billable
+            <span className="sw" style={{ background: 'var(--color-info)' }} />non-billable
           </span>
           <span className="legend-hint">
             rates: {rateLabel(10000)} · {rateLabel(null)}

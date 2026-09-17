@@ -116,7 +116,7 @@ export function MiniStrip({
         {blocks.map((b) => {
           const n = jobColorIndex[b.jobId]
           const colorClass = n ? `job-c${Math.min(5, Math.max(1, n))}` : ''
-          const style = colorClass ? undefined : { background: 'var(--line)', color: 'var(--text)' }
+          const style = colorClass ? undefined : { background: 'var(--color-tertiary)', color: 'var(--color-primary)' }
           return (
             <div
               key={b.id}
