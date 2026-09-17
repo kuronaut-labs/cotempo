@@ -68,6 +68,8 @@ Do not: refactor code outside the task, add dependencies, change config files (`
 | Pure time/money/attribution | `src/lib/{dayMath,week,money,attribution,redFlags}.ts` |
 | Fixtures (tests + seed) | `src/server/fixtures/demo.ts` |
 | Test helpers | `tests/integration/helpers.ts` (`db`, `deps()`, `asUser()`, `resetDb()`, `setWeekStatus()`, `at()`) |
+| Org settings (defaults) | `src/lib/schemas/settings.ts`, `src/server/services/settings.ts`, `src/server/fns/settings.ts` |
+| Settings admin page | `src/routes/_app/admin/settings.tsx` |
 | Design system | `docs/DESIGN.md` (spec) → `src/styles/tokens.css` (values) |
 
 ## Comments
