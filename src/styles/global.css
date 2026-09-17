@@ -7,57 +7,79 @@
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
-  background: var(--ink);
-  color: var(--text);
-  font-family: var(--body);
-  font-size: 14px;
-  line-height: 1.5;
-  min-height: 100vh;
+  background: var(--surface-base);
+  color: var(--color-primary);
+  font: 300 16px/1.65 var(--font-body);
 }
 
-button,
-input,
-select,
-textarea {
-  font: inherit;
-  color: inherit;
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
-[tabindex]:focus-visible {
-  outline: 2px solid var(--j1);
-  outline-offset: 2px;
-  border-radius: 4px;
+/* radius-none is a system invariant (DESIGN "Border Radius" + "Don'ts"):
+   no component ever rounds, so enforce it globally rather than per-rule. */
+*,
+*::before,
+*::after {
+  border-radius: 0 !important;
 }
 
 a {
-  color: var(--j1);
+  color: var(--color-primary);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* DESIGN "Don'ts": transitions ≤ 200ms. 120ms reads instant, not animated. */
+button,
+a,
+input,
+select,
+textarea,
+summary {
+  transition:
+    background-color 120ms linear,
+    border-color 120ms linear,
+    color 120ms linear;
 }
 
 h1,
 h2,
 h3 {
-  font-family: var(--disp);
-  font-weight: 700;
+  font-family: var(--font-body);
+}
+
+h1 {
+  font: 700 40px/1.1 var(--font-body);
+}
+
+h2 {
+  font: 600 28px/1.2 var(--font-body);
+}
+
+h3 {
+  font: 600 20px/1.3 var(--font-body);
 }
 
 .mono,
 code,
 kbd,
 samp {
-  font-family: var(--mono);
-  font-variant-numeric: tabular-nums;
+  font-family: var(--font-mono);
 }
+
+/* Type utilities — DESIGN Typography, exact values */
+.t-hero { font: 700 64px/1.05 var(--font-body); }
+.t-h1 { font: 700 40px/1.1 var(--font-body); }
+.t-h2 { font: 600 28px/1.2 var(--font-body); }
+.t-h3 { font: 600 20px/1.3 var(--font-body); }
+.t-body { font: 300 16px/1.65 var(--font-body); }
+.t-body-sm { font: 400 14px/1.6 var(--font-body); }
+.t-caption { font: 400 12px/1.5 var(--font-body); }
+.t-mono { font: 400 13px/1.5 var(--font-mono); }
 
 /* ---------- shell ---------- */
 
