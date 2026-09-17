@@ -23,6 +23,7 @@ import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as DevComponentsRouteImport } from './routes/dev.components'
 import { Route as AppAdminClientsRouteImport } from './routes/_app/admin/clients'
 import { Route as AppAdminJobsRouteImport } from './routes/_app/admin/jobs'
+import { Route as AppAdminLeaveRouteImport } from './routes/_app/admin/leave'
 import { Route as AppAdminProjectsRouteImport } from './routes/_app/admin/projects'
 import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
 import { Route as AppAdminWorkersRouteImport } from './routes/_app/admin/workers'
@@ -97,6 +98,11 @@ const AppAdminJobsRoute = AppAdminJobsRouteImport.update({
   path: '/jobs',
   getParentRoute: () => AppAdminRouteRoute,
 } as any)
+const AppAdminLeaveRoute = AppAdminLeaveRouteImport.update({
+  id: '/leave',
+  path: '/leave',
+  getParentRoute: () => AppAdminRouteRoute,
+} as any)
 const AppAdminProjectsRoute = AppAdminProjectsRouteImport.update({
   id: '/projects',
   path: '/projects',
@@ -132,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/dev/components': typeof DevComponentsRoute
   '/admin/clients': typeof AppAdminClientsRoute
   '/admin/jobs': typeof AppAdminJobsRoute
+  '/admin/leave': typeof AppAdminLeaveRoute
   '/admin/projects': typeof AppAdminProjectsRoute
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/workers': typeof AppAdminWorkersRoute
@@ -151,6 +158,7 @@ export interface FileRoutesByTo {
   '/dev/components': typeof DevComponentsRoute
   '/admin/clients': typeof AppAdminClientsRoute
   '/admin/jobs': typeof AppAdminJobsRoute
+  '/admin/leave': typeof AppAdminLeaveRoute
   '/admin/projects': typeof AppAdminProjectsRoute
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/workers': typeof AppAdminWorkersRoute
@@ -172,6 +180,7 @@ export interface FileRoutesById {
   '/dev/components': typeof DevComponentsRoute
   '/_app/admin/clients': typeof AppAdminClientsRoute
   '/_app/admin/jobs': typeof AppAdminJobsRoute
+  '/_app/admin/leave': typeof AppAdminLeaveRoute
   '/_app/admin/projects': typeof AppAdminProjectsRoute
   '/_app/admin/settings': typeof AppAdminSettingsRoute
   '/_app/admin/workers': typeof AppAdminWorkersRoute
@@ -193,6 +202,7 @@ export interface FileRouteTypes {
     | '/dev/components'
     | '/admin/clients'
     | '/admin/jobs'
+    | '/admin/leave'
     | '/admin/projects'
     | '/admin/settings'
     | '/admin/workers'
@@ -212,6 +222,7 @@ export interface FileRouteTypes {
     | '/dev/components'
     | '/admin/clients'
     | '/admin/jobs'
+    | '/admin/leave'
     | '/admin/projects'
     | '/admin/settings'
     | '/admin/workers'
@@ -232,6 +243,7 @@ export interface FileRouteTypes {
     | '/dev/components'
     | '/_app/admin/clients'
     | '/_app/admin/jobs'
+    | '/_app/admin/leave'
     | '/_app/admin/projects'
     | '/_app/admin/settings'
     | '/_app/admin/workers'
@@ -348,6 +360,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminJobsRouteImport
       parentRoute: typeof AppAdminRouteRoute
     }
+    '/_app/admin/leave': {
+      id: '/_app/admin/leave'
+      path: '/leave'
+      fullPath: '/admin/leave'
+      preLoaderRoute: typeof AppAdminLeaveRouteImport
+      parentRoute: typeof AppAdminRouteRoute
+    }
     '/_app/admin/projects': {
       id: '/_app/admin/projects'
       path: '/projects'
@@ -382,6 +401,7 @@ declare module '@tanstack/react-router' {
 interface AppAdminRouteRouteChildren {
   AppAdminClientsRoute: typeof AppAdminClientsRoute
   AppAdminJobsRoute: typeof AppAdminJobsRoute
+  AppAdminLeaveRoute: typeof AppAdminLeaveRoute
   AppAdminProjectsRoute: typeof AppAdminProjectsRoute
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
   AppAdminWorkersRoute: typeof AppAdminWorkersRoute
@@ -390,6 +410,7 @@ interface AppAdminRouteRouteChildren {
 const AppAdminRouteRouteChildren: AppAdminRouteRouteChildren = {
   AppAdminClientsRoute: AppAdminClientsRoute,
   AppAdminJobsRoute: AppAdminJobsRoute,
+  AppAdminLeaveRoute: AppAdminLeaveRoute,
   AppAdminProjectsRoute: AppAdminProjectsRoute,
   AppAdminSettingsRoute: AppAdminSettingsRoute,
   AppAdminWorkersRoute: AppAdminWorkersRoute,
