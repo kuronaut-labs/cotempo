@@ -5,6 +5,8 @@ import { applyServerError } from '~/components/forms/applyServerError'
 import { formatWeekLabel, localDateTimeOf, localHHMM } from '~/lib/dayMath'
 import { RedFlagList } from '~/components/redFlagList'
 import { TrioChip } from '~/components/trioChip'
+import { StatusChip } from '~/components/ui/chip'
+import { Button } from '~/components/ui/button'
 import { STATUS_LABEL } from '~/components/weekStatus'
 import type { Role } from '~/server/context'
 import { approveWeekFn, rejectWeekFn, unlockWeekFn } from '~/server/fns/approvals'
@@ -17,6 +19,14 @@ const EVENT_LABEL: Record<WeekForApproval['events'][number]['kind'], string> = {
   unlock: 'Unlocked',
   edited_after_submit: 'Edited after submitting',
 }
+
+const badgeKind = {
+  none: 'outline',
+  draft: 'outline',
+  submitted: 'inverse',
+  approved: 'solid',
+  rejected: 'error',
+} as const
 
 const CommentSchema = z.object({ comment: z.string().max(500).optional() })
 const ReasonSchema = z.object({ reason: z.string().min(1, 'Reason required').max(500) })
@@ -43,9 +53,9 @@ export function ApproverView({
         <div>
           <h2>{week.workerName}</h2>
           <span className="approverview-week">{formatWeekLabel(week.weekStart)}</span>
-          <span className={`weekstatus-badge ${week.status}`} style={{ marginLeft: 12 }}>
+          <StatusChip kind={badgeKind[week.status]} style={{ marginLeft: 12 }}>
             {STATUS_LABEL[week.status]}
-          </span>
+          </StatusChip>
         </div>
         <TrioChip recon={week.recon} size="lg" />
       </header>
@@ -112,7 +122,7 @@ export function ApproverView({
             schema={CommentSchema}
             fields={[{ name: 'comment', placeholder: 'Optional comment' }]}
             buttonLabel="Approve"
-            buttonClass="approverview-approve"
+            buttonVariant="primary"
             onSubmit={async (vals) => {
               await approveWeekFn({ data: { ...target, comment: (vals.comment as string) || undefined } })
               await onAction()
@@ -122,7 +132,7 @@ export function ApproverView({
             schema={ReasonSchema}
             fields={[{ name: 'reason', placeholder: 'Reason (required)', required: true }]}
             buttonLabel="Reject"
-            buttonClass="approverview-reject"
+            buttonVariant="destructive"
             onSubmit={async (vals) => {
               await rejectWeekFn({ data: { ...target, reason: vals.reason as string } })
               await onAction()
@@ -138,7 +148,7 @@ export function ApproverView({
             schema={ReasonSchema}
             fields={[{ name: 'reason', placeholder: 'Reason (required)', required: true }]}
             buttonLabel="Unlock"
-            buttonClass="approverview-unlock"
+            buttonVariant="secondary"
             onSubmit={async (vals) => {
               await unlockWeekFn({ data: { ...target, reason: vals.reason as string } })
               await onAction()
@@ -172,14 +182,14 @@ function ActionForm({
   schema,
   fields,
   buttonLabel,
-  buttonClass,
+  buttonVariant,
   onSubmit,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   schema: any
   fields: { name: string; placeholder: string; required?: boolean }[]
   buttonLabel: string
-  buttonClass: string
+  buttonVariant: 'primary' | 'secondary' | 'destructive'
   onSubmit: (vals: Record<string, string>) => Promise<void>
 }) {
   const form = useForm({
@@ -215,9 +225,9 @@ function ActionForm({
           )}
         </form.Field>
       ))}
-      <button type="submit" className={buttonClass}>
+      <Button type="submit" size="sm" variant={buttonVariant}>
         {buttonLabel}
-      </button>
+      </Button>
     </form>
   )
 }

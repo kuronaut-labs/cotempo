@@ -1459,20 +1459,19 @@ input[type='radio']:disabled:checked::after {
 }
 
 .intervalaudit th {
-  font-family: var(--mono);
-  font-size: 10px;
+  font: 500 10px/1.2 var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--muted);
+  color: var(--color-info);
   text-align: left;
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--line);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-tertiary);
 }
 
 .intervalaudit td {
-  padding: 6px 8px;
+  padding: var(--space-1) var(--space-2);
   border-bottom: 1px solid var(--divider);
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1481,28 +1480,32 @@ input[type='radio']:disabled:checked::after {
   outline: 1px solid var(--premium-fill);
 }
 
-.flaglist .flaglist-kind-h {
-  font-family: var(--mono);
-  font-size: 10px;
+.flaglist-kind-h {
+  font: 500 10px/1.2 var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: var(--muted);
-  margin: 8px 0 4px;
+  color: var(--color-info);
+  margin: var(--space-2) 0 var(--space-1);
 }
 
-.flaglist .flaglist-row {
-  font-family: var(--mono);
+.flaglist-row {
+  font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--text);
-  padding: 4px 6px;
-  border-radius: 3px;
+  color: var(--color-primary);
+  padding: var(--space-1);
 }
 
-.flaglist .flaglist-row:hover {
-  background: var(--panel2);
+.flaglist-row:hover {
+  background: var(--fill-hover);
 }
 
-.flaglist-empty,
+.flaglist-empty {
+  color: var(--border-input-hover);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: var(--space-3) 0;
+}
+
 .approvalsqueue-empty {
   color: var(--faint);
   font-family: var(--mono);
@@ -1513,16 +1516,16 @@ input[type='radio']:disabled:checked::after {
 .audit-trail li {
   display: grid;
   grid-template-columns: auto auto 1fr;
-  gap: 8px;
-  padding: 4px 0;
-  font-family: var(--mono);
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--text);
-  border-bottom: 1px dotted var(--divider);
+  color: var(--color-primary);
+  border-bottom: 1px dotted var(--color-tertiary);
 }
 
 .audit-trail .audit-at {
-  color: var(--faint);
+  color: var(--border-input-hover);
 }
 
 .audit-trail .audit-kind {
@@ -1533,30 +1536,35 @@ input[type='radio']:disabled:checked::after {
 }
 
 .audit-trail .audit-reason {
-  color: var(--muted);
+  color: var(--color-info);
 }
 
 .approverview-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 16px;
-  gap: 14px;
+  gap: var(--space-3);
   flex-wrap: wrap;
+  margin-bottom: var(--space-4);
 }
 
 .approverview-head h2 {
-  font-family: var(--disp);
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text);
+  font: 600 20px/1.3 var(--font-body);
+  margin: 0;
 }
 
 .approverview-week {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--muted);
-  margin-left: 8px;
+  color: var(--color-info);
+  margin-left: var(--space-2);
+}
+
+.approverview-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
 }
 
 .approverview-actions form {
@@ -1568,44 +1576,4 @@ input[type='radio']:disabled:checked::after {
 
 .approverview-actions input {
   flex: 1;
-  background: var(--panel2);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  padding: 4px 8px;
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 12px;
-}
-
-.approverview-approve {
-  background: var(--pos);
-  color: var(--color-secondary);
-  border: 1px solid var(--pos);
-  border-radius: 6px;
-  padding: 4px 14px;
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.approverview-reject {
-  background: var(--err);
-  color: var(--color-secondary);
-  border: 1px solid var(--err);
-  border-radius: 6px;
-  padding: 4px 14px;
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.approverview-unlock {
-  background: var(--j4);
-  color: var(--color-secondary);
-  border: 1px solid var(--j4);
-  border-radius: 6px;
-  padding: 4px 14px;
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 600;
 }
