@@ -1,4 +1,5 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate } from '@tanstack/react-router'
+import { Clock, ChartBar, ShieldCheck, Gear, Logout } from 'reicon-react'
 import { Button } from '~/components/ui/button'
 import { authClient } from '~/lib/auth-client'
 import { getSessionCtxFn, getSessionFn } from '~/server/fns/auth'
@@ -19,17 +20,17 @@ function AppLayout() {
     <div className="app-shell">
       <nav className="app-nav">
         <Link to="/today" activeProps={{ className: 'active' }}>
-          Today
+          <Clock size={15} /> Today
         </Link>
         <Link to="/reports" activeProps={{ className: 'active' }}>
-          Reports
+          <ChartBar size={15} /> Reports
         </Link>
         <Link to="/approvals" activeProps={{ className: 'active' }}>
-          Approvals
+          <ShieldCheck size={15} /> Approvals
         </Link>
         {ctx?.roles.includes('admin') && (
           <Link to="/admin/clients" activeProps={{ className: 'active' }}>
-            Admin
+            <Gear size={15} /> Admin
           </Link>
         )}
         <span className="nav-spacer" />
@@ -42,7 +43,7 @@ function AppLayout() {
             navigate({ to: '/login' })
           }}
         >
-          Sign out
+          <Logout size={14} /> Sign out
         </Button>
       </nav>
       <Outlet />

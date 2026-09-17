@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
+import { Check, Unlock, X } from 'reicon-react'
 import { applyServerError } from '~/components/forms/applyServerError'
 import { formatWeekLabel, localDateTimeOf, localHHMM } from '~/lib/dayMath'
 import { RedFlagList } from '~/components/redFlagList'
@@ -19,6 +20,8 @@ const EVENT_LABEL: Record<WeekForApproval['events'][number]['kind'], string> = {
   unlock: 'Unlocked',
   edited_after_submit: 'Edited after submitting',
 }
+
+const ACTION_ICON = { primary: Check, destructive: X, secondary: Unlock } as const
 
 const badgeKind = {
   none: 'outline',
@@ -192,6 +195,7 @@ function ActionForm({
   buttonVariant: 'primary' | 'secondary' | 'destructive'
   onSubmit: (vals: Record<string, string>) => Promise<void>
 }) {
+  const ActionIcon = ACTION_ICON[buttonVariant]
   const form = useForm({
     defaultValues: Object.fromEntries(fields.map((f) => [f.name, ''])),
     validators: { onChange: schema },
@@ -226,7 +230,7 @@ function ActionForm({
         </form.Field>
       ))}
       <Button type="submit" size="sm" variant={buttonVariant}>
-        {buttonLabel}
+        <ActionIcon size={13} /> {buttonLabel}
       </Button>
     </form>
   )

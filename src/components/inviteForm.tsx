@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useForm } from '@tanstack/react-form'
+import { Send } from 'reicon-react'
 import { applyServerError } from '~/components/forms/applyServerError'
 import { humanOptions, rolesFromChecks } from '~/components/workerRoster'
 import { Button } from '~/components/ui/button'
@@ -141,7 +142,7 @@ export function InviteForm({ workers, onRefresh }: { workers: WorkerView[]; onRe
       )}
       <div className="entryform-actions">
         <Button type="submit" variant="primary">
-          Send invite
+          <Send size={14} /> Send invite
         </Button>
       </div>
     </form>

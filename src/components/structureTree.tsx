@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Archive as ArchiveIcon } from 'reicon-react'
 import { serverErrorMessage } from '~/components/forms/applyServerError'
 import { Button } from '~/components/ui/button'
 import type { ClientNode, JobNode, ProjectNode } from '~/server/services/structure'
@@ -154,7 +155,7 @@ function ClientActions({ node, run }: { node: ClientNode; run: RunFn }) {
           if (window.confirm(`Archive client ${node.name}?`)) void run(() => archiveClientFn({ data: { id: node.id } }))
         }}
       >
-        Archive
+        <ArchiveIcon size={13} /> Archive
       </Button>
     </span>
   )
@@ -201,7 +202,7 @@ function ProjectActions({ node, run }: { node: ProjectNode; run: RunFn }) {
           if (window.confirm(`Archive project ${node.name}?`)) void run(() => archiveProjectFn({ data: { id: node.id } }))
         }}
       >
-        Archive
+        <ArchiveIcon size={13} /> Archive
       </Button>
     </span>
   )
@@ -271,7 +272,7 @@ function JobRow({ node, manage, run }: { node: JobNode; manage: ManageLevel; run
               if (window.confirm(`Archive job ${node.name}?`)) void run(() => archiveJobFn({ data: { id: node.id } }))
             }}
           >
-            Archive
+            <ArchiveIcon size={13} /> Archive
           </Button>
         </span>
       )}

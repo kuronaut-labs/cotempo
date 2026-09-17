@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { z } from 'zod'
+import { FileDownload } from 'reicon-react'
 import { KpiTile } from '~/components/kpiTile'
 import { Button, buttonClass } from '~/components/ui/button'
 import { EffortBars } from '~/components/effortBars'
@@ -306,7 +307,7 @@ function BillingPanel({
             URL.revokeObjectURL(url)
           }}
         >
-          Export CSV
+          <FileDownload size={13} /> Export CSV
         </Button>
         <a
           className={buttonClass('secondary', 'sm')}

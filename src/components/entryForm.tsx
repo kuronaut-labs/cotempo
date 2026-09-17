@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { TZDate } from '@date-fns/tz'
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
+import { Check } from 'reicon-react'
 import { localHHMM } from '~/lib/dayMath'
 import { CreateIntervalInput, UpdateIntervalInput } from '~/lib/schemas/intervals'
 import { applyServerError } from '~/components/forms/applyServerError'
@@ -273,7 +274,7 @@ export function EntryForm({
 
       <div className="entryform-actions">
         <Button type="submit" variant="primary">
-          {isEdit ? 'Save' : 'Add'}
+          <Check size={14} /> {isEdit ? 'Save' : 'Add'}
         </Button>
         {isEdit && onCancel && (
           <Button type="button" variant="secondary" onClick={onCancel}>

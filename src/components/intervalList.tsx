@@ -1,3 +1,4 @@
+import { Pen, Trash2 } from 'reicon-react'
 import { Button } from '~/components/ui/button'
 import { localHHMM } from '~/lib/dayMath'
 import { formatHmm } from '~/lib/money'
@@ -63,10 +64,10 @@ export function IntervalList({
                 {editable && (
                   <>
                     <Button variant="ghost" size="sm" onClick={() => onEdit(r.id)} aria-label="Edit">
-                      Edit
+                      <Pen size={13} /> Edit
                     </Button>
                     <Button variant="ghost" size="sm" onClick={() => onDelete(r.id)} aria-label="Delete">
-                      Delete
+                      <Trash2 size={13} /> Delete
                     </Button>
                   </>
                 )}

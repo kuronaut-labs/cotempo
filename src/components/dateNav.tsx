@@ -1,3 +1,4 @@
+import { ChevronLeft, ChevronRight } from 'reicon-react'
 import { Button } from '~/components/ui/button'
 import { addDays, parseIsoDate, toIsoDate } from '~/lib/dateShift'
 
@@ -15,13 +16,13 @@ export function DateNav({
   return (
     <div className="datenav">
       <Button variant="ghost" size="sm" onClick={() => shift(-1)} aria-label="Previous day">
-        ‹
+        <ChevronLeft size={14} />
       </Button>
       <Button variant="ghost" size="sm" onClick={() => onChange(today)} disabled={date === today}>
         Today
       </Button>
       <Button variant="ghost" size="sm" onClick={() => shift(1)} aria-label="Next day">
-        ›
+        <ChevronRight size={14} />
       </Button>
       <input
         type="date"

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { z } from 'zod'
+import { X } from 'reicon-react'
 import { Button } from '~/components/ui/button'
 import { DateNav } from '~/components/dateNav'
 import { DayMathChip } from '~/components/dayMathChip'
@@ -179,7 +180,7 @@ function TodayView() {
       {showHowCounted && (
         <aside className="how-counted-card" role="region" aria-label="How time is counted">
           <Button variant="ghost" size="sm" onClick={dismissHowCounted} aria-label="Dismiss">
-            ×
+            <X size={13} />
           </Button>
           <h2>How time is counted</h2>
           <p>Three numbers over the same day:</p>

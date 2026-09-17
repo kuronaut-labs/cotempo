@@ -1,5 +1,6 @@
 import { Fragment, useState } from 'react'
 import { useForm } from '@tanstack/react-form'
+import { Archive, Send } from 'reicon-react'
 import { applyServerError, serverErrorMessage } from '~/components/forms/applyServerError'
 import { RoleEnum, type Role } from '~/lib/schemas/workers'
 import type { WorkerView } from '~/server/services/workers'
@@ -151,7 +152,7 @@ export function WorkerRoster({
                         <Fragment>
                           <span className="tag tag-warn">Invite sent</span>{' '}
                           <Button type="button" variant="ghost" size="sm" onClick={() => void resend(w.workerId)}>
-                            Resend
+                            <Send size={13} /> Resend
                           </Button>
                         </Fragment>
                       ) : (
@@ -173,7 +174,7 @@ export function WorkerRoster({
                           if (window.confirm(`Archive ${w.name}?`)) void run(w.workerId, () => archiveWorkerFn({ data: { workerId: w.workerId } }))
                         }}
                       >
-                        Archive
+                        <Archive size={13} /> Archive
                       </Button>
                     </td>
                   </tr>
@@ -238,7 +239,7 @@ export function WorkerRoster({
                           if (window.confirm(`Archive agent ${w.name}?`)) void run(w.workerId, () => archiveWorkerFn({ data: { workerId: w.workerId } }))
                         }}
                       >
-                        Archive
+                        <Archive size={13} /> Archive
                       </Button>
                     </td>
                   </tr>

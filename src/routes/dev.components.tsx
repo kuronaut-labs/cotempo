@@ -6,6 +6,26 @@ import { IntervalList } from '~/components/intervalList'
 import { MiniStrip } from '~/components/miniStrip'
 import { Button } from '~/components/ui/button'
 import { FilterChip, StatusChip } from '~/components/ui/chip'
+import {
+  Archive as ArchiveIcon,
+  Calendar,
+  ChartBar,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  FileDownload,
+  Gear,
+  Logout,
+  Pen,
+  Printer,
+  Send,
+  ShieldCheck,
+  Trash2,
+  Unlock,
+  X,
+  UserAdd,
+} from 'reicon-react'
 import type { DayIntervalRow } from '~/server/services/intervals'
 import type { ClientNode } from '~/server/services/structure'
 import type { AgentWorkerView, HumanWorkerView } from '~/server/services/workers'
@@ -221,6 +241,35 @@ function DevComponents() {
             <li className="row active">Row two (active)</li>
             <li className="row">Row three</li>
           </ul>
+        </div>
+      </section>
+      <section style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'center' }}>
+        <h2 className="today-section-title">Icons (reicon-react, Outline)</h2>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center' }}>
+          <Clock size={15} />
+          <Calendar size={15} />
+          <ChartBar size={15} />
+          <ShieldCheck size={15} />
+          <Gear size={15} />
+          <Logout size={15} />
+          <ChevronLeft size={14} />
+          <ChevronRight size={14} />
+          <Pen size={13} />
+          <Trash2 size={13} />
+          <ArchiveIcon size={13} />
+          <Check size={13} />
+          <X size={13} />
+          <Unlock size={13} />
+          <Send size={13} />
+          <UserAdd size={13} />
+          <FileDownload size={13} />
+          <Printer size={13} />
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Button variant="primary"><Check size={14} /> Save</Button>
+          <Button variant="ghost" size="sm"><Pen size={13} /> Edit</Button>
+          <Button variant="ghost" size="sm" className="danger"><ArchiveIcon size={13} /> Archive</Button>
+          <Button variant="secondary" size="sm"><Printer size={13} /> Print</Button>
         </div>
       </section>
     </main>

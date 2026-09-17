@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { z } from 'zod'
+import { Printer } from 'reicon-react'
 import { formatCents, formatHmm } from '~/lib/money'
 import { localHHMM } from '~/lib/dayMath'
 import { getSessionCtxFn } from '~/server/fns/auth'
@@ -64,7 +65,7 @@ function InvoiceView() {
       <header className="invoice-actions no-print">
         <Link to="/reports" className={buttonClass('secondary', 'sm')}>← Back to reports</Link>
         <Button variant="secondary" size="sm" onClick={() => window.print()}>
-          Print / Save as PDF
+          <Printer size={13} /> Print / Save as PDF
         </Button>
       </header>
 
