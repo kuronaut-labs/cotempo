@@ -472,6 +472,8 @@ input[type='radio']:disabled:checked::after {
   padding: var(--space-4);
   background: var(--surface-card);
   border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
 }
 .entryform-row {
   display: grid;
