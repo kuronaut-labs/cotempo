@@ -5,13 +5,22 @@ import { applyServerError } from '~/components/forms/applyServerError'
 import { humanOptions, rolesFromChecks } from '~/components/workerRoster'
 import { Button } from '~/components/ui/button'
 import type { WorkerView } from '~/server/services/workers'
+import type { PositionView } from '~/server/services/positions'
 import { inviteUserFn } from '~/server/fns/invites'
 
-export function InviteForm({ workers, onRefresh }: { workers: WorkerView[]; onRefresh: () => void }) {
+export function InviteForm({
+  workers,
+  positions,
+  onRefresh,
+}: {
+  workers: WorkerView[]
+  positions: PositionView[]
+  onRefresh: () => void
+}) {
   const [status, setStatus] = useState<string | null>(null)
 
   const form = useForm({
-    defaultValues: { email: '', name: '', billing: false, admin: false, supervisorId: '' },
+    defaultValues: { email: '', name: '', billing: false, admin: false, supervisorId: '', positionId: '' },
     validators: {
       onSubmit: ({ value }) => {
         const fields: Record<string, string> = {}
@@ -29,6 +38,7 @@ export function InviteForm({ workers, onRefresh }: { workers: WorkerView[]; onRe
             name: value.name.trim(),
             roles: rolesFromChecks(value.billing, value.admin),
             supervisorId: value.supervisorId || null,
+            positionId: value.positionId || null,
           },
         })
         // #16: the reset token IS the invitation — never render a link or password here.
@@ -122,6 +132,22 @@ export function InviteForm({ workers, onRefresh }: { workers: WorkerView[]; onRe
                 {humanOptions(workers).map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
+                  </option>
+                ))}
+              </select>
+              <FieldError errors={f.state.meta.errors} />
+            </label>
+          )}
+        </form.Field>
+        <form.Field name="positionId">
+          {(f) => (
+            <label className="field">
+              <span>Position (optional)</span>
+              <select value={f.state.value} onChange={(e) => f.handleChange(e.target.value)} onBlur={f.handleBlur}>
+                <option value="">— none —</option>
+                {positions.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
                   </option>
                 ))}
               </select>

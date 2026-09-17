@@ -94,3 +94,12 @@ describe('positions service', () => {
     ).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' })
   })
 })
+
+describe('listWorkers positionId (#positions)', () => {
+  it('carries positionId for humans', async () => {
+    const { listWorkers } = await import('~/server/services/workers')
+    const rows = await listWorkers(deps(), asUser('admin'))
+    const ops = rows.find((r) => r.kind === 'human' && r.workerId === ids.opWorker)
+    expect(ops && 'positionId' in ops ? ops.positionId : undefined).toBe(ids.posSenior)
+  })
+})

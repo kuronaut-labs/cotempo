@@ -4,6 +4,8 @@ import { Archive, Send } from 'reicon-react'
 import { applyServerError, serverErrorMessage } from '~/components/forms/applyServerError'
 import { RoleEnum, type Role } from '~/lib/schemas/workers'
 import type { WorkerView } from '~/server/services/workers'
+import type { PositionView } from '~/server/services/positions'
+import { setWorkerPositionFn } from '~/server/fns/positions'
 import {
   archiveWorkerFn,
   createAgentWorkerFn,
@@ -42,10 +44,12 @@ export function humanOptions(workers: WorkerView[]): { value: string; label: str
 
 export function WorkerRoster({
   workers,
+  positions,
   onRefresh,
   onResend,
 }: {
   workers: WorkerView[]
+  positions: PositionView[]
   onRefresh: () => void
   onResend: (workerId: string) => Promise<{ mailed: boolean }>
 }) {
@@ -79,7 +83,7 @@ export function WorkerRoster({
   const errAfter = (workerId: string) =>
     rowError?.workerId === workerId ? (
       <tr>
-        <td colSpan={6} className="field-error" role="alert">
+        <td colSpan={7} className="field-error" role="alert">
           {rowError.text}
         </td>
       </tr>
@@ -97,6 +101,7 @@ export function WorkerRoster({
               <tr>
                 <th>Name</th>
                 <th>Roles</th>
+                <th>Position</th>
                 <th>Supervisor</th>
                 <th>Invite</th>
                 <th></th>
@@ -127,6 +132,23 @@ export function WorkerRoster({
                           {r}
                         </span>
                       ))}
+                    </td>
+                    <td>
+                      <select
+                        value={w.positionId ?? ''}
+                        onChange={(e) =>
+                          void run(w.workerId, () =>
+                            setWorkerPositionFn({ data: { workerId: w.workerId, positionId: e.target.value || null } }),
+                          )
+                        }
+                      >
+                        <option value="">— none —</option>
+                        {positions.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td>
                       <select

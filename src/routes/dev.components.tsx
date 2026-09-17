@@ -121,8 +121,8 @@ const structureFixture: ClientNode[] = [
 ]
 
 const workerFixture: (HumanWorkerView | AgentWorkerView)[] = [
-  { workerId: 'op-worker', kind: 'human', name: 'Demo Operator', email: 'ops@example.com', roles: ['operator'], supervisorId: null, inviteState: 'active' },
-  { workerId: 'admin-worker', kind: 'human', name: 'Demo Admin', email: 'admin@example.com', roles: ['operator', 'billing', 'admin'], supervisorId: null, inviteState: 'active' },
+  { workerId: 'op-worker', kind: 'human', name: 'Demo Operator', email: 'ops@example.com', roles: ['operator'], supervisorId: null, positionId: 'pos-senior-dev', inviteState: 'active' },
+  { workerId: 'admin-worker', kind: 'human', name: 'Demo Admin', email: 'admin@example.com', roles: ['operator', 'billing', 'admin'], supervisorId: null, positionId: null, inviteState: 'active' },
   { workerId: 'agent-1', kind: 'agent', name: 'Atlas', model: 'claude-opus-5', framework: 'langgraph', status: 'active', supervisorId: 'op-worker' },
   { workerId: 'agent-2', kind: 'agent', name: 'Beacon', model: 'claude-sonnet-5', framework: 'crewai', status: 'active', supervisorId: 'op-worker' },
 ]

@@ -170,6 +170,50 @@ describe('inviteUser pre-checks (#16)', () => {
   })
 })
 
+describe('invite positions (#positions)', () => {
+  const inviteDeps = (auth: ReturnType<typeof makeAuth>, headers: Headers) => ({
+    db,
+    auth,
+    headers,
+    appUrl: 'http://localhost:3000',
+  })
+
+  it('persists positionId on the human worker', async () => {
+    const auth = makeAuth()
+    const headers = await adminHeaders(auth)
+    const res = await inviteUser(inviteDeps(auth, headers), asUser('admin'), {
+      email: 'positioned@example.com',
+      name: 'Positioned',
+      roles: ['operator'],
+      supervisorId: null,
+      positionId: ids.posSenior,
+    })
+    const human = await db
+      .select()
+      .from(schema.humanWorkers)
+      .where(eq(schema.humanWorkers.workerId, res.workerId))
+      .get()
+    expect(human?.positionId).toBe(ids.posSenior)
+  })
+
+  it('rejects an unknown position before creating the auth user', async () => {
+    const auth = makeAuth()
+    const headers = await adminHeaders(auth)
+    const before = (await db.select({ id: schema.user.id }).from(schema.user).all()).length
+    await expect(
+      inviteUser(inviteDeps(auth, headers), asUser('admin'), {
+        email: 'nope@example.com',
+        name: 'Nope',
+        roles: ['operator'],
+        supervisorId: null,
+        positionId: 'pos-nope',
+      }),
+    ).rejects.toMatchObject({ status: 404, code: 'POSITION_NOT_FOUND', field: 'positionId' })
+    expect((await db.select({ id: schema.user.id }).from(schema.user).all()).length).toBe(before)
+    expect(captured).toHaveLength(0)
+  })
+})
+
 describe('invite services re-check admin (#5)', () => {
   it('inviteUser and resendInvite refuse non-admin callers before touching auth', async () => {
     const auth = makeAuth()

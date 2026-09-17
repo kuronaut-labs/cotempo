@@ -19,6 +19,7 @@ export type HumanWorkerView = {
   email: string
   roles: Role[]
   supervisorId: string | null
+  positionId: string | null
   inviteState: 'pending' | 'active'
 }
 export type AgentWorkerView = {
@@ -86,6 +87,7 @@ export async function listWorkers(deps: Deps, ctx: SessionContext): Promise<Work
           roles: schema.humanWorkers.roles,
           name: schema.user.name,
           email: schema.user.email,
+          positionId: schema.humanWorkers.positionId,
         })
         .from(schema.humanWorkers)
         .innerJoin(schema.user, eq(schema.user.id, schema.humanWorkers.userId))
@@ -112,6 +114,7 @@ export async function listWorkers(deps: Deps, ctx: SessionContext): Promise<Work
         email: h.email,
         roles: parseRolesOrDefault(h.roles),
         supervisorId: w.supervisorId,
+        positionId: h.positionId,
         inviteState: activated.has(h.userId) ? 'active' : 'pending',
       })
     } else {

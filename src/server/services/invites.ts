@@ -44,6 +44,14 @@ export async function inviteUser(
       .get()
     if (!sup || sup.kind !== 'human') throw new HttpError(400, 'SUPERVISOR_NOT_HUMAN', 'supervisorId')
   }
+  if (input.positionId != null) {
+    const pos = await db
+      .select({ id: schema.positions.id })
+      .from(schema.positions)
+      .where(and(eq(schema.positions.id, input.positionId), isNull(schema.positions.archivedAt)))
+      .get()
+    if (!pos) throw new HttpError(404, 'POSITION_NOT_FOUND', 'positionId')
+  }
 
   const discarded = crypto.randomUUID() + crypto.randomUUID()
   const created = await auth.api.createUser({
@@ -68,7 +76,7 @@ export async function inviteUser(
         supervisorId: input.supervisorId ?? null,
         createdAt: now,
       }),
-      db.insert(schema.humanWorkers).values({ workerId, userId, roles: JSON.stringify(input.roles) }),
+      db.insert(schema.humanWorkers).values({ workerId, userId, roles: JSON.stringify(input.roles), positionId: input.positionId ?? null }),
     ])
   } catch (e) {
     await auth.api.removeUser({ headers, body: { userId } }).catch((err: unknown) => console.error('orphan user cleanup failed', userId, err))

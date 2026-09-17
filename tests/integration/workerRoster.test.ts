@@ -9,6 +9,7 @@ const human = (over: Partial<Extract<WorkerView, { kind: 'human' }>>): WorkerVie
   email: 'e@x.co',
   roles: ['operator'],
   supervisorId: null,
+  positionId: null,
   inviteState: 'active',
   ...over,
 })
