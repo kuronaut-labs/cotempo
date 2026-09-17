@@ -68,7 +68,7 @@ Do not: refactor code outside the task, add dependencies, change config files (`
 | Pure time/money/attribution | `src/lib/{dayMath,week,money,attribution,redFlags}.ts` |
 | Fixtures (tests + seed) | `src/server/fixtures/demo.ts` |
 | Test helpers | `tests/integration/helpers.ts` (`db`, `deps()`, `asUser()`, `resetDb()`, `setWeekStatus()`, `at()`) |
-| Design tokens | copy `:root` from `.wayfinder/prototypes/*.html` |
+| Design system | `docs/DESIGN.md` (spec) → `src/styles/tokens.css` (values) |
 
 ## Comments
 
