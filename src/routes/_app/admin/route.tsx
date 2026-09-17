@@ -30,6 +30,9 @@ function AdminLayout() {
         <Link to="/admin/leave" activeProps={{ className: 'active' }}>
           Leave types
         </Link>
+        <Link to="/admin/positions" activeProps={{ className: 'active' }}>
+          Positions
+        </Link>
         <Link to="/admin/settings" activeProps={{ className: 'active' }}>
           Settings
         </Link>
