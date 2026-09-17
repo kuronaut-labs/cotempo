@@ -662,6 +662,13 @@ input[type='radio']:disabled:checked::after {
 }
 
 .roster { display: grid; gap: var(--space-4); }
+/* Level icons: clients build, projects folder, jobs briefcase. */
+.tree-row .name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* width: 200px because native selects size to their longest option,
    and each row's supervisor list differs */
 .roster select { width: 200px; }

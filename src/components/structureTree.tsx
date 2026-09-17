@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Archive as ArchiveIcon } from 'reicon-react'
+import { Archive as ArchiveIcon, Briefcase, Building, Folder } from 'reicon-react'
 import { serverErrorMessage } from '~/components/forms/applyServerError'
 import { Button } from '~/components/ui/button'
 import type { ClientNode, JobNode, ProjectNode } from '~/server/services/structure'
@@ -85,7 +85,7 @@ export function StructureTree({
       {clients.map((c) => (
         <div key={c.id} className={`tree-client${c.archivedAt ? ' archived' : ''}`}>
           <div className="tree-row">
-            <span className="name">{c.name}</span>
+            <span className="name"><Building size={14} /> {c.name}</span>
             {c.archivedAt && <span className="tag">archived</span>}
             {manage === 'client' && live(c) && <ClientActions node={c} run={run} />}
           </div>
@@ -93,7 +93,7 @@ export function StructureTree({
             {(showArchived ? c.projects : c.projects.filter(live)).map((p) => (
               <div key={p.id} className={`tree-project${p.archivedAt ? ' archived' : ''}`}>
                 <div className="tree-row">
-                  <span className="name">{p.name}</span>
+                  <span className="name"><Folder size={14} /> {p.name}</span>
                   {p.archivedAt && <span className="tag">archived</span>}
                   {manage === 'project' && live(p) && <ProjectActions node={p} run={run} />}
                 </div>
@@ -256,7 +256,7 @@ function JobRow({ node, manage, run }: { node: JobNode; manage: ManageLevel; run
 
   return (
     <div className={`tree-row${live ? '' : ' archived'}`}>
-      <span className="name">{node.name}</span>
+      <span className="name"><Briefcase size={13} /> {node.name}</span>
       <span className="rate">{rateLabel(node.billableRateCents)}</span>
       {node.archivedAt && <span className="tag">archived</span>}
       {manage === 'job' && live && (
