@@ -71,16 +71,6 @@ samp {
   font-family: var(--font-mono);
 }
 
-/* Type utilities — DESIGN Typography, exact values */
-.t-hero { font: 700 64px/1.05 var(--font-body); }
-.t-h1 { font: 700 40px/1.1 var(--font-body); }
-.t-h2 { font: 600 28px/1.2 var(--font-body); }
-.t-h3 { font: 600 20px/1.3 var(--font-body); }
-.t-body { font: 300 16px/1.65 var(--font-body); }
-.t-body-sm { font: 400 14px/1.6 var(--font-body); }
-.t-caption { font: 400 12px/1.5 var(--font-body); }
-.t-mono { font: 400 13px/1.5 var(--font-mono); }
-
 /* ---------- shell ---------- */
 
 .app-shell {
@@ -160,10 +150,6 @@ samp {
 .form-error {
   font-size: 13px;
   color: var(--color-error);
-  background: transparent;
-  border: 1px solid var(--color-error);
-  border-radius: 6px;
-  padding: 8px 12px;
 }
 
 /* ---------- shared form primitives ---------- */
@@ -314,12 +300,6 @@ input[type='radio']:disabled:checked::after {
   color: var(--j-ink);
 }
 
-.job-dot-c1 { background: var(--j1); }
-.job-dot-c2 { background: var(--j2); }
-.job-dot-c3 { background: var(--j3); }
-.job-dot-c4 { background: var(--j4); }
-.job-dot-c5 { background: var(--j5); }
-
 /* ---------- day math trio chip ---------- */
 
 .daymath {
@@ -352,23 +332,6 @@ input[type='radio']:disabled:checked::after {
 
 .dm.premium b {
   color: var(--premium-text);
-}
-
-/* ---------- overlap hatching ---------- */
-
-.ovl {
-  background: repeating-linear-gradient(45deg, transparent 0 4px, rgba(0, 0, 0, 0.55) 4px 6px);
-  border-radius: 3px;
-}
-
-.ovltag {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  color: var(--premium-text);
-  background: var(--surface-base);
-  border: 1px solid var(--premium-fill);
-  border-radius: 3px;
-  padding: 0 5px;
 }
 
 /* ---------- date nav ---------- */
@@ -590,7 +553,6 @@ input[type='radio']:disabled:checked::after {
   letter-spacing: 0.1em;
   text-transform: uppercase;
   border: 1px solid var(--color-tertiary);
-  border-radius: 3px;
   padding: 1px 6px;
   color: var(--color-info);
 }
@@ -944,14 +906,6 @@ input[type='radio']:disabled:checked::after {
   color: var(--color-primary);
   white-space: nowrap;
 }
-.dailytable .dayrel {
-  display: block;
-  margin-top: 2px;
-  font: 400 9px/1.2 var(--font-mono);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--border-input-hover);
-}
 .dailytable .dailycell {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -1213,7 +1167,6 @@ input[type='radio']:disabled:checked::after {
 .reports-subhead input[type='date'] {
   background: var(--fill-hover);
   border: 1px solid var(--color-tertiary);
-  border-radius: 6px;
   color: var(--color-primary);
   padding: 4px 8px;
   font-family: var(--font-mono);
@@ -1223,7 +1176,6 @@ input[type='radio']:disabled:checked::after {
 .reports-panel .card {
   background: var(--surface-card);
   border: 1px solid var(--color-tertiary);
-  border-radius: 10px;
   padding: 18px;
   margin-bottom: 18px;
 }
@@ -1300,7 +1252,6 @@ input[type='radio']:disabled:checked::after {
 .legend .sw {
   width: 10px;
   height: 10px;
-  border-radius: 2px;
   display: inline-block;
   margin-right: 4px;
   vertical-align: middle;
