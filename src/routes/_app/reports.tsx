@@ -208,7 +208,18 @@ function AdminPanel({
         />
         <KpiTile label="Billable" value={formatCents(kpis.todayBillableCents)} hint={kpis.date} />
         <KpiTile label="Overlap" value={`+${formatHmm(kpis.todayPremiumMin)}`} />
-        <KpiTile label="Utilization" value={`${(kpis.utilization * 100).toFixed(0)}%`} hint="share of an 8-hour day" />
+        <KpiTile
+          label="Utilization"
+          value={`${(kpis.utilization * 100).toFixed(0)}%`}
+          hint={`share of an ${kpis.defaultDayMinutes / 60}-hour day`}
+        />
+        {kpis.weeklyTargetHours != null && (
+          <KpiTile
+            label="Week vs target"
+            value={formatHmm(kpis.weekWallClockMin ?? 0)}
+            hint={`of ${formatHmm(kpis.weeklyTargetHours * 60)} target`}
+          />
+        )}
       </div>
 
       <section className="card">

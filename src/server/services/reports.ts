@@ -13,6 +13,8 @@ import { canSeeMoney, hasRole, type SessionContext } from '~/server/context'
 import { schema, type Db } from '~/server/db'
 import type { KpiInput, PeriodInput } from '~/lib/schemas/reports'
 import type { Deps } from './deps'
+import { getOrgSettings } from './settings'
+import { isoWeekStart, weekDates } from '~/lib/week'
 
 /** Recon without money, for operators (#5). */
 export type TimeRecon = Omit<Recon, 'cents'>
@@ -43,9 +45,12 @@ export type AdminKpis = {
   structure: { clients: number; projects: number; jobs: number }
   todayBillableCents: number
   todayPremiumMin: number
-  utilization: number // Σ wall-clock / (active humans × 8h), 0..1+
+  utilization: number // Σ wall-clock / (active humans × default day), 0..1+
   perWorker: { workerId: string; name: string; wallClockMin: number; utilization: number }[]
   effortSeries: { hour: number; effortMin: number; wallClockMin: number }[]
+  defaultDayMinutes: number
+  weekWallClockMin?: number
+  weeklyTargetHours: number | null
 }
 
 export type JobRecon = { jobId: string; jobName: string; projectName: string; clientName: string } & RoleRecon
@@ -265,6 +270,8 @@ export async function operatorLanes(deps: Deps, ctx: SessionContext, input: Peri
 export async function adminKpis(deps: Deps, ctx: SessionContext, input: KpiInput): Promise<AdminKpis> {
   if (!canSeeMoney(ctx)) throw new HttpError(403, 'FORBIDDEN')
   const { db, tz } = deps
+  const settings = await getOrgSettings(deps, ctx)
+  const dayMinutes = settings.defaultDayMinutes
 
   const allWorkers = await db
     .select({ id: schema.workers.id, kind: schema.workers.kind })
@@ -294,15 +301,15 @@ export async function adminKpis(deps: Deps, ctx: SessionContext, input: KpiInput
     : []
   const nameMap = new Map(humanNames.map((u) => [u.workerId, u.name]))
 
-  const dayMinutes = 8 * 60
   const perWorker = workerIds.map((workerId) => {
     const r = recon(byWorker.get(workerId)!)
     return {
       workerId,
       name: nameMap.get(workerId) ?? '?',
       wallClockMin: r.wallClockMin,
-      // Per-worker denominator is a single 8h day, not the org-wide headcount
-      // × 8h. The aggregate `utilization` below keeps the org-wide form. (#M1)
+      // Per-worker denominator is a single default day (org setting), not the
+      // org-wide headcount × default day. The aggregate `utilization` below
+      // keeps the org-wide form. (#M1)
       utilization: r.wallClockMin / dayMinutes,
     }
   })
@@ -327,6 +334,10 @@ export async function adminKpis(deps: Deps, ctx: SessionContext, input: KpiInput
     effortSeries.push({ hour: h, effortMin: r.effortMin, wallClockMin: r.wallClockMin })
   }
 
+  const weekStartIso = isoWeekStart(deps.now().getTime(), deps.tz)
+  const weekEndIso = weekDates(weekStartIso)[6]!
+  const weekR = recon(await loadPieces(deps, { from: weekStartIso, to: weekEndIso }))
+
   return {
     date: input.date,
     workers: { humans, agents },
@@ -340,6 +351,9 @@ export async function adminKpis(deps: Deps, ctx: SessionContext, input: KpiInput
     utilization: humans > 0 ? dayR.wallClockMin / (humans * dayMinutes) : 0,
     perWorker,
     effortSeries,
+    defaultDayMinutes: dayMinutes,
+    weekWallClockMin: weekR.wallClockMin,
+    weeklyTargetHours: settings.defaultWeeklyTargetHours,
   }
 }
 
