@@ -185,3 +185,12 @@ export const approvalEvents = sqliteTable('approval_events', {
   reason: text('reason'),
   at: ts('at').notNull(),
 })
+
+// ---- Org settings (#3: single row, id 'org') ----
+export const orgSettings = sqliteTable('org_settings', {
+  id: text('id').primaryKey(),
+  defaultBillableRateCents: integer('default_billable_rate_cents'),
+  defaultDayMinutes: integer('default_day_minutes').notNull().default(480),
+  defaultWeeklyTargetHours: integer('default_weekly_target_hours'),
+  updatedAt: ts('updated_at').notNull(),
+})

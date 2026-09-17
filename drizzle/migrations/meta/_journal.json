@@ -8,6 +8,13 @@
       "when": 1788855778957,
       "tag": "0000_chemical_spot",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789622662972,
+      "tag": "0001_smiling_captain_cross",
+      "breakpoints": true
     }
   ]
 }

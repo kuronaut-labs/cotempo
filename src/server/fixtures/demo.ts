@@ -76,6 +76,7 @@ export async function insertDemo(db: Db, opts: { anchorMs?: number } = {}) {
         { id: ids.j4, projectId: ids.p2, name: 'Internal Data Cleansing', billableRateCents: null, createdAt: now },
       ])
       .onConflictDoNothing(),
+    db.insert(schema.orgSettings).values({ id: 'org', defaultBillableRateCents: 10_000, defaultDayMinutes: 480, defaultWeeklyTargetHours: 40, updatedAt: now }).onConflictDoNothing(),
   ])
 
   const iv = (id: string, workerId: string, jobId: string, rateCents: number | null, d: number, h1: number, h2: number) => ({
