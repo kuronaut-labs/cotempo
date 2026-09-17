@@ -1,5 +1,6 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router'
 import globalCss from '~/styles/global.css?url'
+import uiCss from '~/styles/ui.css?url'
 import printCss from '~/styles/print.css?url'
 
 export const Route = createRootRoute({
@@ -18,6 +19,7 @@ export const Route = createRootRoute({
           'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap',
       },
       { rel: 'stylesheet', href: globalCss },
+      { rel: 'stylesheet', href: uiCss },
       { rel: 'stylesheet', href: printCss },
     ],
   }),
