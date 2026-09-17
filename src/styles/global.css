@@ -696,6 +696,7 @@ input[type='radio']:disabled:checked::after {
   font-family: var(--font-mono);
   font-size: 11px;
   background: var(--surface-card);
+  border-radius: var(--radius-xs);
 }
 .trio.lg { font-size: 13px; }
 .trio .seg {
@@ -721,7 +722,7 @@ input[type='radio']:disabled:checked::after {
   font-variant-numeric: tabular-nums;
 }
 .trio.lg .v { font-size: 16px; }
-.trio .seg.b .v { color: var(--color-success); }
+.trio .seg.b .v { color: var(--color-success-text); }
 .trio .seg.p .v { color: var(--premium-text); }
 .trio .dollar .v {
   color: var(--color-primary);
@@ -763,12 +764,10 @@ input[type='radio']:disabled:checked::after {
 .subtabs {
   display: flex;
   gap: var(--space-1);
-  border-bottom: 1px solid var(--color-tertiary);
+  border-bottom: 1px solid var(--border-card);
 }
 .subtab {
-  font: 500 12px/1 var(--font-body);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font: 500 14px/1 var(--font-body);
   color: var(--color-info);
   text-decoration: none;
   padding: var(--space-2) var(--space-3);
@@ -951,6 +950,8 @@ input[type='radio']:disabled:checked::after {
   background: var(--surface-card);
   border: 1px solid var(--border-card);
   padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
 }
 .kpi .k {
   font: 500 11px/1.2 var(--font-mono);
@@ -959,7 +960,7 @@ input[type='radio']:disabled:checked::after {
   color: var(--color-info);
 }
 .kpi .v {
-  font: 700 24px/1.2 var(--font-body);
+  font: 600 24px/1.2 var(--font-body);
   color: var(--color-primary);
   margin-top: var(--space-1);
   font-variant-numeric: tabular-nums;
@@ -1115,7 +1116,7 @@ input[type='radio']:disabled:checked::after {
 .tabs {
   display: flex;
   gap: var(--space-1);
-  border-bottom: 1px solid var(--color-tertiary);
+  border-bottom: 1px solid var(--border-card);
   margin-bottom: var(--space-5);
 }
 .tab {
@@ -1179,6 +1180,8 @@ input[type='radio']:disabled:checked::after {
   border: 1px solid var(--color-tertiary);
   padding: 18px;
   margin-bottom: 18px;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
 }
 
 .reports-panel .card h2 {
