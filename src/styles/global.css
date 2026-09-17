@@ -918,7 +918,7 @@ input[type='radio']:disabled:checked::after {
   white-space: nowrap;
   text-align: right;
 }
-.dailytable .dailycell .b { color: var(--color-success); }
+.dailytable .dailycell .b { color: var(--color-success-text); }
 .dailytable .dailycell .h { color: var(--color-primary); }
 .dailytable .dailycell .p { color: var(--premium-text); }
 .dailytable .dailycell.empty {
@@ -1011,6 +1011,7 @@ input[type='radio']:disabled:checked::after {
   gap: var(--space-1);
   border: 1px solid var(--border-card);
   background: var(--surface-card);
+  border-radius: var(--radius-md);
   padding: var(--space-2) var(--space-3);
 }
 
@@ -1236,7 +1237,7 @@ input[type='radio']:disabled:checked::after {
 }
 
 .util-row .fill.high {
-  background: var(--premium-fill);
+  background: var(--color-warning);
 }
 
 .util-row .val {
