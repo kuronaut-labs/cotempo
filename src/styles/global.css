@@ -816,253 +816,160 @@ input[type='radio']:disabled:checked::after {
   border-bottom-color: var(--color-primary);
 }
 
-/* ---------- reconciliation table (5.2b) ---------- */
-
 .recontable {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font: 400 14px/1.6 var(--font-body);
 }
-
 .recontable thead th {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.12em;
+  font: 500 10px/1.2 var(--font-mono);
   text-transform: uppercase;
-  color: var(--muted);
+  letter-spacing: 0.12em;
+  color: var(--color-info);
   text-align: left;
-  border-bottom: 1px solid var(--line);
-  padding: 8px 12px;
-  font-weight: 500;
+  border-bottom: 1px solid var(--color-tertiary);
+  padding: var(--space-2) var(--space-3);
 }
-
 .recontable tbody td {
   border-bottom: 1px solid var(--divider);
-  padding: 12px;
-  vertical-align: middle;
+  padding: var(--space-2) var(--space-3);
 }
-
-.recontable tbody tr:last-child td {
-  border-bottom: none;
-}
-
 .recontable tfoot td {
-  border-top: 1px solid var(--line);
-  padding: 14px 12px;
-  font-family: var(--body);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
+  border-top: 1px solid var(--color-tertiary);
+  padding: var(--space-2) var(--space-3);
+  font: 600 14px/1.6 var(--font-body);
+  color: var(--color-primary);
 }
-
-.recontable .nm {
-  font-family: var(--body);
-  font-size: 13px;
-  color: var(--text);
-}
-
+.recontable .nm { font: 400 14px/1.6 var(--font-body); color: var(--color-primary); }
 .recontable .money {
   text-align: right;
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 12px;
-  color: var(--text);
+  color: var(--color-primary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-
-/* ---------- reconciliation bars (5.2b) ---------- */
 
 .recon {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin: 8px 0;
-  font-family: var(--mono);
+  gap: var(--space-3);
+  margin: var(--space-2) 0;
+  font-family: var(--font-mono);
   font-size: 11px;
 }
-
 .recon .nm {
   width: 180px;
   flex: none;
-  color: var(--text);
-  font-family: var(--body);
-  font-size: 13px;
+  font: 400 14px/1.6 var(--font-body);
+  color: var(--color-primary);
 }
-
 .recon .barwrap {
   flex: 1;
   height: 18px;
-  background: var(--panel2);
-  border: 1px solid var(--line);
-  border-radius: 4px;
+  background: var(--fill-hover);
+  border: 1px solid var(--color-tertiary);
   position: relative;
   overflow: hidden;
 }
-
-.recon .bar {
+.recon .bar { position: absolute; top: 0; bottom: 0; }
+.recon .bar.honest { background: var(--color-primary); }
+.recon .bar .lbl {
   position: absolute;
-  top: 0;
-  height: 100%;
+  top: 1px;
+  left: var(--space-1);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-secondary);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
 }
-
-.recon .bar.honest {
-  background: var(--pos);
-  opacity: 0.85;
-}
-
 .recon .bar.premium {
   background: repeating-linear-gradient(45deg, var(--premium-fill) 0 4px, transparent 4px 8px);
   border-left: 1px solid var(--premium-fill);
 }
-
-.recon .bar .lbl {
-  position: absolute;
-  top: 1px;
-  left: 6px;
-  font-size: 10px;
-  color: var(--j-ink);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  pointer-events: none;
-}
-
 .recon .nums {
   width: 220px;
   flex: none;
   text-align: right;
-  color: var(--muted);
-  font-size: 11px;
+  color: var(--color-info);
   font-variant-numeric: tabular-nums;
 }
-
-.recon .nums b {
-  color: var(--text);
-  font-weight: 600;
-}
-
-.recon .nums .premium-tag {
-  color: var(--j4);
-}
+.recon .nums b { color: var(--color-primary); font-weight: 600; }
+.recon .premium-tag { color: var(--premium-text); }
 
 .reconbars .legend {
   display: flex;
-  gap: 14px;
   align-items: center;
-  margin: 0 0 10px;
-  font-family: var(--mono);
+  gap: var(--space-4);
+  margin-bottom: var(--space-2);
+  font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--muted);
+  color: var(--color-info);
 }
-
 .reconbars .legend .sw {
+  display: inline-block;
   width: 10px;
   height: 10px;
-  border-radius: 2px;
-  display: inline-block;
-  margin-right: 4px;
-  vertical-align: middle;
 }
-
-/* ---------- daily breakdown table (5.2c) ---------- */
+.reconbars .legend .sw.honest { background: var(--color-primary); }
+.reconbars .legend .sw.premium { background: var(--premium-fill); }
 
 .dailytable {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 8px;
+  font: 400 14px/1.6 var(--font-body);
 }
-
 .dailytable thead th {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
+  font: 500 10px/1.2 var(--font-mono);
   text-transform: uppercase;
-  color: var(--muted);
+  letter-spacing: 0.12em;
+  color: var(--color-info);
   text-align: left;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--line);
-  font-weight: 500;
+  border-bottom: 1px solid var(--color-tertiary);
+  padding: var(--space-2);
 }
-
-.dailytable thead th.num {
-  text-align: right;
-}
-
+.dailytable thead th.num { text-align: right; }
 .dailytable tbody td {
-  padding: 10px;
   border-bottom: 1px solid var(--divider);
-  vertical-align: top;
+  padding: var(--space-2);
 }
-
-.dailytable tbody tr:last-child td {
-  border-bottom: none;
+.dailytable tbody tr:hover { background: var(--fill-hover); }
+.dailytable tr.total td {
+  border-top: 1px solid var(--color-tertiary);
+  font-weight: 600;
 }
-
-.dailytable tbody tr:hover {
-  background: var(--panel2);
-}
-
-.dailytable td.daylabel {
-  color: var(--text);
-  font-family: var(--body);
-  font-size: 13px;
-  font-weight: 500;
+.dailytable .daylabel {
+  font: 500 13px/1.4 var(--font-body);
+  color: var(--color-primary);
   white-space: nowrap;
 }
-
-.dailytable td.daylabel .dayrel {
-  font-family: var(--mono);
-  font-size: 9px;
-  color: var(--faint);
+.dailytable .dayrel {
   display: block;
   margin-top: 2px;
+  font: 400 9px/1.2 var(--font-mono);
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  font-weight: 400;
+  color: var(--border-input-hover);
 }
-
-.dailycell {
-  font-family: var(--mono);
+.dailytable .dailycell {
+  font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   text-align: right;
 }
-
-.dailycell .b {
-  color: var(--pos);
-}
-
-.dailycell .h {
-  color: var(--text);
-}
-
-.dailycell .p {
-  color: var(--j4);
-}
-
-.dailycell.empty {
-  color: var(--faint);
+.dailytable .dailycell .b { color: var(--color-success); }
+.dailytable .dailycell .h { color: var(--color-primary); }
+.dailytable .dailycell .p { color: var(--premium-text); }
+.dailytable .dailycell.empty {
+  color: var(--border-input-hover);
   text-align: center;
-  font-family: var(--mono);
 }
-
-.dailytable tr.total td {
-  border-top: 1px solid var(--line);
-  padding-top: 12px;
-  font-family: var(--body);
-  color: var(--text);
-}
-
-.dailytable tr.total td.daylabel {
-  font-weight: 600;
-}
-
-.dailytable tr.total td .b,
-.dailytable tr.total td .h,
-.dailytable tr.total td .p {
-  font-weight: 600;
-}
+.dailytable tr.total .b,
+.dailytable tr.total .h,
+.dailytable tr.total .p { font-weight: 600; }
 
 /* ---------- worker tag (human/agent) (5.2d) ---------- */
 

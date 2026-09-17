@@ -26,12 +26,12 @@ export function ReconBars({ report }: { report: ReconciliationReport }) {
     <div className="reconbars">
       <div className="legend">
         <span>
-          <span className="sw" style={{ background: 'var(--pos)' }} />wall-clock
+          <span className="sw" style={{ background: 'var(--color-primary)' }} />wall-clock
         </span>
         <span>
           <span
             className="sw"
-            style={{ background: 'repeating-linear-gradient(45deg, var(--j4) 0 3px, #6b4e1f 3px 6px)' }}
+            style={{ background: 'var(--premium-fill)' }}
           />
           premium
         </span>
