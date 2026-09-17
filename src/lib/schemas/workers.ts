@@ -11,6 +11,7 @@ export const InviteInput = z.object({
   name: z.string().min(1).max(100),
   roles,
   supervisorId: z.string().min(1).nullable().optional(),
+  positionId: z.string().min(1).nullable().optional(),
 })
 export const ResendInviteInput = z.object({ workerId: z.string().min(1) })
 export const AgentWorkerInput = z.object({

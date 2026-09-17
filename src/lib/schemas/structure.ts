@@ -1,14 +1,15 @@
 import { z } from 'zod'
 
 const name = z.string().min(1).max(100)
-// null = non-billable, 0 = billable at $0 (#18)
+// null = non-billable, 0 = billable at $0 (#18); omitted in create = org default
 const rate = z.number().int().min(0).nullable()
+const createRate = z.number().int().min(0).nullish()
 
 export const CreateClientInput = z.object({ name })
 export const UpdateClientInput = z.object({ id: z.string().min(1), name })
 export const CreateProjectInput = z.object({ clientId: z.string().min(1), name })
 export const UpdateProjectInput = z.object({ id: z.string().min(1), name })
-export const CreateJobInput = z.object({ projectId: z.string().min(1), name, billableRateCents: rate })
+export const CreateJobInput = z.object({ projectId: z.string().min(1), name, billableRateCents: createRate })
 export const UpdateJobInput = z.object({ id: z.string().min(1), name: name.optional(), billableRateCents: rate.optional() })
 export const ArchiveInput = z.object({ id: z.string().min(1) })
 export const ListStructureInput = z.object({ includeArchived: z.boolean().default(false) })

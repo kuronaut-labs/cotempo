@@ -76,7 +76,10 @@ export function stripBlocks(day: Range, intervals: StripInterval[]): StripLayout
       // peak-count region is a distinct island (e.g. two overlap, then three, then two).
       if (prev && prev.endMs === runStart && prev.count === runCount) {
         prev.endMs = ev.ms
-        prev.widthPct = pct(ev.ms - runStart, span)
+        // Width spans the entire merged region (prev.startMs..ev.ms), not just
+        // the extension. Measuring from runStart (the merge point) was the
+        // pre-wave-3 bug — it rendered merged regions at extension-only width.
+        prev.widthPct = pct(ev.ms - prev.startMs, span)
       } else {
         overlaps.push({
           startMs: runStart,
@@ -113,7 +116,7 @@ export function MiniStrip({
         {blocks.map((b) => {
           const n = jobColorIndex[b.jobId]
           const colorClass = n ? `job-c${Math.min(5, Math.max(1, n))}` : ''
-          const style = colorClass ? undefined : { background: 'var(--line)', color: 'var(--text)' }
+          const style = colorClass ? undefined : { background: 'var(--color-tertiary)', color: 'var(--color-primary)' }
           return (
             <div
               key={b.id}
@@ -131,6 +134,11 @@ export function MiniStrip({
             <span className="ministrip-overlap-tag">×{o.count}</span>
           </div>
         ))}
+      </div>
+      <div className="ministrip-legend" aria-label="Timeline legend">
+        <span><b>‹</b> starts before this day</span>
+        <span><b>›</b> ends after this day</span>
+        <span><b>×N</b> N entries overlap</span>
       </div>
     </div>
   )

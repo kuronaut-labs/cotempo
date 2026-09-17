@@ -13,9 +13,21 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteRouteImport } from './routes/_app/route'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetPasswordRouteImport } from './routes/set-password'
+import { Route as AppAdminRouteRouteImport } from './routes/_app/admin/route'
+import { Route as AppApprovalsRouteImport } from './routes/_app/approvals'
+import { Route as AppInvoiceRouteImport } from './routes/_app/invoice'
+import { Route as AppLeaveRouteImport } from './routes/_app/leave'
+import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppTodayRouteImport } from './routes/_app/today'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as DevComponentsRouteImport } from './routes/dev.components'
+import { Route as AppAdminClientsRouteImport } from './routes/_app/admin/clients'
+import { Route as AppAdminJobsRouteImport } from './routes/_app/admin/jobs'
+import { Route as AppAdminLeaveRouteImport } from './routes/_app/admin/leave'
+import { Route as AppAdminPositionsRouteImport } from './routes/_app/admin/positions'
+import { Route as AppAdminProjectsRouteImport } from './routes/_app/admin/projects'
+import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
+import { Route as AppAdminWorkersRouteImport } from './routes/_app/admin/workers'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -37,6 +49,31 @@ const SetPasswordRoute = SetPasswordRouteImport.update({
   path: '/set-password',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppAdminRouteRoute = AppAdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppApprovalsRoute = AppApprovalsRouteImport.update({
+  id: '/approvals',
+  path: '/approvals',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppInvoiceRoute = AppInvoiceRouteImport.update({
+  id: '/invoice',
+  path: '/invoice',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppLeaveRoute = AppLeaveRouteImport.update({
+  id: '/leave',
+  path: '/leave',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppReportsRoute = AppReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppTodayRoute = AppTodayRouteImport.update({
   id: '/today',
   path: '/today',
@@ -52,6 +89,41 @@ const DevComponentsRoute = DevComponentsRouteImport.update({
   path: '/dev/components',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppAdminClientsRoute = AppAdminClientsRouteImport.update({
+  id: '/clients',
+  path: '/clients',
+  getParentRoute: () => AppAdminRouteRoute,
+} as any)
+const AppAdminJobsRoute = AppAdminJobsRouteImport.update({
+  id: '/jobs',
+  path: '/jobs',
+  getParentRoute: () => AppAdminRouteRoute,
+} as any)
+const AppAdminLeaveRoute = AppAdminLeaveRouteImport.update({
+  id: '/leave',
+  path: '/leave',
+  getParentRoute: () => AppAdminRouteRoute,
+} as any)
+const AppAdminPositionsRoute = AppAdminPositionsRouteImport.update({
+  id: '/positions',
+  path: '/positions',
+  getParentRoute: () => AppAdminRouteRoute,
+} as any)
+const AppAdminProjectsRoute = AppAdminProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
+  getParentRoute: () => AppAdminRouteRoute,
+} as any)
+const AppAdminSettingsRoute = AppAdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppAdminRouteRoute,
+} as any)
+const AppAdminWorkersRoute = AppAdminWorkersRouteImport.update({
+  id: '/workers',
+  path: '/workers',
+  getParentRoute: () => AppAdminRouteRoute,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -62,18 +134,42 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
+  '/admin': typeof AppAdminRouteRouteWithChildren
+  '/approvals': typeof AppApprovalsRoute
+  '/invoice': typeof AppInvoiceRoute
+  '/leave': typeof AppLeaveRoute
+  '/reports': typeof AppReportsRoute
   '/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
   '/dev/components': typeof DevComponentsRoute
+  '/admin/clients': typeof AppAdminClientsRoute
+  '/admin/jobs': typeof AppAdminJobsRoute
+  '/admin/leave': typeof AppAdminLeaveRoute
+  '/admin/positions': typeof AppAdminPositionsRoute
+  '/admin/projects': typeof AppAdminProjectsRoute
+  '/admin/settings': typeof AppAdminSettingsRoute
+  '/admin/workers': typeof AppAdminWorkersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
+  '/admin': typeof AppAdminRouteRouteWithChildren
+  '/approvals': typeof AppApprovalsRoute
+  '/invoice': typeof AppInvoiceRoute
+  '/leave': typeof AppLeaveRoute
+  '/reports': typeof AppReportsRoute
   '/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
   '/dev/components': typeof DevComponentsRoute
+  '/admin/clients': typeof AppAdminClientsRoute
+  '/admin/jobs': typeof AppAdminJobsRoute
+  '/admin/leave': typeof AppAdminLeaveRoute
+  '/admin/positions': typeof AppAdminPositionsRoute
+  '/admin/projects': typeof AppAdminProjectsRoute
+  '/admin/settings': typeof AppAdminSettingsRoute
+  '/admin/workers': typeof AppAdminWorkersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
@@ -82,9 +178,21 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteRouteWithChildren
   '/login': typeof LoginRoute
   '/set-password': typeof SetPasswordRoute
+  '/_app/admin': typeof AppAdminRouteRouteWithChildren
+  '/_app/approvals': typeof AppApprovalsRoute
+  '/_app/invoice': typeof AppInvoiceRoute
+  '/_app/leave': typeof AppLeaveRoute
+  '/_app/reports': typeof AppReportsRoute
   '/_app/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
   '/dev/components': typeof DevComponentsRoute
+  '/_app/admin/clients': typeof AppAdminClientsRoute
+  '/_app/admin/jobs': typeof AppAdminJobsRoute
+  '/_app/admin/leave': typeof AppAdminLeaveRoute
+  '/_app/admin/positions': typeof AppAdminPositionsRoute
+  '/_app/admin/projects': typeof AppAdminProjectsRoute
+  '/_app/admin/settings': typeof AppAdminSettingsRoute
+  '/_app/admin/workers': typeof AppAdminWorkersRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
@@ -93,18 +201,42 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/set-password'
+    | '/admin'
+    | '/approvals'
+    | '/invoice'
+    | '/leave'
+    | '/reports'
     | '/today'
     | '/api/health'
     | '/dev/components'
+    | '/admin/clients'
+    | '/admin/jobs'
+    | '/admin/leave'
+    | '/admin/positions'
+    | '/admin/projects'
+    | '/admin/settings'
+    | '/admin/workers'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
     | '/set-password'
+    | '/admin'
+    | '/approvals'
+    | '/invoice'
+    | '/leave'
+    | '/reports'
     | '/today'
     | '/api/health'
     | '/dev/components'
+    | '/admin/clients'
+    | '/admin/jobs'
+    | '/admin/leave'
+    | '/admin/positions'
+    | '/admin/projects'
+    | '/admin/settings'
+    | '/admin/workers'
     | '/api/auth/$'
   id:
     | '__root__'
@@ -112,9 +244,21 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/set-password'
+    | '/_app/admin'
+    | '/_app/approvals'
+    | '/_app/invoice'
+    | '/_app/leave'
+    | '/_app/reports'
     | '/_app/today'
     | '/api/health'
     | '/dev/components'
+    | '/_app/admin/clients'
+    | '/_app/admin/jobs'
+    | '/_app/admin/leave'
+    | '/_app/admin/positions'
+    | '/_app/admin/projects'
+    | '/_app/admin/settings'
+    | '/_app/admin/workers'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
@@ -158,6 +302,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/admin': {
+      id: '/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AppAdminRouteRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/approvals': {
+      id: '/_app/approvals'
+      path: '/approvals'
+      fullPath: '/approvals'
+      preLoaderRoute: typeof AppApprovalsRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/invoice': {
+      id: '/_app/invoice'
+      path: '/invoice'
+      fullPath: '/invoice'
+      preLoaderRoute: typeof AppInvoiceRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/leave': {
+      id: '/_app/leave'
+      path: '/leave'
+      fullPath: '/leave'
+      preLoaderRoute: typeof AppLeaveRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/reports': {
+      id: '/_app/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/_app/today': {
       id: '/_app/today'
       path: '/today'
@@ -179,6 +358,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DevComponentsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/admin/clients': {
+      id: '/_app/admin/clients'
+      path: '/clients'
+      fullPath: '/admin/clients'
+      preLoaderRoute: typeof AppAdminClientsRouteImport
+      parentRoute: typeof AppAdminRouteRoute
+    }
+    '/_app/admin/jobs': {
+      id: '/_app/admin/jobs'
+      path: '/jobs'
+      fullPath: '/admin/jobs'
+      preLoaderRoute: typeof AppAdminJobsRouteImport
+      parentRoute: typeof AppAdminRouteRoute
+    }
+    '/_app/admin/leave': {
+      id: '/_app/admin/leave'
+      path: '/leave'
+      fullPath: '/admin/leave'
+      preLoaderRoute: typeof AppAdminLeaveRouteImport
+      parentRoute: typeof AppAdminRouteRoute
+    }
+    '/_app/admin/positions': {
+      id: '/_app/admin/positions'
+      path: '/positions'
+      fullPath: '/admin/positions'
+      preLoaderRoute: typeof AppAdminPositionsRouteImport
+      parentRoute: typeof AppAdminRouteRoute
+    }
+    '/_app/admin/projects': {
+      id: '/_app/admin/projects'
+      path: '/projects'
+      fullPath: '/admin/projects'
+      preLoaderRoute: typeof AppAdminProjectsRouteImport
+      parentRoute: typeof AppAdminRouteRoute
+    }
+    '/_app/admin/settings': {
+      id: '/_app/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AppAdminSettingsRouteImport
+      parentRoute: typeof AppAdminRouteRoute
+    }
+    '/_app/admin/workers': {
+      id: '/_app/admin/workers'
+      path: '/workers'
+      fullPath: '/admin/workers'
+      preLoaderRoute: typeof AppAdminWorkersRouteImport
+      parentRoute: typeof AppAdminRouteRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -189,11 +417,45 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppAdminRouteRouteChildren {
+  AppAdminClientsRoute: typeof AppAdminClientsRoute
+  AppAdminJobsRoute: typeof AppAdminJobsRoute
+  AppAdminLeaveRoute: typeof AppAdminLeaveRoute
+  AppAdminPositionsRoute: typeof AppAdminPositionsRoute
+  AppAdminProjectsRoute: typeof AppAdminProjectsRoute
+  AppAdminSettingsRoute: typeof AppAdminSettingsRoute
+  AppAdminWorkersRoute: typeof AppAdminWorkersRoute
+}
+
+const AppAdminRouteRouteChildren: AppAdminRouteRouteChildren = {
+  AppAdminClientsRoute: AppAdminClientsRoute,
+  AppAdminJobsRoute: AppAdminJobsRoute,
+  AppAdminLeaveRoute: AppAdminLeaveRoute,
+  AppAdminPositionsRoute: AppAdminPositionsRoute,
+  AppAdminProjectsRoute: AppAdminProjectsRoute,
+  AppAdminSettingsRoute: AppAdminSettingsRoute,
+  AppAdminWorkersRoute: AppAdminWorkersRoute,
+}
+
+const AppAdminRouteRouteWithChildren = AppAdminRouteRoute._addFileChildren(
+  AppAdminRouteRouteChildren,
+)
+
 interface AppRouteRouteChildren {
+  AppAdminRouteRoute: typeof AppAdminRouteRouteWithChildren
+  AppApprovalsRoute: typeof AppApprovalsRoute
+  AppInvoiceRoute: typeof AppInvoiceRoute
+  AppLeaveRoute: typeof AppLeaveRoute
+  AppReportsRoute: typeof AppReportsRoute
   AppTodayRoute: typeof AppTodayRoute
 }
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
+  AppAdminRouteRoute: AppAdminRouteRouteWithChildren,
+  AppApprovalsRoute: AppApprovalsRoute,
+  AppInvoiceRoute: AppInvoiceRoute,
+  AppLeaveRoute: AppLeaveRoute,
+  AppReportsRoute: AppReportsRoute,
   AppTodayRoute: AppTodayRoute,
 }
 

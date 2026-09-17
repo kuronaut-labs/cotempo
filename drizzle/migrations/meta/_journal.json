@@ -8,6 +8,27 @@
       "when": 1788855778957,
       "tag": "0000_chemical_spot",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789622662972,
+      "tag": "0001_smiling_captain_cross",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789624503075,
+      "tag": "0002_happy_cloak",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1789631220538,
+      "tag": "0003_cold_proteus",
+      "breakpoints": true
     }
   ]
 }

@@ -5,7 +5,7 @@ export const PeriodInput = z
   .refine((v) => v.to >= v.from, { message: 'TO_BEFORE_FROM', path: ['to'] })
 export const DailyReportInput = PeriodInput
 export const KpiInput = z.object({ date: z.iso.date() })
-export const ExportCsvInput = z.object({ from: z.iso.date(), to: z.iso.date(), view: z.enum(['intervals', 'daily']) })
+export const ExportCsvInput = z.object({ from: z.iso.date(), to: z.iso.date(), view: z.enum(['intervals', 'daily', 'leave']) })
 export const InvoiceInput = z.object({ clientId: z.string().min(1), from: z.iso.date(), to: z.iso.date() })
 
 export type PeriodInput = z.infer<typeof PeriodInput>

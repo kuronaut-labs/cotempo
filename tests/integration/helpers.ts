@@ -16,6 +16,9 @@ export const userIdOf = (workerId: string) => `user-${workerId}`
 export async function resetDb() {
   await db.batch([
     db.delete(schema.approvalEvents),
+    db.delete(schema.leaveEvents),
+    db.delete(schema.leaveRequests),
+    db.delete(schema.leaveTypes),
     db.delete(schema.approvals),
     db.delete(schema.intervals),
     db.delete(schema.jobs),
@@ -48,7 +51,7 @@ export async function resetDb() {
     .onConflictDoNothing()
   await db
     .insert(schema.humanWorkers)
-    .values(demoHumans.map((h) => ({ workerId: h.workerId, userId: userIdOf(h.workerId), roles: JSON.stringify(h.roles) })))
+    .values(demoHumans.map((h) => ({ workerId: h.workerId, userId: userIdOf(h.workerId), roles: JSON.stringify(h.roles), positionId: h.positionId ?? null })))
     .onConflictDoNothing()
 }
 

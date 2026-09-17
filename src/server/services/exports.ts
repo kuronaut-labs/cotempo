@@ -1,6 +1,14 @@
-import type { SessionContext } from '~/server/context'
+import { and, eq, gt, inArray, isNull, lt } from 'drizzle-orm'
+import { clipPieces, explode, recon as piecesRecon, type Piece, type Recon } from '~/lib/attribution'
+import { localDayBoundariesUtcMs } from '~/lib/dayMath'
+import { moneyCents, formatDecimalHours } from '~/lib/money'
+import { HttpError } from '~/lib/errors'
+import { canSeeMoney, type SessionContext } from '~/server/context'
+import { schema, type Db } from '~/server/db'
 import type { ExportCsvInput, InvoiceInput } from '~/lib/schemas/reports'
-import type { Recon } from '~/lib/attribution'
+import { groupBy } from '~/lib/attribution'
+import { loadPieces } from './reports'
+import { leaveExportRows } from './leave'
 import type { Deps } from './deps'
 
 export const INTERVALS_CSV_COLUMNS = [
@@ -14,29 +22,248 @@ export const INTERVALS_CSV_COLUMNS = [
   'end',
   'minutes',
   'billable_minutes',
-  'rate_cents',
-  'amount_cents',
-  'wall_clock_minutes',
-  'premium_minutes',
+  'rate_dollars',
+  'amount_dollars',
+  'clock_minutes',
+  'overlap_minutes',
   'entered_by',
   'created_at',
   'edit_count',
   'org_timezone',
 ] as const
 
+export const LEAVE_CSV_COLUMNS = [
+  'worker',
+  'type',
+  'startDay',
+  'endDay',
+  'hours',
+  'status',
+  'decidedBy',
+] as const
+
 export const DAILY_CSV_COLUMNS = [
   'day',
   'client',
   'billable_minutes',
-  'wall_clock_minutes',
-  'premium_minutes',
-  'amount_cents',
+  'clock_minutes',
+  'overlap_minutes',
+  'amount_dollars',
   'org_timezone',
 ] as const
 
-/** RFC 4180 rows; one row per piece for `intervals`, one per day×client for `daily` (#11, #14). */
-export async function exportCsv(_deps: Deps, _ctx: SessionContext, _input: ExportCsvInput): Promise<{ filename: string; body: string }> {
-  throw new Error('TODO Task 7.1')
+function csvCell(v: string | number | null | undefined): string {
+  if (v === null || v === undefined) return ''
+  let s = String(v)
+  // Excel/Sheets execute a cell whose first char is one of these as a formula.
+  // Worker/job/client names and the operator-controlled `note` reach billing
+  // staff, so prefix with a single quote to force text rendering. (#M9)
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`
+  return s
+}
+
+function csvRow(cells: (string | number | null | undefined)[]): string {
+  return cells.map(csvCell).join(',')
+}
+
+type IntervalRow = {
+  id: string
+  workerId: string
+  jobId: string
+  jobName: string
+  projectName: string
+  clientId: string
+  clientName: string
+  rateCents: number | null
+  startedAt: Date
+  endedAt: Date
+  createdBy: string
+  createdAt: Date
+  editCount: number
+}
+
+async function loadIntervalRowsForCsv(db: Db, workerIds: string[], startMs: number, endMs: number): Promise<IntervalRow[]> {
+  if (workerIds.length === 0) return []
+  return db
+    .select({
+      id: schema.intervals.id,
+      workerId: schema.intervals.workerId,
+      workerKind: schema.workers.kind,
+      workerName: schema.workers.name,
+      jobId: schema.intervals.jobId,
+      jobName: schema.jobs.name,
+      projectName: schema.projects.name,
+      clientId: schema.projects.clientId,
+      clientName: schema.clients.name,
+      rateCents: schema.intervals.rateCents,
+      startedAt: schema.intervals.startedAt,
+      endedAt: schema.intervals.endedAt,
+      createdBy: schema.intervals.createdBy,
+      createdAt: schema.intervals.createdAt,
+      editCount: schema.intervals.editCount,
+    })
+    .from(schema.intervals)
+    .innerJoin(schema.jobs, eq(schema.jobs.id, schema.intervals.jobId))
+    .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
+    .innerJoin(schema.clients, eq(schema.clients.id, schema.projects.clientId))
+    .innerJoin(schema.workers, eq(schema.workers.id, schema.intervals.workerId))
+    .where(
+      and(
+        isNull(schema.intervals.deletedAt),
+        inArray(schema.intervals.workerId, workerIds),
+        lt(schema.intervals.startedAt, new Date(endMs)),
+        gt(schema.intervals.endedAt, new Date(startMs)),
+      ),
+    )
+    .all()
+}
+
+async function workerNamesForBilling(db: Db): Promise<Map<string, { name: string; kind: 'human' | 'agent' }>> {
+  const rows = await db
+    .select({
+      id: schema.workers.id,
+      kind: schema.workers.kind,
+      workerName: schema.workers.name,
+      userName: schema.user.name,
+    })
+    .from(schema.workers)
+    .leftJoin(schema.humanWorkers, eq(schema.humanWorkers.workerId, schema.workers.id))
+    .leftJoin(schema.user, eq(schema.user.id, schema.humanWorkers.userId))
+    .all()
+  return new Map(rows.map((r) => [r.id, { name: r.userName ?? r.workerName ?? '?', kind: r.kind }]))
+}
+
+function wallAndPremiumForWorkerDay(pieces: Piece[], workerId: string, day: string): { wallMin: number; premiumMin: number } {
+  const dayPieces = pieces.filter((p) => p.workerId === workerId && p.day === day)
+  // `recon` computes wall-clock as the union of merged ranges via dayMath.mergeRanges,
+  // so a worker's concurrent-job overlap reduces wall without reducing effort.
+  // The old `effort === wall` reduce was structurally always 0. (#M2)
+  const r = piecesRecon(dayPieces)
+  return { wallMin: r.wallClockMin, premiumMin: r.premiumMin }
+}
+
+export async function exportCsv(
+  deps: Deps,
+  ctx: SessionContext,
+  input: ExportCsvInput,
+): Promise<{ filename: string; body: string }> {
+  if (!canSeeMoney(ctx)) throw new HttpError(403, 'FORBIDDEN')
+  const { db, tz } = deps
+  const start = localDayBoundariesUtcMs(input.from, tz).startMs
+  const end = localDayBoundariesUtcMs(input.to, tz).endMs
+
+  // Archived workers keep their historical time in the intervals CSV — same
+  // policy as the invoice/client views after #H5 (archiving stops *new*
+  // entries, not billing for past work). (#M10)
+  const allWorkerIds = (await db.select({ id: schema.workers.id }).from(schema.workers).all()).map((w) => w.id)
+  const rows = await loadIntervalRowsForCsv(db, allWorkerIds, start, end)
+  const wnames = await workerNamesForBilling(db)
+  const filename = `timesheets-${input.from}_${input.to}-${input.view}.csv`
+
+  if (input.view === 'intervals') {
+    const allPieces: Piece[] = []
+    for (const r of rows) {
+      const pieces = explode(
+        {
+          id: r.id,
+          workerId: r.workerId,
+          jobId: r.jobId,
+          clientId: r.clientId,
+          startMs: r.startedAt.getTime(),
+          endMs: r.endedAt.getTime(),
+          rateCents: r.rateCents,
+        },
+        tz,
+      )
+      for (const p of clipPieces(pieces, start, end, tz)) allPieces.push(p)
+    }
+    const out: string[] = [csvRow(INTERVALS_CSV_COLUMNS as unknown as string[])]
+    for (const p of allPieces) {
+      const interval = rows.find((r) => r.id === p.intervalId)!
+      const minutes = Math.round((p.endMs - p.startMs) / 60_000)
+      const billableMin = p.rateCents === null ? 0 : minutes
+      const amountCents = moneyCents([{ minutes, rateCents: p.rateCents }])
+      const { wallMin, premiumMin } = wallAndPremiumForWorkerDay(allPieces, p.workerId, p.day)
+      const wn = wnames.get(p.workerId)
+      const creator = wnames.get(interval.createdBy)
+      // CSV is for billing staff who think in dollars, not cents; divide by 100 at the cell so the
+      // on-screen format and the exported format stay aligned. Empty rate → empty cell. (#P3.18)
+      const rateDollars = p.rateCents === null ? '' : (p.rateCents / 100).toFixed(2)
+      const amountDollars = amountCents === 0 ? '0.00' : (amountCents / 100).toFixed(2)
+      out.push(
+        csvRow([
+          wn?.name ?? p.workerId, // worker
+          wn?.kind ?? '', // kind
+          interval.clientName, // client
+          interval.projectName, // project
+          interval.jobName, // job
+          p.day, // day
+          new Date(p.startMs).toISOString(), // start
+          new Date(p.endMs).toISOString(), // end
+          minutes, // minutes
+          billableMin, // billable_minutes
+          rateDollars, // rate_dollars
+          amountDollars, // amount_dollars
+          wallMin, // clock_minutes
+          premiumMin, // overlap_minutes
+          creator?.name ?? interval.createdBy, // entered_by
+          interval.createdAt.toISOString(), // created_at
+          interval.editCount, // edit_count
+          tz, // org_timezone
+        ]),
+      )
+    }
+    return { filename, body: out.join('\n') + '\n' }
+  }
+
+  if (input.view === 'leave') {
+    const leaveRows = await leaveExportRows(deps, ctx, { from: input.from, to: input.to })
+    const out: string[] = [csvRow(LEAVE_CSV_COLUMNS as unknown as string[])]
+    for (const r of leaveRows) {
+      out.push(
+        csvRow([
+          r.workerName, // worker
+          r.typeName, // type
+          r.startDay,
+          r.endDay,
+          formatDecimalHours(r.minutes), // hours
+          r.status, // status verbatim — data export, not UI copy
+          r.decidedBy ?? '', // decidedBy
+        ]),
+      )
+    }
+    return { filename, body: out.join('\n') + '\n' }
+  }
+
+  // view === 'daily'
+  const pieces = await loadPieces(deps, { from: input.from, to: input.to })
+  const byDay = groupBy(pieces, 'day')
+  const byClient = groupBy(pieces, 'clientId')
+  const clientNames = await db
+    .select({ id: schema.clients.id, name: schema.clients.name })
+    .from(schema.clients)
+    .where(inArray(schema.clients.id, [...byClient.keys()]))
+    .all()
+  const nameMap = new Map(clientNames.map((c) => [c.id, c.name]))
+  const out: string[] = [csvRow(DAILY_CSV_COLUMNS as unknown as string[])]
+  for (const day of [...byDay.keys()].sort()) {
+    for (const [clientId, dayClientPieces] of groupBy(byDay.get(day)!, 'clientId')) {
+      const r = piecesRecon(dayClientPieces)
+      out.push(
+        csvRow([
+          day,
+          nameMap.get(clientId) ?? clientId,
+          r.billableMin,
+          r.wallClockMin,
+          r.premiumMin,
+          r.cents === 0 ? '0.00' : (r.cents / 100).toFixed(2),
+          tz,
+        ]),
+      )
+    }
+  }
+  return { filename, body: out.join('\n') + '\n' }
 }
 
 export type InvoiceLine = { jobId: string; job: string; project: string; billableMin: number; rateCents: number | null; cents: number }
@@ -50,6 +277,46 @@ export type Invoice = {
   orgTimezone: string
 }
 
-export async function invoiceData(_deps: Deps, _ctx: SessionContext, _input: InvoiceInput): Promise<Invoice> {
-  throw new Error('TODO Task 7.2')
+export async function invoiceData(deps: Deps, ctx: SessionContext, input: InvoiceInput): Promise<Invoice> {
+  if (!canSeeMoney(ctx)) throw new HttpError(403, 'FORBIDDEN')
+  const { db, tz } = deps
+  const pieces = await loadPieces(deps, { from: input.from, to: input.to }, { clientId: input.clientId })
+  const byJob = groupBy(pieces, 'jobId')
+  const jobIds = [...byJob.keys()]
+  const jobRows = jobIds.length
+    ? await db
+        .select({ id: schema.jobs.id, name: schema.jobs.name, projectName: schema.projects.name, clientId: schema.projects.clientId, clientName: schema.clients.name, rate: schema.jobs.billableRateCents })
+        .from(schema.jobs)
+        .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
+        .innerJoin(schema.clients, eq(schema.clients.id, schema.projects.clientId))
+        .where(inArray(schema.jobs.id, jobIds))
+        .all()
+    : []
+  const jobMap = new Map(jobRows.map((j) => [j.id, j]))
+  const clientInfo = jobRows[0]
+    ? { id: jobRows[0].clientId, name: jobRows[0].clientName }
+    : { id: input.clientId, name: '?' }
+  const lines: InvoiceLine[] = []
+  let subtotalCents = 0
+  for (const [jobId, jobPieces] of [...byJob.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const billablePieces = jobPieces.filter((p) => p.rateCents !== null)
+    if (billablePieces.length === 0) continue // non-billable jobs excluded
+    const billableMin = billablePieces.reduce((s, p) => s + (p.endMs - p.startMs) / 60_000, 0)
+    const rate = billablePieces[0]!.rateCents!
+    const cents = moneyCents(
+      billablePieces.map((p) => ({ minutes: Math.round((p.endMs - p.startMs) / 60_000), rateCents: p.rateCents })),
+    )
+    const job = jobMap.get(jobId)!
+    lines.push({ jobId, job: job.name, project: job.projectName, billableMin: Math.round(billableMin), rateCents: rate, cents })
+    subtotalCents += cents
+  }
+  return {
+    client: clientInfo,
+    period: { from: input.from, to: input.to },
+    lines,
+    subtotalCents,
+    recon: piecesRecon(pieces),
+    generatedAt: deps.now(),
+    orgTimezone: tz,
+  }
 }

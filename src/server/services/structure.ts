@@ -13,6 +13,7 @@ import type {
   UpdateProjectInput,
 } from '~/lib/schemas/structure'
 import type { Deps } from './deps'
+import { getOrgSettings } from './settings'
 
 export type JobNode = { id: string; name: string; archivedAt: Date | null; billableRateCents?: number | null }
 export type ProjectNode = { id: string; name: string; archivedAt: Date | null; jobs: JobNode[] }
@@ -133,11 +134,16 @@ export async function createJob(deps: Deps, ctx: SessionContext, input: CreateJo
   await assertExists(deps.db, schema.projects, input.projectId, 'projectId', true)
   const id = crypto.randomUUID()
   const now = deps.now()
+  // Omitted rate falls back to the org default; explicit null/0 are respected. The
+  // resulting rate is snapshotted on the job — later settings/job edits never touch
+  // existing intervals' `rate_cents` (#18).
+  const rate =
+    input.billableRateCents !== undefined ? input.billableRateCents : (await getOrgSettings(deps, ctx)).defaultBillableRateCents ?? null
   await deps.db.insert(schema.jobs).values({
     id,
     projectId: input.projectId,
     name: input.name,
-    billableRateCents: input.billableRateCents,
+    billableRateCents: rate,
     createdAt: now,
   })
   return { id }

@@ -3,9 +3,10 @@ import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { authClient } from '~/lib/auth-client'
 import { applyServerError } from '~/components/forms/applyServerError'
+import { Button } from '~/components/ui/button'
 import { getSessionFn } from '~/server/fns/auth'
 
-const LoginInput = z.object({ email: z.email(), password: z.string().min(12) })
+const LoginInput = z.object({ email: z.email(), password: z.string() })
 
 export const Route = createFileRoute('/login')({
   beforeLoad: async () => {
@@ -40,8 +41,8 @@ function LoginPage() {
       >
         <form.Field name="email">
           {(f) => (
-            <label>
-              Email{' '}
+            <label className="field">
+              <span>Email</span>
               <input
                 type="email"
                 value={f.state.value}
@@ -55,8 +56,8 @@ function LoginPage() {
         </form.Field>
         <form.Field name="password">
           {(f) => (
-            <label>
-              Password{' '}
+            <label className="field">
+              <span>Password</span>
               <input
                 type="password"
                 value={f.state.value}
@@ -77,7 +78,7 @@ function LoginPage() {
             ) : null
           }
         </form.Subscribe>
-        <button type="submit">Sign in</button>
+        <Button type="submit" variant="primary">Sign in</Button>
       </form>
     </main>
   )

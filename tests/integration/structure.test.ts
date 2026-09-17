@@ -21,6 +21,7 @@ import {
   updateAgentWorker,
 } from '~/server/services/workers'
 import * as schema from '../../drizzle/schema'
+import { updateOrgSettings } from '~/server/services/settings'
 
 beforeEach(resetDb)
 
@@ -113,6 +114,43 @@ describe('structure mutations (#5, #18)', () => {
     })
     await expect(updateJob(deps(), asUser('admin'), { id: 'nope', name: 'X' })).rejects.toMatchObject({ code: 'NOT_FOUND', field: 'id' })
     await expect(archiveProject(deps(), asUser('admin'), { id: 'nope' })).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+
+  it('falls back to the org default rate when the input omits billableRateCents', async () => {
+    const j = await createJob(deps(), asUser('admin'), {
+      projectId: ids.p1,
+      name: 'Defaulted',
+    })
+    const row = await db.select().from(schema.jobs).where(eq(schema.jobs.id, j.id)).get()
+    expect(row?.billableRateCents).toBe(10_000)
+  })
+
+  it('explicit null stays non-billable and explicit 0 stays $0', async () => {
+    const nullJob = await createJob(deps(), asUser('admin'), {
+      projectId: ids.p1,
+      name: 'Freebie 2',
+      billableRateCents: null,
+    })
+    expect(nullJob.id).toBeTruthy()
+    const nullRow = await db.select().from(schema.jobs).where(eq(schema.jobs.id, nullJob.id)).get()
+    expect(nullRow?.billableRateCents).toBeNull()
+    const zeroJob = await createJob(deps(), asUser('admin'), {
+      projectId: ids.p1,
+      name: 'Zero',
+      billableRateCents: 0,
+    })
+    const zeroRow = await db.select().from(schema.jobs).where(eq(schema.jobs.id, zeroJob.id)).get()
+    expect(zeroRow?.billableRateCents).toBe(0)
+  })
+
+  it('a changed org default applies to the next job only', async () => {
+    await updateOrgSettings(deps(), asUser('admin'), { defaultBillableRateCents: 7_500 })
+    const j = await createJob(deps(), asUser('admin'), {
+      projectId: ids.p1,
+      name: 'After Change',
+    })
+    const row = await db.select().from(schema.jobs).where(eq(schema.jobs.id, j.id)).get()
+    expect(row?.billableRateCents).toBe(7_500)
   })
 
   it('null billableRateCents creates a non-billable job', async () => {
@@ -287,5 +325,34 @@ describe('archiveWorker (#24)', () => {
     await archiveWorker(deps(), asUser('admin'), { workerId: ids.billingWorker })
     const all = (await listWorkers(deps(), asUser('admin'))).map((w) => w.workerId)
     expect(all).not.toContain(ids.billingWorker)
+  })
+})
+
+describe('archived-worker guards (#M8)', () => {
+  it('archiveWorker 404s on an unknown id', async () => {
+    await expect(
+      archiveWorker(deps(), asUser('admin'), { workerId: 'no-such-worker' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND', field: 'workerId' })
+  })
+
+  it('archiveWorker 404s when the target is already archived', async () => {
+    await archiveWorker(deps(), asUser('admin'), { workerId: ids.billingWorker })
+    await expect(
+      archiveWorker(deps(), asUser('admin'), { workerId: ids.billingWorker }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND', field: 'workerId' })
+  })
+
+  it('setRoles refuses an archived worker', async () => {
+    await archiveWorker(deps(), asUser('admin'), { workerId: ids.billingWorker })
+    await expect(
+      setRoles(deps(), asUser('admin'), { workerId: ids.billingWorker, roles: ['operator'] }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND', field: 'workerId' })
+  })
+
+  it('setSupervisor refuses an archived target', async () => {
+    await archiveWorker(deps(), asUser('admin'), { workerId: ids.billingWorker })
+    await expect(
+      setSupervisor(deps(), asUser('admin'), { workerId: ids.billingWorker, supervisorId: ids.opWorker }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND', field: 'workerId' })
   })
 })

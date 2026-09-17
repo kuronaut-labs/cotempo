@@ -18,4 +18,12 @@
       "migrations_dir": "drizzle/migrations"
     }
   ]
+  // To deploy to production:
+  //   1. npx wrangler d1 create timesheeting   # get the real database_id, replace above
+  //   2. npx wrangler secret put BETTER_AUTH_SECRET
+  //   3. npx wrangler secret put RESEND_API_KEY
+  //   4. Before `wrangler deploy`, swap APP_URL and MAIL_FROM to the production
+  //      values (workers.dev URL or custom domain; verified Resend sender).
+  //      Or run with --env=production after adding an env block — leaving the
+  //      env block out for now keeps the generated `Env` type simple.
 }

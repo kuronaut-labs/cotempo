@@ -1,7 +1,7 @@
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 import { HttpError } from '~/lib/errors'
 import { schema, type Db } from '~/server/db'
-import { hasRole, isAdmin, type Role, type SessionContext } from '~/server/context'
+import { hasRole, isAdmin, parseRolesOrDefault, type Role, type SessionContext } from '~/server/context'
 import { activatedUserIds } from '~/server/inviteState'
 import type {
   AgentWorkerInput,
@@ -19,6 +19,7 @@ export type HumanWorkerView = {
   email: string
   roles: Role[]
   supervisorId: string | null
+  positionId: string | null
   inviteState: 'pending' | 'active'
 }
 export type AgentWorkerView = {
@@ -86,6 +87,7 @@ export async function listWorkers(deps: Deps, ctx: SessionContext): Promise<Work
           roles: schema.humanWorkers.roles,
           name: schema.user.name,
           email: schema.user.email,
+          positionId: schema.humanWorkers.positionId,
         })
         .from(schema.humanWorkers)
         .innerJoin(schema.user, eq(schema.user.id, schema.humanWorkers.userId))
@@ -110,8 +112,9 @@ export async function listWorkers(deps: Deps, ctx: SessionContext): Promise<Work
         kind: 'human',
         name: h.name,
         email: h.email,
-        roles: JSON.parse(h.roles) as Role[],
+        roles: parseRolesOrDefault(h.roles),
         supervisorId: w.supervisorId,
+        positionId: h.positionId,
         inviteState: activated.has(h.userId) ? 'active' : 'pending',
       })
     } else {
@@ -187,21 +190,38 @@ export async function updateAgentWorker(deps: Deps, ctx: SessionContext, input: 
 export async function setRoles(deps: Deps, ctx: SessionContext, input: SetRolesInput): Promise<void> {
   requireAdmin(ctx)
   const { db } = deps
-  const exists = await db.select().from(schema.humanWorkers).where(eq(schema.humanWorkers.workerId, input.workerId)).get()
+  // Join through workers so we refuse archived targets (assertHuman already
+  // does this for supervisors; role changes should follow the same rule). (#M8)
+  const exists = await db
+    .select({ userId: schema.humanWorkers.userId })
+    .from(schema.humanWorkers)
+    .innerJoin(schema.workers, eq(schema.workers.id, schema.humanWorkers.workerId))
+    .where(and(eq(schema.humanWorkers.workerId, input.workerId), isNull(schema.workers.archivedAt)))
+    .get()
   if (!exists) throw new HttpError(404, 'NOT_FOUND', 'workerId')
   const next = input.roles as Role[]
   if (!next.includes('operator')) throw new HttpError(400, 'ROLES_MUST_INCLUDE_OPERATOR', 'roles')
-  await db
-    .update(schema.humanWorkers)
-    .set({ roles: JSON.stringify(next) })
-    .where(eq(schema.humanWorkers.workerId, input.workerId))
+  // user.role is the BetterAuth admin-plugin gate; sync it so a revoked admin
+  // loses access to /api/auth/admin/* endpoints (#H1).
+  const userRole = next.includes('admin') ? 'admin' : 'user'
+  await db.batch([
+    db
+      .update(schema.humanWorkers)
+      .set({ roles: JSON.stringify(next) })
+      .where(eq(schema.humanWorkers.workerId, input.workerId)),
+    db.update(schema.user).set({ role: userRole }).where(eq(schema.user.id, exists.userId)),
+  ])
 }
 
 /** Supervisor must be a human or null; a human may supervise humans. */
 export async function setSupervisor(deps: Deps, ctx: SessionContext, input: SetSupervisorInput): Promise<void> {
   requireAdmin(ctx)
   const { db } = deps
-  const target = await db.select().from(schema.workers).where(eq(schema.workers.id, input.workerId)).get()
+  const target = await db
+    .select({ kind: schema.workers.kind })
+    .from(schema.workers)
+    .where(and(eq(schema.workers.id, input.workerId), isNull(schema.workers.archivedAt)))
+    .get()
   if (!target) throw new HttpError(404, 'NOT_FOUND', 'workerId')
   if (target.kind !== 'human') throw new HttpError(400, 'SUPERVISOR_NOT_HUMAN', 'workerId')
   if (input.supervisorId !== null) {
@@ -215,6 +235,14 @@ export async function setSupervisor(deps: Deps, ctx: SessionContext, input: SetS
 export async function archiveWorker(deps: Deps, ctx: SessionContext, input: ArchiveWorkerInput): Promise<void> {
   requireAdmin(ctx)
   const { db } = deps
+  // Existence check first: an unknown id (or already-archived) is 404, not a
+  // silent no-op. The supervisee guard is unchanged. (#M8)
+  const exists = await db
+    .select({ id: schema.workers.id })
+    .from(schema.workers)
+    .where(and(eq(schema.workers.id, input.workerId), isNull(schema.workers.archivedAt)))
+    .get()
+  if (!exists) throw new HttpError(404, 'NOT_FOUND', 'workerId')
   const supervisees = await db
     .select({ id: schema.workers.id })
     .from(schema.workers)

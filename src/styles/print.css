@@ -1,0 +1,188 @@
+/* ---------- invoice route (7.2) — screen layer ---------- */
+
+.invoice {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4);
+  color: var(--color-primary);
+  font-family: var(--font-body);
+}
+
+.invoice-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.invoice-actions a {
+  color: var(--color-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  border: 1px solid var(--color-primary);
+  padding: var(--space-1) var(--space-3);
+  text-decoration: none;
+}
+
+.invoice-picker h1 { font: 600 28px/1.2 var(--font-body); margin: 0 0 var(--space-2); }
+.invoice-picker-period {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-info);
+  margin-bottom: var(--space-4);
+}
+
+.invoice-picker-list { list-style: none; display: flex; flex-direction: column; gap: var(--space-2); }
+.invoice-picker-list a {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  height: 48px;
+  background: var(--surface-card);
+  border: 1px solid var(--border-card);
+  color: var(--color-primary);
+  font: 400 14px/1.6 var(--font-body);
+  text-decoration: none;
+  border-radius: var(--radius-md);
+}
+.invoice-picker-list a:hover { border-color: var(--color-primary); box-shadow: var(--shadow-1); }
+
+.invoice-page {
+  background: var(--surface-card);
+  border: 1px solid var(--border-card);
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
+}
+
+.invoice-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-6);
+}
+
+.invoice-head h1 { font: 600 28px/1.1 var(--font-body); margin: 0; }
+
+.invoice-client {
+  font: 400 16px/1.65 var(--font-body);
+  color: var(--color-info);
+  margin-top: var(--space-1);
+}
+
+.invoice-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-align: right;
+}
+
+.invoice-meta .invoice-k {
+  color: var(--color-info);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 9px;
+  margin-right: var(--space-1);
+}
+
+.invoice-meta .invoice-v { color: var(--color-primary); }
+
+.invoice-lines {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  margin-bottom: var(--space-6);
+}
+
+.invoice-lines th {
+  font: 500 10px/1.2 var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-info);
+  text-align: left;
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--color-tertiary);
+}
+
+.invoice-lines td {
+  padding: var(--space-2);
+  border-bottom: 1px solid var(--divider);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.invoice-lines .num { text-align: right; }
+
+.invoice-lines tfoot td {
+  border-top: 1px solid var(--color-tertiary);
+  border-bottom: none;
+  padding-top: var(--space-3);
+  font-weight: 600;
+}
+
+.invoice-subtotal-label {
+  text-align: right;
+  color: var(--color-info);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.invoice-subtotal {
+  color: var(--color-primary);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.invoice-trio {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+.invoice-disclosure {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.6;
+  color: var(--color-info);
+  max-width: 60ch;
+}
+
+@media print {
+  .no-print,
+  .app-nav {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .invoice {
+    padding: 0;
+  }
+
+  .invoice-page {
+    background: #fff !important;
+    border: none !important;
+    color: #000 !important;
+  }
+
+  .invoice-lines th,
+  .invoice-lines td {
+    color: #000 !important;
+    border-color: #ccc !important;
+  }
+
+  .invoice-subtotal {
+    color: #000 !important;
+  }
+}

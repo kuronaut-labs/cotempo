@@ -1,18 +1,22 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { z } from 'zod'
+import { X } from 'reicon-react'
+import { Button } from '~/components/ui/button'
 import { DateNav } from '~/components/dateNav'
 import { DayMathChip } from '~/components/dayMathChip'
 import { EntryForm, type Initial } from '~/components/entryForm'
 import { IntervalList } from '~/components/intervalList'
 import { MiniStrip } from '~/components/miniStrip'
-import { isHttpError } from '~/lib/errors'
+import { parseHttpError } from '~/lib/errors'
+import { serverErrorMessage } from '~/components/forms/applyServerError'
 import type { CreateIntervalInput, UpdateIntervalInput } from '~/lib/schemas/intervals'
 import { getSessionCtxFn } from '~/server/fns/auth'
 import {
   createIntervalFn,
   deleteIntervalFn,
   getTodayFn,
+  getRecentJobsFn,
   listDayFn,
   updateIntervalFn,
 } from '~/server/fns/intervals'
@@ -35,14 +39,20 @@ export const Route = createFileRoute('/_app/today')({
     // Fetched even when the URL has a date: DateNav's "Today" needs the real one (#23).
     const todayP = getTodayFn()
     const date = deps.date ?? (await todayP).date
-    const [today, ctx, day, structure, workers] = await Promise.all([
-      todayP,
-      getSessionCtxFn(),
+    const ctxP = getSessionCtxFn()
+    const [ctx, day, structure, workers, today] = await Promise.all([
+      ctxP,
       listDayFn({ data: { date } }),
       listStructureFn({ data: { includeArchived: false } }),
       listWorkersFn(),
+      todayP,
     ])
-    return { today: today.date, tz: today.tz, ctx, day, structure, workers }
+    // Recent jobs for the self-worker (the entry form's worker select defaults to self).
+    // Scope to the operator's own work — supervisees see their own recent jobs too.
+    const recentJobs = ctx && (ctx.workerId || ctx.superviseeWorkerIds[0])
+      ? await getRecentJobsFn({ data: { workerId: ctx.workerId || ctx.superviseeWorkerIds[0]! } })
+      : []
+    return { today: today.date, tz: today.tz, ctx, day, structure, workers, recentJobs }
   },
   component: TodayView,
 })
@@ -50,7 +60,7 @@ export const Route = createFileRoute('/_app/today')({
 type WorkerRow = { workerId: string; kind: 'human' | 'agent'; name: string }
 
 function TodayView() {
-  const { today, tz, ctx, day, structure, workers } = Route.useLoaderData()
+  const { today, tz, ctx, day, structure, workers, recentJobs } = Route.useLoaderData()
   const search = Route.useSearch()
   const navigate = useNavigate()
   const router = useRouter()
@@ -66,14 +76,32 @@ function TodayView() {
 
   const [editing, setEditing] = useState<DayIntervalRow | null>(null)
   const [lockedWeek, setLockedWeek] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  // P3.20: dismissible "How time is counted" explainer, shown once per browser.
+  const [showHowCounted, setShowHowCounted] = useState(false)
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem('timesheets:how-time-counted-dismissed') !== '1') setShowHowCounted(true)
+    } catch {}
+  }, [])
+  const dismissHowCounted = () => {
+    setShowHowCounted(false)
+    try {
+      window.localStorage.setItem('timesheets:how-time-counted-dismissed', '1')
+    } catch {}
+  }
 
   const noteLock = (e: unknown) => {
-    if (isHttpError(e) && e.code === 'WEEK_LOCKED') {
-      setLockedWeek(typeof e.data?.weekStart === 'string' ? e.data.weekStart : null)
+    // Defensive: server-fn errors may arrive as a plain object that lost the
+    // HttpError prototype over the wire (#M11). parseHttpError handles both.
+    const parsed = parseHttpError(e)
+    if (parsed?.code === 'WEEK_LOCKED') {
+      setLockedWeek(typeof parsed.data?.weekStart === 'string' ? parsed.data.weekStart : null)
     }
   }
 
   async function submit(input: CreateIntervalInput | UpdateIntervalInput) {
+    setActionError(null)
     try {
       if ('id' in input) await updateIntervalFn({ data: input })
       else await createIntervalFn({ data: input })
@@ -82,19 +110,26 @@ function TodayView() {
       await invalidate()
     } catch (e) {
       noteLock(e)
+      setActionError(serverErrorMessage(e))
       throw e
     }
   }
 
   async function remove(id: string) {
     if (!window.confirm('Delete this interval?')) return
+    setActionError(null)
     try {
       await deleteIntervalFn({ data: { id } })
       setLockedWeek(null)
       await invalidate()
     } catch (e) {
       noteLock(e)
-      if (!isHttpError(e)) throw e
+      // Surface non-WEEK_LOCKED errors to the user instead of swallowing them
+      // (entryForm catches its own errors, but delete has no enclosing form). (#L3)
+      const parsed = parseHttpError(e)
+      if (!parsed || parsed.code !== 'WEEK_LOCKED') {
+        setActionError(serverErrorMessage(e))
+      }
     }
   }
 
@@ -142,6 +177,22 @@ function TodayView() {
         })}
       </div>
 
+      {showHowCounted && (
+        <aside className="how-counted-card" role="region" aria-label="How time is counted">
+          <Button variant="ghost" size="sm" onClick={dismissHowCounted} aria-label="Dismiss">
+            <X size={13} />
+          </Button>
+          <h2>How time is counted</h2>
+          <p>Three numbers over the same day:</p>
+          <ul>
+            <li><b>On the clock</b> — time covered. 9:00–17:00 is 8:00, even if three jobs overlapped.</li>
+            <li><b>Total of entries</b> — what you'd get by adding every entry, including ones that overlap.</li>
+            <li><b>Overlap</b> — the difference. Extra minutes from working two jobs at once.</li>
+          </ul>
+          <p>Overlap is what gets billed when shared time is counted once per job — the audit disclosure on invoices.</p>
+        </aside>
+      )}
+
       {ctx && (
         <section className="panel">
           <h2 className="today-section-title">{editing ? 'Edit interval' : 'Add interval'}</h2>
@@ -153,6 +204,7 @@ function TodayView() {
             superviseeWorkerIds={ctx.superviseeWorkerIds}
             workers={workers}
             structure={structure}
+            recentJobs={recentJobs}
             initial={rowToInitial(editing)}
             onSubmit={submit}
             onCancel={() => setEditing(null)}
@@ -161,6 +213,11 @@ function TodayView() {
           {lockedWeek && (
             <p role="alert" className="form-error">
               Week {lockedWeek} is approved. Ask an admin to unlock it before editing intervals on it.
+            </p>
+          )}
+          {actionError && (
+            <p role="alert" className="form-error">
+              {actionError}
             </p>
           )}
         </section>

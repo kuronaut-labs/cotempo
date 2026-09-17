@@ -33,14 +33,17 @@ describe('contract #11/#14 CSV', () => {
     expect(days.filter((d) => d === '2026-09-03').length).toBe(1)
     expect(rows[1]?.[INTERVALS_CSV_COLUMNS.indexOf('org_timezone')]).toBe('Australia/Perth')
   })
-  it('daily view: exact header; Σ amount_cents equals the reconciliation total within per-row rounding', async () => {
+  it('daily view: exact header; Σ amount_dollars (cents×100 → rounded to $0.01) equals the reconciliation total within per-row rounding', async () => {
     const { body } = await exportCsv(deps(), asUser('billing'), { ...period, view: 'daily' })
     const rows = parse(body)
     expect(rows[0]).toEqual([...DAILY_CSV_COLUMNS])
-    const col = DAILY_CSV_COLUMNS.indexOf('amount_cents')
+    const col = DAILY_CSV_COLUMNS.indexOf('amount_dollars')
+    // amount_dollars is a fixed-2-decimal string; summing as Number keeps cent-level precision.
     const sum = rows.slice(1).reduce((s, r) => s + Number(r[col]), 0)
     const recon = await reconciliation(deps(), asUser('billing'), period)
-    expect(Math.abs(sum - (recon.total as { cents: number }).cents)).toBeLessThanOrEqual(rows.length - 1)
+    // Each row was rounded to cents; allow up to (rows-1) cents of drift.
+    const reconDollars = (recon.total as { cents: number }).cents / 100
+    expect(Math.abs(sum - reconDollars)).toBeLessThanOrEqual((rows.length - 1) / 100)
   })
   it('export is billing-only at the service level', async () => {
     await expectCode(exportCsv(deps(), asUser('operator'), { ...period, view: 'daily' }), 'FORBIDDEN')

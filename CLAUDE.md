@@ -68,7 +68,13 @@ Do not: refactor code outside the task, add dependencies, change config files (`
 | Pure time/money/attribution | `src/lib/{dayMath,week,money,attribution,redFlags}.ts` |
 | Fixtures (tests + seed) | `src/server/fixtures/demo.ts` |
 | Test helpers | `tests/integration/helpers.ts` (`db`, `deps()`, `asUser()`, `resetDb()`, `setWeekStatus()`, `at()`) |
-| Design tokens | copy `:root` from `.wayfinder/prototypes/*.html` |
+| Org settings (defaults) | `src/lib/schemas/settings.ts`, `src/server/services/settings.ts`, `src/server/fns/settings.ts` |
+| Settings admin page | `src/routes/_app/admin/settings.tsx` |
+| Leave types/requests math | `src/lib/leaveMath.ts` |
+| Leave service + fns | `src/server/services/leave.ts`, `src/server/fns/leave.ts` |
+| Positions (rate override) | `src/lib/schemas/positions.ts`, `src/server/services/positions.ts`, `src/server/fns/positions.ts` |
+| Positions admin page | `src/routes/_app/admin/positions.tsx` |
+| Design system | `docs/DESIGN.md` (spec) → `src/styles/tokens.css` (values) |
 
 ## Comments
 

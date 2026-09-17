@@ -18,13 +18,16 @@ export const ids = {
   j2: 'demo-0000-job-2',
   j3: 'demo-0000-job-3',
   j4: 'demo-0000-job-4',
+  // positions — rate override demo (#positions-plan)
+  posSenior: 'pos-senior-dev',
+  posDesigner: 'pos-designer',
 } as const
 
-export type DemoHuman = { workerId: string; email: string; name: string; roles: readonly Role[] }
+export type DemoHuman = { workerId: string; email: string; name: string; roles: readonly Role[]; positionId?: string }
 export const demoHumans: readonly DemoHuman[] = [
   { workerId: ids.adminWorker, email: 'admin@example.com', name: 'Demo Admin', roles: ['operator', 'billing', 'admin'] },
   { workerId: ids.billingWorker, email: 'billing@example.com', name: 'Demo Billing', roles: ['operator', 'billing'] },
-  { workerId: ids.opWorker, email: 'ops@example.com', name: 'Demo Operator', roles: ['operator'] },
+  { workerId: ids.opWorker, email: 'ops@example.com', name: 'Demo Operator', roles: ['operator'], positionId: ids.posSenior },
 ]
 
 /** Monday 2026-08-31 00:00 UTC. Tests anchor here; the seed passes the current week. */
@@ -35,13 +38,33 @@ export async function insertDemo(db: Db, opts: { anchorMs?: number } = {}) {
   const anchor = opts.anchorMs ?? DEMO_ANCHOR_MS
   const at = (dayOffset: number, h: number, m = 0) => new Date(anchor + dayOffset * 86_400_000 + (h * 60 + m) * 60_000)
 
+  const lt = (id: string, key: string, name: string, paid: boolean, accrualMethod: string, minutesPerYear: number, maxCarryOverMinutes: number, yearBasis = 'calendar') => ({
+    id,
+    key,
+    name,
+    paid,
+    accrualMethod,
+    minutesPerYear,
+    accrualRatePer10k: 0,
+    maxCarryOverMinutes,
+    yearBasis,
+    createdAt: at(0, 0),
+    updatedAt: at(0, 0),
+  })
+  const leaveTypeRows = [
+    lt('lt-annual', 'annual', 'Annual leave', true, 'monthly_prorata', 20 * 480, 5 * 480),
+    lt('lt-sick', 'sick', 'Sick leave (paid)', true, 'annual_allotment', 10 * 480, 0, 'anniversary'),
+    lt('lt-unpaid', 'unpaid', 'Unpaid leave', false, 'annual_allotment', 0, 0),
+  ]
+
   await db.batch([
     db
       .insert(schema.workers)
       .values([
-        { id: ids.opWorker, kind: 'human', createdAt: now },
-        { id: ids.billingWorker, kind: 'human', createdAt: now },
-        { id: ids.adminWorker, kind: 'human', createdAt: now },
+        // hire dates fixed before the demo anchor so balances have room to accrue
+        { id: ids.opWorker, kind: 'human', createdAt: at(-200, 0) },
+        { id: ids.billingWorker, kind: 'human', createdAt: at(-150, 0) },
+        { id: ids.adminWorker, kind: 'human', createdAt: at(-300, 0) },
         { id: ids.agent1, kind: 'agent', name: 'Atlas', supervisorId: ids.opWorker, createdAt: now },
         { id: ids.agent2, kind: 'agent', name: 'Beacon', supervisorId: ids.opWorker, createdAt: now },
       ])
@@ -76,6 +99,12 @@ export async function insertDemo(db: Db, opts: { anchorMs?: number } = {}) {
         { id: ids.j4, projectId: ids.p2, name: 'Internal Data Cleansing', billableRateCents: null, createdAt: now },
       ])
       .onConflictDoNothing(),
+    db.insert(schema.orgSettings).values({ id: 'org', defaultBillableRateCents: 10_000, defaultDayMinutes: 480, defaultWeeklyTargetHours: 40, updatedAt: now }).onConflictDoNothing(),
+    db.insert(schema.leaveTypes).values(leaveTypeRows).onConflictDoNothing(),
+    db.insert(schema.positions).values([
+      { id: ids.posSenior, name: 'Senior developer', rateCents: 12_000, createdAt: now },
+      { id: ids.posDesigner, name: 'Designer', rateCents: 9_000, createdAt: now },
+    ]).onConflictDoNothing(),
   ])
 
   const iv = (id: string, workerId: string, jobId: string, rateCents: number | null, d: number, h1: number, h2: number) => ({
@@ -98,10 +127,38 @@ export async function insertDemo(db: Db, opts: { anchorMs?: number } = {}) {
       iv('04', ids.agent2, ids.j3, 12000, 0, 13, 16),
       iv('05', ids.opWorker, ids.j2, 9000, 1, 9, 13),
       iv('06', ids.opWorker, ids.j3, 12000, 1, 11, 12),
-      iv('07', ids.opWorker, ids.j1, 14000, 2, 14, 18), // 22:00–02:00 Perth; see CLAUDE.md "Known contract gaps"
+      iv('07', ids.opWorker, ids.j1, 14000, 2, 14, 18), // 22:00–02:00 Perth; clips to 120 min on Wed in Perth
       iv('08', ids.opWorker, ids.j4, null, 3, 9, 11), // non-billable
     ])
     .onConflictDoNothing()
+
+  await db.batch([
+    db
+      .insert(schema.leaveRequests)
+      .values({
+        id: 'lr-demo-1',
+        workerId: ids.opWorker,
+        typeId: 'lt-annual',
+        startDay: '2026-09-24',
+        endDay: '2026-09-25',
+        minutesPerDay: 480,
+        status: 'approved',
+        reason: 'Family trip',
+        submittedAt: at(-14, 0),
+        submittedBy: ids.opWorker,
+        decidedAt: at(-13, 0),
+        decidedBy: ids.billingWorker,
+        decisionReason: 'Enjoy',
+      })
+      .onConflictDoNothing(),
+    db.insert(schema.leaveEvents).values({
+      id: 'le-demo-1',
+      requestId: 'lr-demo-1',
+      kind: 'approve',
+      actorWorkerId: ids.billingWorker,
+      at: at(-13, 0),
+    }).onConflictDoNothing(),
+  ])
 }
 
 export type PasswordHasher = { $context: Promise<{ password: { hash(p: string): Promise<string> } }> }
@@ -111,7 +168,7 @@ export type PasswordHasher = { $context: Promise<{ password: { hash(p: string): 
 export async function seedAuthUsers(
   db: Db,
   auth: PasswordHasher,
-  users: { workerId: string; email: string; name: string; password: string; roles: readonly string[] }[],
+  users: { workerId: string; email: string; name: string; password: string; roles: readonly string[]; positionId?: string }[],
 ) {
   const ctx = await auth.$context
   const now = new Date()
@@ -143,7 +200,11 @@ export async function seedAuthUsers(
     }
     await db
       .insert(schema.humanWorkers)
-      .values({ workerId: u.workerId, userId, roles: JSON.stringify(u.roles) })
-      .onConflictDoNothing()
+      .values({ workerId: u.workerId, userId, roles: JSON.stringify(u.roles), positionId: u.positionId ?? null })
+      .onConflictDoUpdate({
+        target: schema.humanWorkers.workerId,
+        // re-seed re-asserts roles/assignment (position_id would otherwise stick stale)
+        set: { roles: JSON.stringify(u.roles), positionId: u.positionId ?? null },
+      })
   }
 }

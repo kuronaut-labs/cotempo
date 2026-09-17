@@ -4,6 +4,28 @@ import { DateNav } from '~/components/dateNav'
 import { EntryForm } from '~/components/entryForm'
 import { IntervalList } from '~/components/intervalList'
 import { MiniStrip } from '~/components/miniStrip'
+import { Button } from '~/components/ui/button'
+import { FilterChip, StatusChip } from '~/components/ui/chip'
+import {
+  Archive as ArchiveIcon,
+  Calendar,
+  ChartBar,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  FileDownload,
+  Gear,
+  Logout,
+  Pen,
+  Printer,
+  Send,
+  ShieldCheck,
+  Trash2,
+  Unlock,
+  X,
+  UserAdd,
+} from 'reicon-react'
 import type { DayIntervalRow } from '~/server/services/intervals'
 import type { ClientNode } from '~/server/services/structure'
 import type { AgentWorkerView, HumanWorkerView } from '~/server/services/workers'
@@ -99,8 +121,8 @@ const structureFixture: ClientNode[] = [
 ]
 
 const workerFixture: (HumanWorkerView | AgentWorkerView)[] = [
-  { workerId: 'op-worker', kind: 'human', name: 'Demo Operator', email: 'ops@example.com', roles: ['operator'], supervisorId: null, inviteState: 'active' },
-  { workerId: 'admin-worker', kind: 'human', name: 'Demo Admin', email: 'admin@example.com', roles: ['operator', 'billing', 'admin'], supervisorId: null, inviteState: 'active' },
+  { workerId: 'op-worker', kind: 'human', name: 'Demo Operator', email: 'ops@example.com', roles: ['operator'], supervisorId: null, positionId: 'pos-senior-dev', inviteState: 'active' },
+  { workerId: 'admin-worker', kind: 'human', name: 'Demo Admin', email: 'admin@example.com', roles: ['operator', 'billing', 'admin'], supervisorId: null, positionId: null, inviteState: 'active' },
   { workerId: 'agent-1', kind: 'agent', name: 'Atlas', model: 'claude-opus-5', framework: 'langgraph', status: 'active', supervisorId: 'op-worker' },
   { workerId: 'agent-2', kind: 'agent', name: 'Beacon', model: 'claude-sonnet-5', framework: 'crewai', status: 'active', supervisorId: 'op-worker' },
 ]
@@ -125,7 +147,7 @@ function DevComponents() {
       <section>
         <h2 style={{ marginBottom: 8 }}>MiniStrip</h2>
         <MiniStrip day={day} tz="UTC" intervals={intervals} jobColorIndex={colors} />
-        <p style={{ marginTop: 8, fontSize: 11, color: 'var(--muted)' }}>
+        <p style={{ marginTop: 8, fontSize: 11, color: 'var(--color-info)' }}>
           Two overlapping (×2), one separate, one midnight-crossing (trailing clip).
         </p>
       </section>
@@ -152,6 +174,103 @@ function DevComponents() {
             // fixture: no-op; real route wires this to createIntervalFn
           }}
         />
+      </section>
+      <section>
+        <h2 style={{ marginBottom: 8 }}>Primitives</h2>
+        <div style={{ display: 'grid', gap: 16 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Button variant="primary" size="sm">Save</Button>
+            <Button variant="primary" size="md">Save</Button>
+            <Button variant="primary" size="lg">Save</Button>
+            <Button variant="secondary" size="sm">Cancel</Button>
+            <Button variant="secondary" size="md">Cancel</Button>
+            <Button variant="secondary" size="lg">Cancel</Button>
+            <Button variant="ghost" size="sm">Edit</Button>
+            <Button variant="ghost" size="md">Edit</Button>
+            <Button variant="ghost" size="lg">Edit</Button>
+            <Button variant="destructive" size="sm">Delete</Button>
+            <Button variant="destructive" size="md">Delete</Button>
+            <Button variant="destructive" size="lg">Delete</Button>
+            <Button variant="primary" disabled>Disabled</Button>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <FilterChip>Filter A</FilterChip>
+            <FilterChip selected>Filter B</FilterChip>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <StatusChip kind="solid">Solid</StatusChip>
+            <StatusChip kind="outline">Outline</StatusChip>
+            <StatusChip kind="inverse">Inverse</StatusChip>
+            <StatusChip kind="muted">Muted</StatusChip>
+            <StatusChip kind="error">Error</StatusChip>
+            <StatusChip kind="success">Success</StatusChip>
+          </div>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <input placeholder="Default input" />
+            <input placeholder="Disabled input" disabled />
+            <label className="field">
+              <span>Sample field</span>
+              <input defaultValue="bad value" />
+              <span className="field-error">Sample field error</span>
+            </label>
+          </div>
+          <div style={{ display: 'flex', gap: 24 }}>
+            <label className="checkline">
+              <input type="checkbox" /> unchecked
+            </label>
+            <label className="checkline">
+              <input type="checkbox" defaultChecked /> checked
+            </label>
+            <label className="checkline">
+              <input type="checkbox" defaultChecked disabled /> disabled-checked
+            </label>
+            <fieldset style={{ display: 'flex', gap: 16, border: 'none', margin: 0, padding: 0 }}>
+              <label className="checkline">
+                <input type="radio" name="dev-radio" defaultChecked /> option 1
+              </label>
+              <label className="checkline">
+                <input type="radio" name="dev-radio" /> option 2
+              </label>
+            </fieldset>
+          </div>
+          <div>
+            <span data-tip="Hover or focus me" tabIndex={0}>hover target</span>
+          </div>
+          <ul className="list">
+            <li className="row">Row one</li>
+            <li className="row active">Row two (active)</li>
+            <li className="row">Row three</li>
+          </ul>
+        </div>
+      </section>
+      <section style={{ display: 'flex', flexWrap: 'wrap', gap: 24, alignItems: 'center' }}>
+        <h2 className="today-section-title">Icons (reicon-react, Outline)</h2>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'center' }}>
+          <Clock size={15} />
+          <Calendar size={15} />
+          <ChartBar size={15} />
+          <ShieldCheck size={15} />
+          <Gear size={15} />
+          <Logout size={15} />
+          <ChevronLeft size={14} />
+          <ChevronRight size={14} />
+          <Pen size={13} />
+          <Trash2 size={13} />
+          <ArchiveIcon size={13} />
+          <Check size={13} />
+          <X size={13} />
+          <Unlock size={13} />
+          <Send size={13} />
+          <UserAdd size={13} />
+          <FileDownload size={13} />
+          <Printer size={13} />
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Button variant="primary"><Check size={14} /> Save</Button>
+          <Button variant="ghost" size="sm"><Pen size={13} /> Edit</Button>
+          <Button variant="ghost" size="sm" className="danger"><ArchiveIcon size={13} /> Archive</Button>
+          <Button variant="secondary" size="sm"><Printer size={13} /> Print</Button>
+        </div>
       </section>
     </main>
   )

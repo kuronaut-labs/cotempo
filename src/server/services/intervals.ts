@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, gte, inArray, isNull, lt, ne, or, type SQL } from 'drizzle-orm'
+import { and, desc, eq, gt, gte, inArray, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm'
 import type { z } from 'zod'
 import { schema, type Db } from '~/server/db'
 import { HttpError } from '~/lib/errors'
@@ -36,6 +36,17 @@ async function liveJob(db: Db, jobId: string) {
     .get()
   if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', 'jobId')
   return job
+}
+
+// position rate for a human worker, else null; archived positions stop overriding
+async function positionRateCents(db: Db, workerId: string): Promise<number | null> {
+  const row = await db
+    .select({ rateCents: schema.positions.rateCents })
+    .from(schema.humanWorkers)
+    .innerJoin(schema.positions, eq(schema.humanWorkers.positionId, schema.positions.id))
+    .where(and(eq(schema.humanWorkers.workerId, workerId), isNull(schema.positions.archivedAt)))
+    .get()
+  return row?.rateCents ?? null
 }
 
 async function assertNoSameJobOverlap(
@@ -82,7 +93,10 @@ export async function createInterval(
     jobId: input.jobId,
     startedAt: new Date(range.startMs),
     endedAt: new Date(range.endMs),
-    rateCents: job.billableRateCents,
+    rateCents:
+      job.billableRateCents !== null
+        ? ((await positionRateCents(db, input.workerId)) ?? job.billableRateCents)
+        : null, // position overrides billable jobs only; non-billable stays null
     note: input.note ?? null,
     createdBy: ctx.workerId,
     editCount: 0,
@@ -124,6 +138,14 @@ export async function updateInterval(
   const keys = [...new Set([...weekKeysTouched(before, tz), ...weekKeysTouched(after, tz)])]
   await assertWeeksEditable(db, cur.workerId, keys)
 
+  // snapshot only moves with the job (#18); the position rate applies at write time
+  const rateCents: number | null =
+    job === null
+      ? cur.rateCents
+      : job.billableRateCents !== null
+        ? ((await positionRateCents(db, cur.workerId)) ?? job.billableRateCents)
+        : null
+
   const now = deps.now()
   await db
     .update(schema.intervals)
@@ -131,7 +153,7 @@ export async function updateInterval(
       startedAt: new Date(after.startMs),
       endedAt: new Date(after.endMs),
       jobId,
-      rateCents: job ? job.billableRateCents : cur.rateCents, // snapshot only moves with the job (#18)
+      rateCents,
       note: input.note === undefined ? cur.note : input.note,
       editCount: cur.editCount + 1,
       updatedAt: now,
@@ -143,7 +165,7 @@ export async function updateInterval(
     startedAt: new Date(after.startMs),
     endedAt: new Date(after.endMs),
     jobId,
-    rateCents: job ? job.billableRateCents : cur.rateCents,
+    rateCents,
     note: input.note === undefined ? cur.note : input.note,
     editCount: cur.editCount + 1,
     updatedAt: now,
@@ -275,4 +297,51 @@ export async function listIntervals(
   const last = trimmed[trimmed.length - 1]
   const nextCursor = hasMore && last ? `${last.startedAt.getTime()}:${last.id}` : null
   return { rows: trimmed, nextCursor }
+}
+
+export type RecentJob = {
+  jobId: string
+  jobName: string
+  projectName: string
+  clientName: string
+  clientId: string
+  lastUsedMs: number
+}
+
+/** Jobs this worker has logged time on, ordered by most-recently-used. Powers the
+   "Recent" optgroup at the top of the entry form's Job select (#P3.15). */
+export async function getRecentJobs(
+  deps: Deps,
+  ctx: SessionContext,
+  input: { workerId: string; limit?: number },
+): Promise<RecentJob[]> {
+  const { db } = deps
+  assertCanViewWorker(ctx, input.workerId)
+  const limit = input.limit ?? 5
+  const rows = await db
+    .select({
+      jobId: schema.intervals.jobId,
+      jobName: schema.jobs.name,
+      projectName: schema.projects.name,
+      clientId: schema.projects.clientId,
+      clientName: schema.clients.name,
+      lastUsedMs: sql<number>`MAX(${schema.intervals.startedAt})`,
+    })
+    .from(schema.intervals)
+    .innerJoin(schema.jobs, eq(schema.jobs.id, schema.intervals.jobId))
+    .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
+    .innerJoin(schema.clients, eq(schema.clients.id, schema.projects.clientId))
+    .innerJoin(schema.workers, eq(schema.workers.id, schema.intervals.workerId))
+    .where(
+      and(
+        eq(schema.intervals.workerId, input.workerId),
+        isNull(schema.intervals.deletedAt),
+        isNull(schema.workers.archivedAt),
+      ),
+    )
+    .groupBy(schema.intervals.jobId, schema.jobs.name, schema.projects.name, schema.projects.clientId, schema.clients.name)
+    .orderBy(sql`MAX(${schema.intervals.startedAt}) DESC`)
+    .limit(limit)
+    .all()
+  return rows
 }

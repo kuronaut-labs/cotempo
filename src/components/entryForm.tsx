@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { TZDate } from '@date-fns/tz'
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
-import { localHHMM } from '~/lib/dayMath'
+import { Check } from 'reicon-react'
+import { localDateOf, localHHMM } from '~/lib/dayMath'
 import { CreateIntervalInput, UpdateIntervalInput } from '~/lib/schemas/intervals'
 import { applyServerError } from '~/components/forms/applyServerError'
+import { Button } from '~/components/ui/button'
 import type { ClientNode } from '~/server/services/structure'
 import type { WorkerView } from '~/server/services/workers'
 
@@ -36,6 +38,7 @@ export function EntryForm({
   superviseeWorkerIds,
   workers,
   structure,
+  recentJobs,
   initial,
   onSubmit,
   onCancel,
@@ -46,6 +49,8 @@ export function EntryForm({
   superviseeWorkerIds: string[]
   workers: WorkerView[]
   structure: ClientNode[]
+  /** Jobs this worker has used recently, ordered most-recent first (P3.15). */
+  recentJobs?: { jobId: string; jobName: string; projectName: string; clientName: string; clientId: string }[]
   initial?: Initial
   onSubmit: (input: FormInput) => Promise<void>
   /** Shown in edit mode only. */
@@ -60,6 +65,10 @@ export function EntryForm({
       jobId: initial?.jobId ?? '',
       startTime: initial?.startedAt ? localHHMM(Date.parse(initial.startedAt), tz) : '09:00',
       endTime: initial?.endedAt ? localHHMM(Date.parse(initial.endedAt), tz) : '10:00',
+      // Org-tz semantics (#19), not UTC bytes: a Perth morning session spans a UTC boundary.
+      crossesMidnight: initial?.startedAt && initial?.endedAt
+        ? localDateOf(Date.parse(initial.startedAt), tz) !== localDateOf(Date.parse(initial.endedAt), tz)
+        : false,
       note: initial?.note ?? '',
     } as {
       id?: string
@@ -67,6 +76,7 @@ export function EntryForm({
       jobId: string
       startTime: string
       endTime: string
+      crossesMidnight: boolean
       note: string
     },
     validators: {
@@ -79,8 +89,11 @@ export function EntryForm({
       },
     },
     onSubmit: async ({ value }) => {
+      // If "crosses midnight" is checked, the end time belongs to the next day
+      // in the org tz; otherwise both are on `date`. (#L1)
+      const endDate = value.crossesMidnight ? addDaysIso(date, 1) : date
       const startedAt = combine(date, value.startTime, tz)
-      const endedAt = combine(date, value.endTime, tz)
+      const endedAt = combine(endDate, value.endTime, tz)
       const note = value.note.trim()
       const base = { workerId: value.workerId, jobId: value.jobId, startedAt, endedAt, ...(note ? { note } : {}) }
       const payload: FormInput = isEdit ? { id: value.id!, ...base } : base
@@ -155,6 +168,15 @@ export function EntryForm({
             <span>Job</span>
             <select value={f.state.value} onChange={(e) => f.handleChange(e.target.value)} onBlur={f.handleBlur}>
               <option value="">— select —</option>
+              {recentJobs && recentJobs.length > 0 && (
+                <optgroup label="Recent">
+                  {recentJobs.map((j) => (
+                    <option key={j.jobId} value={j.jobId}>
+                      {j.clientName} / {j.projectName} / {j.jobName}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
               {(structure.find((c) => c.id === selectedClient)?.projects ?? [])
                 .filter((p) => !p.archivedAt)
                 .flatMap((p) =>
@@ -199,11 +221,42 @@ export function EntryForm({
                 onChange={(e) => f.handleChange(e.target.value)}
                 onBlur={f.handleBlur}
               />
+              <form.Subscribe
+                selector={(s) => {
+                  const start = s.values.startTime as string | undefined
+                  const end = f.state.value
+                  if (!start || !end) return ''
+                  const [sh, sm] = start.split(':').map(Number) as [number, number]
+                  const [eh, em] = end.split(':').map(Number) as [number, number]
+                  let totalMin = eh * 60 + em - (sh * 60 + sm)
+                  if (totalMin < 0 && s.values.crossesMidnight) totalMin += 24 * 60
+                  const hh = Math.floor(totalMin / 60)
+                  const mm = totalMin % 60
+                  return `${hh}:${String(mm).padStart(2, '0')}`
+                }}
+              >
+                {(duration) =>
+                  duration ? <span className="entryform-duration">= {duration}</span> : null
+                }
+              </form.Subscribe>
               <FieldError errors={f.state.meta.errors} />
             </label>
           )}
         </form.Field>
       </div>
+      <form.Field name="crossesMidnight">
+        {(f) => (
+          <label className="checkline">
+            <input
+              type="checkbox"
+              checked={f.state.value}
+              onChange={(e) => f.handleChange(e.target.checked)}
+              onBlur={f.handleBlur}
+            />
+            Crosses midnight (end time is on the next day)
+          </label>
+        )}
+      </form.Field>
 
       <form.Field name="note">
         {(f) => (
@@ -221,13 +274,13 @@ export function EntryForm({
       )}
 
       <div className="entryform-actions">
-        <button type="submit" className="btn-primary">
-          {isEdit ? 'Save' : 'Add'}
-        </button>
+        <Button type="submit" variant="primary">
+          <Check size={14} /> {isEdit ? 'Save' : 'Add'}
+        </Button>
         {isEdit && onCancel && (
-          <button type="button" onClick={onCancel}>
+          <Button type="button" variant="secondary" onClick={onCancel}>
             Cancel
-          </button>
+          </Button>
         )}
       </div>
     </form>
@@ -249,8 +302,8 @@ function workerGroups(selfId: string, superviseeIds: string[], workers: WorkerVi
     return h.name
   }
   return [
-    { label: 'Operators', options: humans.map((h) => ({ value: h.workerId, label: tag(h) })) },
-    { label: 'Agents', options: agents.map((a) => ({ value: a.workerId, label: a.name })) },
+    { label: 'People', options: humans.map((h) => ({ value: h.workerId, label: tag(h) })) },
+    { label: 'AI assistants', options: agents.map((a) => ({ value: a.workerId, label: a.name })) },
   ]
 }
 
@@ -260,5 +313,13 @@ function findClientForJob(structure: ClientNode[], jobId: string): string | null
 }
 
 function combine(date: string, hhmm: string, tz: string): string {
-  return new TZDate(`${date}T${hhmm}:00`, tz).toISOString()
+  // TZDate.toISOString() emits local time with a numeric offset; the wire schema (#19) wants UTC Z.
+  return new Date(new TZDate(`${date}T${hhmm}:00`, tz).getTime()).toISOString()
+}
+
+function addDaysIso(iso: string, days: number): string {
+  // Used only for the crosses-midnight affordance — shift YYYY-MM-DD by `days`
+  // in calendar terms (no tz needed; we're just moving to the next/prev day).
+  const [y, m, d] = iso.split('-').map(Number) as [number, number, number]
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10)
 }

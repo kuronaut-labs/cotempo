@@ -3,6 +3,7 @@ import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { authClient } from '~/lib/auth-client'
 import { applyServerError } from '~/components/forms/applyServerError'
+import { Button } from '~/components/ui/button'
 
 const Input = z
   .object({ password: z.string().min(12), confirm: z.string() })
@@ -58,8 +59,8 @@ function SetPasswordForm({ token, navigate }: { token: string; navigate: ReturnT
       >
         <form.Field name="password">
           {(f) => (
-            <label>
-              New password{' '}
+            <label className="field">
+              <span>New password</span>
               <input
                 type="password"
                 value={f.state.value}
@@ -73,8 +74,8 @@ function SetPasswordForm({ token, navigate }: { token: string; navigate: ReturnT
         </form.Field>
         <form.Field name="confirm">
           {(f) => (
-            <label>
-              Confirm{' '}
+            <label className="field">
+              <span>Confirm</span>
               <input
                 type="password"
                 value={f.state.value}
@@ -95,7 +96,7 @@ function SetPasswordForm({ token, navigate }: { token: string; navigate: ReturnT
             ) : null
           }
         </form.Subscribe>
-        <button type="submit">Set password</button>
+        <Button type="submit" variant="primary">Set password</Button>
       </form>
     </main>
   )
