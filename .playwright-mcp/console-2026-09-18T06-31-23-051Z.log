@@ -1,0 +1,2 @@
+[     766ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3123/node_modules/.vite/deps/react-dom_client.js?v=75db12f3:14335
+[     987ms] [ERROR] Invalid DOM property `%s`. Did you mean `%s`? crossorigin crossOrigin @ http://localhost:3123/@vite/client:532

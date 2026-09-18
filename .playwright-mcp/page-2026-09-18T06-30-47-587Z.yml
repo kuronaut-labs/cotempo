@@ -1,0 +1,140 @@
+- generic [ref=f4e2]:
+  - navigation [ref=f4e3]:
+    - link "Today" [ref=f4e4] [cursor=pointer]:
+      - /url: /today
+    - link "Reports" [ref=f4e9] [cursor=pointer]:
+      - /url: /reports
+    - link "Approvals" [ref=f4e16] [cursor=pointer]:
+      - /url: /approvals
+    - link "Leave" [ref=f4e20] [cursor=pointer]:
+      - /url: /leave
+    - generic [ref=f4e28]: Demo Operator
+    - button "Sign out" [ref=f4e29] [cursor=pointer]
+  - main [ref=f4e33]:
+    - heading "Reports" [level=1] [ref=f4e35]
+    - tablist "Report tabs" [ref=f4e36]:
+      - tab "My time" [selected] [ref=f4e37] [cursor=pointer]
+    - generic [ref=f4e38]:
+      - heading "My time and my team's" [level=2] [ref=f4e40]
+      - generic [ref=f4e41]:
+        - generic [ref=f4e42]:
+          - generic [ref=f4e43]:
+            - generic [ref=f4e44]:
+              - text: Atlas
+              - generic [ref=f4e45]: agent
+            - group "Time summary" [ref=f4e46]:
+              - generic "On the clock — 8:00. Time covered; overlaps counted once." [ref=f4e47]: On the clock8:00
+              - generic "Total of entries — 8:00. What you'd get by adding every entry." [ref=f4e48]: Total of entries8:00
+              - generic "Overlap — 0:00. Extra minutes from working two jobs at once." [ref=f4e49]: Overlap0:00
+          - generic [ref=f4e50]:
+            - generic [ref=f4e51]:
+              - generic [ref=f4e52]: 2026-09-07
+              - img "Day timeline" [ref=f4e54]:
+                - generic "17:00–00:00" [ref=f4e56]
+                - generic "Timeline legend" [ref=f4e57]:
+                  - generic [ref=f4e58]: ‹ starts before this day
+                  - generic [ref=f4e59]: › ends after this day
+                  - generic [ref=f4e60]: ×N N entries overlap
+              - group "Time summary" [ref=f4e61]:
+                - generic "On the clock — 7:00. Time covered; overlaps counted once." [ref=f4e62]: On the clock7:00
+                - generic "Total of entries — 7:00. What you'd get by adding every entry." [ref=f4e63]: Total of entries7:00
+                - generic "Overlap — 0:00. Extra minutes from working two jobs at once." [ref=f4e64]: Overlap0:00
+            - generic [ref=f4e65]:
+              - generic [ref=f4e66]: 2026-09-08
+              - img "Day timeline" [ref=f4e68]:
+                - generic "00:00–01:00" [ref=f4e70]
+                - generic "Timeline legend" [ref=f4e71]:
+                  - generic [ref=f4e72]: ‹ starts before this day
+                  - generic [ref=f4e73]: › ends after this day
+                  - generic [ref=f4e74]: ×N N entries overlap
+              - group "Time summary" [ref=f4e75]:
+                - generic "On the clock — 1:00. Time covered; overlaps counted once." [ref=f4e76]: On the clock1:00
+                - generic "Total of entries — 1:00. What you'd get by adding every entry." [ref=f4e77]: Total of entries1:00
+                - generic "Overlap — 0:00. Extra minutes from working two jobs at once." [ref=f4e78]: Overlap0:00
+        - generic [ref=f4e79]:
+          - generic [ref=f4e80]:
+            - generic [ref=f4e81]:
+              - text: Beacon
+              - generic [ref=f4e82]: agent
+            - group "Time summary" [ref=f4e83]:
+              - generic "On the clock — 3:00. Time covered; overlaps counted once." [ref=f4e84]: On the clock3:00
+              - generic "Total of entries — 3:00. What you'd get by adding every entry." [ref=f4e85]: Total of entries3:00
+              - generic "Overlap — 0:00. Extra minutes from working two jobs at once." [ref=f4e86]: Overlap0:00
+          - generic [ref=f4e88]:
+            - generic [ref=f4e89]: 2026-09-07
+            - img "Day timeline" [ref=f4e91]:
+              - generic "21:00–00:00" [ref=f4e93]
+              - generic "Timeline legend" [ref=f4e94]:
+                - generic [ref=f4e95]: ‹ starts before this day
+                - generic [ref=f4e96]: › ends after this day
+                - generic [ref=f4e97]: ×N N entries overlap
+            - group "Time summary" [ref=f4e98]:
+              - generic "On the clock — 3:00. Time covered; overlaps counted once." [ref=f4e99]: On the clock3:00
+              - generic "Total of entries — 3:00. What you'd get by adding every entry." [ref=f4e100]: Total of entries3:00
+              - generic "Overlap — 0:00. Extra minutes from working two jobs at once." [ref=f4e101]: Overlap0:00
+        - generic [ref=f4e102]:
+          - generic [ref=f4e103]:
+            - generic [ref=f4e104]:
+              - text: Demo Operator
+              - generic [ref=f4e105]: human
+            - group "Time summary" [ref=f4e106]:
+              - generic "On the clock — 13:00. Time covered; overlaps counted once." [ref=f4e107]: On the clock13:00
+              - generic "Total of entries — 15:00. What you'd get by adding every entry." [ref=f4e108]: Total of entries15:00
+              - generic "Overlap — 2:00. Extra minutes from working two jobs at once." [ref=f4e109]: Overlap2:00
+          - generic [ref=f4e110]:
+            - generic [ref=f4e111]:
+              - generic [ref=f4e112]: 2026-09-07
+              - img "Day timeline" [ref=f4e114]:
+                - generic [ref=f4e115]:
+                  - generic "17:00–20:00" [ref=f4e116]
+                  - generic "18:00–19:00" [ref=f4e117]
+                  - generic [ref=f4e118]: ×2
+                - generic "Timeline legend" [ref=f4e120]:
+                  - generic [ref=f4e121]: ‹ starts before this day
+                  - generic [ref=f4e122]: › ends after this day
+                  - generic [ref=f4e123]: ×N N entries overlap
+              - group "Time summary" [ref=f4e124]:
+                - generic "On the clock — 3:00. Time covered; overlaps counted once." [ref=f4e125]: On the clock3:00
+                - generic "Total of entries — 4:00. What you'd get by adding every entry." [ref=f4e126]: Total of entries4:00
+                - generic "Overlap — 1:00. Extra minutes from working two jobs at once." [ref=f4e127]: Overlap1:00
+            - generic [ref=f4e128]:
+              - generic [ref=f4e129]: 2026-09-08
+              - img "Day timeline" [ref=f4e131]:
+                - generic [ref=f4e132]:
+                  - generic "17:00–21:00" [ref=f4e133]
+                  - generic "19:00–20:00" [ref=f4e134]
+                  - generic [ref=f4e135]: ×2
+                - generic "Timeline legend" [ref=f4e137]:
+                  - generic [ref=f4e138]: ‹ starts before this day
+                  - generic [ref=f4e139]: › ends after this day
+                  - generic [ref=f4e140]: ×N N entries overlap
+              - group "Time summary" [ref=f4e141]:
+                - generic "On the clock — 4:00. Time covered; overlaps counted once." [ref=f4e142]: On the clock4:00
+                - generic "Total of entries — 5:00. What you'd get by adding every entry." [ref=f4e143]: Total of entries5:00
+                - generic "Overlap — 1:00. Extra minutes from working two jobs at once." [ref=f4e144]: Overlap1:00
+            - generic [ref=f4e145]:
+              - generic [ref=f4e146]: 2026-09-09
+              - img "Day timeline" [ref=f4e148]:
+                - generic "22:00–00:00" [ref=f4e150]
+                - generic "Timeline legend" [ref=f4e151]:
+                  - generic [ref=f4e152]: ‹ starts before this day
+                  - generic [ref=f4e153]: › ends after this day
+                  - generic [ref=f4e154]: ×N N entries overlap
+              - group "Time summary" [ref=f4e155]:
+                - generic "On the clock — 2:00. Time covered; overlaps counted once." [ref=f4e156]: On the clock2:00
+                - generic "Total of entries — 2:00. What you'd get by adding every entry." [ref=f4e157]: Total of entries2:00
+                - generic "Overlap — 0:00. Extra minutes from working two jobs at once." [ref=f4e158]: Overlap0:00
+            - generic [ref=f4e159]:
+              - generic [ref=f4e160]: 2026-09-10
+              - img "Day timeline" [ref=f4e162]:
+                - generic [ref=f4e163]:
+                  - generic "00:00–02:00" [ref=f4e164]
+                  - generic "17:00–19:00" [ref=f4e165]
+                - generic "Timeline legend" [ref=f4e166]:
+                  - generic [ref=f4e167]: ‹ starts before this day
+                  - generic [ref=f4e168]: › ends after this day
+                  - generic [ref=f4e169]: ×N N entries overlap
+              - group "Time summary" [ref=f4e170]:
+                - generic "On the clock — 4:00. Time covered; overlaps counted once." [ref=f4e171]: On the clock4:00
+                - generic "Total of entries — 4:00. What you'd get by adding every entry." [ref=f4e172]: Total of entries4:00
+                - generic "Overlap — 0:00. Extra minutes from working two jobs at once." [ref=f4e173]: Overlap0:00

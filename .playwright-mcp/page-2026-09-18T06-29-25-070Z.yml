@@ -1,0 +1,100 @@
+- generic [ref=f1e2]:
+  - navigation [ref=f1e3]:
+    - link "Today" [ref=f1e4] [cursor=pointer]:
+      - /url: /today
+    - link "Reports" [ref=f1e9] [cursor=pointer]:
+      - /url: /reports
+    - link "Approvals" [ref=f1e16] [cursor=pointer]:
+      - /url: /approvals
+    - link "Leave" [ref=f1e20] [cursor=pointer]:
+      - /url: /leave
+    - generic [ref=f1e28]: Demo Operator
+    - button "Sign out" [ref=f1e29] [cursor=pointer]
+  - main [ref=f1e33]:
+    - generic [ref=f1e34]:
+      - button "Previous day" [ref=f1e35] [cursor=pointer]
+      - button "Today" [ref=f1e38] [cursor=pointer]
+      - button "Next day" [ref=f1e39] [cursor=pointer]
+      - textbox "Jump to date" [ref=f1e42]: 2026-08-31
+    - generic [ref=f1e43]:
+      - generic [ref=f1e44]:
+        - generic [ref=f1e45]:
+          - heading "Demo Operator" [level=2] [ref=f1e46]
+          - group "Time summary" [ref=f1e47]:
+            - generic "On the clock — 0:00. Time covered; overlaps counted once." [ref=f1e48]: On the clock0:00
+            - generic "Total of entries — 0:00. What you'd get by adding every entry." [ref=f1e49]: Total of entries0:00
+            - generic "Overlap — 0:00. Extra minutes from working two jobs at once." [ref=f1e50]: Overlap0:00
+        - img "Day timeline" [ref=f1e51]:
+          - generic "Timeline legend" [ref=f1e53]:
+            - generic [ref=f1e54]: ‹ starts before this day
+            - generic [ref=f1e55]: › ends after this day
+            - generic [ref=f1e56]: ×N N entries overlap
+        - generic [ref=f1e57]: No entries logged for this day.
+      - generic [ref=f1e58]:
+        - generic [ref=f1e59]:
+          - heading "Atlas" [level=2] [ref=f1e60]
+          - group "Time summary" [ref=f1e61]:
+            - generic "On the clock — 0:00. Time covered; overlaps counted once." [ref=f1e62]: On the clock0:00
+            - generic "Total of entries — 0:00. What you'd get by adding every entry." [ref=f1e63]: Total of entries0:00
+            - generic "Overlap — 0:00. Extra minutes from working two jobs at once." [ref=f1e64]: Overlap0:00
+        - img "Day timeline" [ref=f1e65]:
+          - generic "Timeline legend" [ref=f1e67]:
+            - generic [ref=f1e68]: ‹ starts before this day
+            - generic [ref=f1e69]: › ends after this day
+            - generic [ref=f1e70]: ×N N entries overlap
+        - generic [ref=f1e71]: No entries logged for this day.
+      - generic [ref=f1e72]:
+        - generic [ref=f1e73]:
+          - heading "Beacon" [level=2] [ref=f1e74]
+          - group "Time summary" [ref=f1e75]:
+            - generic "On the clock — 0:00. Time covered; overlaps counted once." [ref=f1e76]: On the clock0:00
+            - generic "Total of entries — 0:00. What you'd get by adding every entry." [ref=f1e77]: Total of entries0:00
+            - generic "Overlap — 0:00. Extra minutes from working two jobs at once." [ref=f1e78]: Overlap0:00
+        - img "Day timeline" [ref=f1e79]:
+          - generic "Timeline legend" [ref=f1e81]:
+            - generic [ref=f1e82]: ‹ starts before this day
+            - generic [ref=f1e83]: › ends after this day
+            - generic [ref=f1e84]: ×N N entries overlap
+        - generic [ref=f1e85]: No entries logged for this day.
+    - generic [ref=f1e86]:
+      - heading "Add interval" [level=2] [ref=f1e87]
+      - generic [ref=f1e88]:
+        - generic [ref=f1e89]:
+          - generic [ref=f1e90]: Date
+          - textbox "Date" [disabled] [ref=f1e91]: 2026-08-31
+        - generic [ref=f1e92]:
+          - generic [ref=f1e93]: Worker
+          - combobox "Worker" [ref=f1e94]:
+            - option "Demo Operator (self)" [selected]
+            - option "Atlas"
+            - option "Beacon"
+        - generic [ref=f1e95]:
+          - generic [ref=f1e96]: Client
+          - combobox "Client" [ref=f1e97]:
+            - option "Acme Aerospace" [selected]
+            - option "Nimbus Freight"
+        - generic [ref=f1e98]:
+          - generic [ref=f1e99]: Job
+          - combobox "Job" [ref=f1e100]:
+            - option "— select —" [selected]
+            - option "Nimbus Freight / Route Optimization / Internal Data Cleansing"
+            - option "Acme Aerospace / Flight Ops Automation / Pipeline Maintenance"
+            - option "Nimbus Freight / Route Optimization / Route Model Tuning"
+            - option "Acme Aerospace / Flight Ops Automation / Eval Harness Runs"
+            - option "Flight Ops Automation / Pipeline Maintenance"
+            - option "Flight Ops Automation / Eval Harness Runs"
+        - generic [ref=f1e101]:
+          - generic [ref=f1e102]:
+            - generic [ref=f1e103]: Start (Australia/Perth)
+            - textbox "Start (Australia/Perth)" [ref=f1e104]: 09:00
+          - generic [ref=f1e105]:
+            - generic [ref=f1e106]: End (Australia/Perth)
+            - textbox "End (Australia/Perth) = 1:00" [ref=f1e107]: 10:00
+            - generic [ref=f1e108]: = 1:00
+        - generic [ref=f1e109]:
+          - checkbox "Crosses midnight (end time is on the next day)" [ref=f1e110] [cursor=pointer]
+          - text: Crosses midnight (end time is on the next day)
+        - generic [ref=f1e111]:
+          - generic [ref=f1e112]: Note
+          - textbox "Note" [ref=f1e113]
+        - button "Add" [ref=f1e115] [cursor=pointer]

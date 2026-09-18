@@ -10,12 +10,17 @@
 
 ## Global Constraints
 
-- Node 24 via **mise** (no nvm on this machine). Gate: `npm run check` exit 0 (contract-manifest + eslint + tsc + unit/integration; allow ~3 minutes). Belt-and-braces: `npm run test:contract`.
+- Node 24 via **nvm** (`.nvmrc`); the shell default is Node 21, so `export PATH=~/.nvm/versions/node/v24.19.0/bin:$PATH` before any npm/npx. Gate: `npm run check` exit 0 (contract-manifest + eslint + tsc + unit/integration; allow ~3 minutes). Belt-and-braces: `npm run test:contract`. `tsc` covers `tests/**`, so test files must typecheck too.
 - `tests/contract/**` is untouchable. New tests go in `tests/unit` / `tests/integration` only.
 - Migrations: `npm run db:generate`, never hand-edit; apply with `npm run db:migrate:local`. Next migrations are 0004, 0005, 0006 (one per Wave A task).
 - No new dependencies. zod v4: `ctx.addIssue({ code: 'custom', ... })` when using superRefine.
 - **Money (#5):** operators never receive a `cents`/`rateCents`-shaped key — build the object WITHOUT the key; never `null`/`0` as a placeholder. Applies to `rateCents` in audit rows and in event change-diffs.
-- **Copy freeze:** all existing user-visible strings stay byte-identical. Each task lists its NEW copy (frozen once landed). The gap-flag detail string `(< 8h)` becomes `(< ${cfg.gapMinWallMin / 60}h)` — byte-identical at the default 480.
+- **Copy freeze:** all existing user-visible strings stay byte-identical. Each task lists its NEW copy (frozen once landed). The gap-flag detail string `(< 8h)` becomes `(< ${gapHours(cfg.gapMinWallMin)}h)` where `gapHours = (min) => String(Math.round((min / 60) * 100) / 100)` — no `Math.round` to whole hours (450 must read `7.5h`); byte-identical `8h` at the default 480.
+- **Contract equality:** `phase5-reports.contract.test.ts:81` asserts `daily().totals.byClient[c1]` `toEqual` `reconciliation().clients[c1]` for billing. Never add keys to `ClientRecon` in one report and not the other; new per-client data goes in a sibling map on the report (see B2).
+- **Seeded rates:** `src/server/fixtures/demo.ts` writes `rateCents` directly, so every seeded snapshot equals its job's current rate (position override never applied). Tests that need a divergent snapshot must create the interval through `createInterval`.
+- **Seeded overlaps:** opWorker has seeded j1 intervals on day 0 (09–12 UTC) and day 2 (14–18 UTC). New test intervals for opWorker use day 4 (Sat, still inside week 2026-08-31 in Perth) like `intervals.test.ts` does.
+- **Org settings leak:** `resetDb` re-seeds `org_settings` with `onConflictDoNothing`, so a test that changes settings leaks into later tests in the same file. Any test file that reads or writes settings resets the row in `beforeEach` (`db.delete(orgSettings)` + `insertDemo(db)`, the `settings.service.test.ts` pattern).
+- **Fixed clock:** `deps().now()` is frozen, so events written in one test share `at`. Order event queries by `at` then `rowid` so create/edit/delete come back in insertion order.
 - Services: `(deps: Deps, ctx: SessionContext, input)` in `src/server/services/*.ts`; fns are thin `createServerFn` wrappers (`authMw`, `ctxOf`, `runtimeDeps`) re-exporting service types. No new error codes in this plan.
 - Test helpers (`tests/integration/helpers.ts`): `deps()` — fixed clock `DEMO_ANCHOR_MS + 5d` = **2026-09-05** (Saturday), tz **Australia/Perth**; `asUser('admin' | 'billing' | 'operator')`; `resetDb()` (wipes + re-seeds demo); `at(dayOffset, h, m)`; `ids` map. Integration pattern: `beforeEach(async () => { await resetDb() })`.
 - Demo facts: anchor Monday **2026-08-31**; humans `ids.opWorker` ('Demo Operator'), `ids.billingWorker` ('Demo Billing'), `ids.adminWorker` — none supervised; agents `ids.agent1` 'Atlas' / `ids.agent2` 'Beacon' supervised by **opWorker**; opWorker holds position `posSenior` ($120/h — overrides job rates); jobs: `ids.j1` $140/h billable, `ids.j3` $120/h, `ids.j4` non-billable (null).
@@ -27,8 +32,8 @@
 1. **Interval events are a new table** (`interval_events`), not a JSON column: queryable, FK'd, exported. Rows are appended by the interval service on create/edit/delete; the edit row carries a `changes` JSON `{ field: { from, to } }` diff of `startedAt`/`endedAt`/`jobId`/`note`/`rateCents` (times as ISO strings; `rateCents` diff makes position re-snapshots visible).
 2. **Flag thresholds live in org settings** (`flagGapMinWallMin`, `flagLateEntryDays`, `flagMultiEditOver`, all nullable → fall back to `src/lib/redFlags.ts` `defaults` at the approvals call sites). `redFlags(input, cfg)` already accepts cfg — no contract impact.
 3. **Budgets are per job** (`jobs.budgetCents` nullable, `$`-free integer cents). `budgetCents` on `JobNode`/`JobRecon` is canSeeMoney-gated (omit-key).
-4. **Realization = actual cents ÷ standard cents** where standard = the same minutes valued at the job's CURRENT `billableRateCents` (positions/mid-period changes make it diverge from 100%). Per client, billing-only.
-5. **Trends are weekly aggregates** (wall/effort/premium/utilization) over the last N Mondays; org-wide, billing/admin only (utilization mirrors adminKpis: wall ÷ (humans × defaultDayMinutes)).
+4. **Realization = actual cents ÷ standard cents** where standard = the same minutes valued at the job's CURRENT `billableRateCents` (positions/mid-period changes make it diverge from 100%). Per client, billing-only. Carried as `ReconciliationReport.realization` (a sibling map keyed by clientId, present only for money viewers), NOT as fields on `ClientRecon` — see the contract-equality constraint.
+5. **Trends are weekly aggregates** (wall/effort/premium/utilization) over the last N Mondays; org-wide, billing/admin only. Weekly utilization = wall ÷ (humans × defaultDayMinutes × 5): a week's denominator is five default days, not one (adminKpis is a single-day figure).
 6. **The audit timeline merges** approval events + interval events, sorted newest-first; `rateCents` inside change-diffs is stripped for non-money viewers (#5).
 7. **Bulk approve reuses `approveWeek` per row**, catching `HttpError` into per-row `{ ok, code }` results so one locked/self-approval week never blocks the rest.
 8. **The audit CSV prefixes kinds** (`leave_`, `interval_`) to keep the single `kind` column unambiguous; it is billing/admin-only because interval diffs contain rate money.
@@ -116,7 +121,7 @@ db.delete(schema.intervalEvents),
 
 - [ ] **Step 4: Write the failing tests**
 
-Append to `tests/integration/intervals.test.ts` (inside the existing top-level describe or a new `describe('interval events')`; imports already available — add `asc` to the drizzle-orm import if missing):
+Append to `tests/integration/intervals.test.ts` (inside the existing top-level describe or a new `describe('interval events')`; imports already available — add `asc` and `sql` to the drizzle-orm import if missing). The clock is frozen, so `at` ties; `rowid` is the tiebreak:
 
 ```ts
 describe('interval events', () => {
@@ -125,7 +130,7 @@ describe('interval events', () => {
       .select()
       .from(schema.intervalEvents)
       .where(eq(schema.intervalEvents.intervalId, intervalId))
-      .orderBy(asc(schema.intervalEvents.at))
+      .orderBy(asc(schema.intervalEvents.at), sql`rowid`)
       .all()
 
   it('create emits a create event', async () => {
@@ -228,13 +233,15 @@ Then three insertions:
   await db.insert(schema.intervalEvents).values(intervalEventRow(row.id, 'create', ctx.workerId, null, now))
 ```
 
-- `updateInterval` — after the `updated` literal is built, BEFORE `resetSubmittedWeeks`:
+- `updateInterval` — the `updated` literal is currently built AFTER `resetSubmittedWeeks`; move it above that call, then insert the event between them:
 
 ```ts
   await db.insert(schema.intervalEvents).values(
     intervalEventRow(cur.id, 'edit', ctx.workerId, diffInterval(cur, updated), now),
   )
 ```
+
+  An edit with an empty diff still emits an `edit` row (`changes: {}`), matching `editCount` which also increments on a no-op save.
 
 - `deleteInterval` — after the soft-delete `db.update(...)`:
 
@@ -319,20 +326,17 @@ Add the imports the test file needs: `getWeekForApproval` from `~/server/service
 
 Append to `tests/unit/redFlags.test.ts`:
 
+The file already has `toIv`, `piecesOf`, `WEEK`, `DAY` (= 2026-09-02), `TZ`, `worker` builders. Reuse them:
+
 ```ts
 it('templates the gap threshold into the detail (byte-identical at default)', () => {
-  const day = '2026-08-31'
-  const input = redFlagInputFor(day) // reuse the file's existing input builder; a worker with 300 wall min that day
-  const def = redFlags(input)
-  const custom = redFlags(input, { gapMinWallMin: 450, lateEntryDays: 7, multiEditOver: 2 })
-  const defDetail = def.find((f) => f.kind === 'gap' && f.detail.includes('min on'))!.detail
-  const customDetail = custom.find((f) => f.kind === 'gap' && f.detail.includes('min on'))!.detail
-  expect(defDetail).toContain('(< 8h)')
-  expect(customDetail).toContain('(< 7.5h)')
+  const ivs = [toIv(['a', '09:00', '14:00'])] // 300 wall min → "Only N min" branch
+  const input = { weekStart: WEEK, tz: TZ, worker, intervals: ivs, pieces: piecesOf(ivs) }
+  const onDay = (flags: ReturnType<typeof redFlags>) => flags.find((f) => f.kind === 'gap' && f.day === DAY)!.detail
+  expect(onDay(redFlags(input))).toBe(`Only 300 min on ${DAY} (< 8h).`)
+  expect(onDay(redFlags(input, { gapMinWallMin: 450, lateEntryDays: 7, multiEditOver: 2 }))).toBe(`Only 300 min on ${DAY} (< 7.5h).`)
 })
 ```
-
-Note: adapt `redFlagInputFor` to whatever local fixture builder that test file already uses — the requirement is one worker with between 1 and 450 wall minutes on a Mon–Fri day so the "Only N min" branch fires.
 
 - [ ] **Step 3: Run to verify it fails**
 
@@ -367,10 +371,13 @@ and to `OrgSettingsView`: `flagGapMinWallMin: number | null`, `flagLateEntryDays
   if (input.flagMultiEditOver !== undefined) patch.flagMultiEditOver = input.flagMultiEditOver
 ```
 
-`src/lib/redFlags.ts` `gapFlags` detail (keep byte-identical at default):
+`src/lib/redFlags.ts` `gapFlags` detail (keep byte-identical at default; NOT `Math.round` to whole hours — 450 must read `7.5h`):
 
 ```ts
-        detail: wall === 0 ? `No time logged on ${day}.` : `Only ${Math.round(wall)} min on ${day} (< ${Math.round(cfg.gapMinWallMin / 60)}h).`,
+// 480 → "8", 450 → "7.5", 500 → "8.33"
+const gapHours = (min: number) => String(Math.round((min / 60) * 100) / 100)
+...
+        detail: wall === 0 ? `No time logged on ${day}.` : `Only ${Math.round(wall)} min on ${day} (< ${gapHours(cfg.gapMinWallMin)}h).`,
 ```
 
 `src/server/services/approvals.ts` — import `{ getOrgSettings, type OrgSettingsView }` from `'./settings'` and `{ defaults as flagDefaults }` from `'~/lib/redFlags'`; add the `flagsCfg` helper (Interfaces block above). In `listPendingWeeks`, before the loop:
@@ -497,17 +504,18 @@ Append to `tests/integration/structure.test.ts`:
 
 ```ts
 it('jobs carry an optional budget, money-gated in the tree', async () => {
+  const live = { includeArchived: false } // listStructure takes the ListStructureInput object, not a boolean
   const { id } = await createJob(deps(), asUser('admin'), { projectId: ids.p1, name: 'Budgeted job', budgetCents: 50_000 })
-  const adminTree = await listStructure(deps(), asUser('admin'), false)
+  const adminTree = await listStructure(deps(), asUser('admin'), live)
   const node = adminTree.flatMap((c) => c.projects).flatMap((p) => p.jobs).find((j) => j.id === id)!
   expect(node.budgetCents).toBe(50_000)
 
-  const opsTree = await listStructure(deps(), asUser('operator'), false)
+  const opsTree = await listStructure(deps(), asUser('operator'), live)
   const opsNode = opsTree.flatMap((c) => c.projects).flatMap((p) => p.jobs).find((j) => j.id === id)!
   expect('budgetCents' in opsNode).toBe(false) // #5: key omitted, never null
 
   await updateJob(deps(), asUser('admin'), { id, budgetCents: 75_000 })
-  const after = await listStructure(deps(), asUser('admin'), false)
+  const after = await listStructure(deps(), asUser('admin'), live)
   expect(after.flatMap((c) => c.projects).flatMap((p) => p.jobs).find((j) => j.id === id)!.budgetCents).toBe(75_000)
 })
 ```
@@ -593,6 +601,22 @@ export type WeeksInput = z.infer<typeof WeeksInput>
 
 Append to `tests/integration/reports.service.test.ts`:
 
+The existing `adminKpis` test in this file sets `defaultDayMinutes: 240` and `resetDb` does not undo it (see Global Constraints, "Org settings leak"). Change the file's `beforeEach` to the settings-test pattern first:
+
+```ts
+import { orgSettings } from '../../drizzle/schema'
+import { insertDemo } from '~/server/fixtures/demo'
+import { db } from './helpers'
+
+beforeEach(async () => {
+  await resetDb()
+  await db.delete(orgSettings)
+  await insertDemo(db)
+})
+```
+
+Then append:
+
 ```ts
 import { weeklyTrends } from '~/server/services/reports'
 
@@ -603,8 +627,8 @@ it('weeklyTrends aggregates the anchor week for billing only', async () => {
   expect(rows[7]!.weekStart).toBe('2026-08-31')
   expect(rows[7]!.effortMin).toBeGreaterThan(0)
   expect(rows[0]!.effortMin).toBe(0)
-  expect(rows[7]!.utilization).toBeGreaterThan(0)
-  expect(rows[7]!.utilization).toBeLessThanOrEqual(1.2) // demo wall well under a week
+  // Seeded week wall = 1440 min (op 780 + Atlas 480 + Beacon 180); 3 humans × 480 × 5 = 7200 → 0.2.
+  expect(rows[7]!.utilization).toBeCloseTo(0.2, 5)
   await expect(weeklyTrends(deps(), asUser('operator'), { weeks: 8 })).rejects.toMatchObject({ status: 403 })
 })
 ```
@@ -629,7 +653,9 @@ export type WeekTrend = {
 }
 
 /* Org-wide weekly aggregates, oldest → newest, for the billing/admin tab.
-   Utilization mirrors adminKpis: wall-clock over (active humans × default day minutes). */
+   Utilization = wall-clock over (active humans × default day minutes × 5 weekdays);
+   adminKpis' single-day denominator would read 100% for one day's work in a week. */
+const WEEKDAYS = 5
 export async function weeklyTrends(
   deps: Deps,
   ctx: SessionContext,
@@ -649,7 +675,6 @@ export async function weeklyTrends(
   for (let i = input.weeks - 1; i >= 0; i--) {
     const weekStart = localDateOf(thisMondayMs - i * 7 * 86_400_000, tz)
     const days = weekDates(weekStart)
-    // eslint-disable-next-line no-await-in-loop
     const pieces = await loadPieces(deps, { from: weekStart, to: days[6]! })
     const r = recon(pieces)
     out.push({
@@ -657,7 +682,7 @@ export async function weeklyTrends(
       wallClockMin: r.wallClockMin,
       effortMin: r.effortMin,
       premiumMin: r.premiumMin,
-      utilization: humans.length > 0 ? r.wallClockMin / (humans.length * dayMinutes) : 0,
+      utilization: humans.length > 0 ? r.wallClockMin / (humans.length * dayMinutes * WEEKDAYS) : 0,
     })
   }
   return out
@@ -742,25 +767,34 @@ git commit -m "feat: weekly trends report"
 - Test: `tests/integration/reports.service.test.ts` (append)
 
 **Interfaces:**
-- Extends: `ClientRecon` with optional `standardCents?: number` and `realizationPct?: number | null` (both present only when `canSeeMoney`; `#5` omit-key). Consumption site checks `'realizationPct' in c`.
+- Extends: `ReconciliationReport` with `realization?: Record<string, ClientRealization>` (keyed by clientId) where `export type ClientRealization = { standardCents: number; realizationPct: number | null }`. The key is present only when `canSeeMoney` (`#5` omit-key). `ClientRecon` is NOT touched: `phase5-reports.contract.test.ts:81` requires `daily().totals.byClient[c1]` to `toEqual` `reconciliation().clients[c1]`.
 
 - [ ] **Step 1: Failing tests**
 
-Append to `tests/integration/reports.service.test.ts`:
+Append to `tests/integration/reports.service.test.ts`. Seeded intervals carry the job rate verbatim (fixture bypasses the position override), so create one through the service to get a divergent snapshot:
 
 ```ts
 import { reconciliation } from '~/server/services/reports'
+import { createInterval } from '~/server/services/intervals'
+import { at } from './helpers'
 
 it('reconciliation realization reflects position overrides', async () => {
-  const report = await reconciliation(deps(), asUser('billing'), { from: '2026-08-31', to: '2026-09-06' })
-  const c1 = report.clients.find((c) => c.clientId === ids.c1)!
-  // opWorker on j1: snapshot 12_000 (position) vs current j1 14_000 → realization < 100% for that client's mix.
-  expect(c1.realizationPct ?? 100).toBeLessThan(100)
+  // opWorker holds posSenior ($120/h); j1 is $140/h → this interval snapshots 12_000 vs standard 14_000.
+  await createInterval(deps(), asUser('operator'), {
+    workerId: ids.opWorker, jobId: ids.j1,
+    startedAt: at(4, 9).toISOString(), endedAt: at(4, 11).toISOString(),
+  })
+  const period = { from: '2026-08-31', to: '2026-09-06' }
+  const report = await reconciliation(deps(), asUser('billing'), period)
+  const c1 = report.realization![ids.c1]!
   expect(c1.realizationPct).not.toBeNull()
-  expect('standardCents' in c1).toBe(true)
+  expect(c1.realizationPct!).toBeLessThan(100)
+  expect(c1.standardCents).toBeGreaterThan(0)
+  // Seeded-only client: snapshots equal current rates → exactly 100%.
+  expect(report.realization![ids.c2]!.realizationPct).toBe(100)
 
-  const ops = await reconciliation(deps(), asUser('operator'), { from: '2026-08-31', to: '2026-09-06' })
-  expect('realizationPct' in ops.clients[0]!).toBe(false)
+  const ops = await reconciliation(deps(), asUser('operator'), period)
+  expect('realization' in ops).toBe(false)
 })
 ```
 
@@ -772,9 +806,9 @@ Run: `npx vitest run tests/integration/reports.service.test.ts` → FAIL.
 
 In `src/server/services/reports.ts`, ensure `minutesBetween` is imported from `'~/lib/dayMath'`; `moneyCents` from `'~/lib/money'` (both already available via `recon`'s deps); also import `inArray` from `drizzle-orm` if missing.
 
-`ClientRecon` type (near line 24): add `standardCents?: number` and `realizationPct?: number | null`.
+Types (near line 24): add `export type ClientRealization = { standardCents: number; realizationPct: number | null }` and extend `ReconciliationReport` to `{ clients: ClientRecon[]; total: RoleRecon; realization?: Record<string, ClientRealization> }`. `ClientRecon` stays as is.
 
-Reorder the top of `reconciliation`: `const keepCents = canSeeMoney(ctx)` stays first; then `const pieces = await loadPieces(deps, input, scopeFor(ctx))`; then build `jobRates` from `pieces` (no second load); then `const byClient = groupBy(pieces, 'clientId')`:
+Reorder the top of `reconciliation`: `const keepCents = canSeeMoney(ctx)` first; then `const pieces = await loadPieces(deps, input, scopeFor(ctx))`; then build `jobRates` from `pieces` (no second load); then `const byClient = groupBy(pieces, 'clientId')`:
 
 ```ts
   const keepCents = canSeeMoney(ctx)
@@ -798,40 +832,42 @@ Reorder the top of `reconciliation`: `const keepCents = canSeeMoney(ctx)` stays 
 
 The existing block already does `pieces` → `byClient`; replace it with the above ordering. Keep the later `scopeFor` handling via `loadPieces`'s filter param (the `pieces` load already scopes correctly).
 
-Per client (`[...byClient.keys()].map((clientId) => { ... })`):
+Leave the `clients` map untouched. After it, build the sibling map and attach it only for money viewers:
 
 ```ts
-      const r = recon(byClient.get(clientId)!)
-      const base: ClientRecon = { clientId, name: names.get(clientId) ?? '?', ...makeRecon(r, keepCents) }
-      if (keepCents) {
-        const standard = moneyCents(
-          byClient
-            .get(clientId)!
-            .map((p) => ({ minutes: minutesBetween(p.startMs, p.endMs), rateCents: jobRates.get(p.jobId) ?? null })),
-        )
-        ;(base as ClientRecon).standardCents = standard
-        ;(base as ClientRecon).realizationPct = standard > 0 ? Math.round((r.cents / standard) * 100) : null
-      }
-      return base
+  const totalR = recon(pieces)
+  const report: ReconciliationReport = { clients, total: makeRecon(totalR, keepCents) }
+  if (keepCents) {
+    const realization: Record<string, ClientRealization> = {}
+    for (const [clientId, clientPieces] of byClient) {
+      const standard = moneyCents(
+        clientPieces.map((p) => ({ minutes: minutesBetween(p.startMs, p.endMs), rateCents: jobRates.get(p.jobId) ?? null })),
+      )
+      const actual = recon(clientPieces).cents
+      realization[clientId] = { standardCents: standard, realizationPct: standard > 0 ? Math.round((actual / standard) * 100) : null }
+    }
+    report.realization = realization
+  }
+  return report
 ```
 
 - [ ] **Step 4: Wire the table**
 
-`src/components/reconTable.tsx`: header
+`src/components/reconTable.tsx`: `const showRealization = report.realization !== undefined`. Header
 
 ```tsx
-          {showMoney ? <th className="money">Realization</th> : null}
+          {showRealization ? <th className="money">Realization</th> : null}
 ```
 
 row
 
 ```tsx
-            {showMoney && 'realizationPct' in c ? (
-              <td className="money">{(c as { realizationPct: number | null }).realizationPct == null ? '—' : `${c.realizationPct}%`}</td>
+            {showRealization ? (
+              <td className="money">{report.realization![c.clientId]?.realizationPct == null ? '—' : `${report.realization![c.clientId]!.realizationPct}%`}</td>
             ) : null}
 ```
 
-and in `tfoot` add the same cell if needed: `{showMoney && 'realizationPct' in report.total ? <td className="money" /> : null}` — or simply omit the footer realization cell (keep Period total row as-is; per-client realization is enough for v1). New copy: 'Realization'.
+and in `tfoot` an empty `<td className="money" />` when `showRealization` so the columns line up (per-client realization is enough for v1). New copy: 'Realization'.
 
 - [ ] **Step 5: Verify + gate + commit**
 
@@ -898,7 +934,6 @@ Run: `npx vitest run tests/integration/reports.service.test.ts` → FAIL.
   const keepCents = canSeeMoney(ctx)
   const allTimePieces: Piece[] = []
   if (keepCents && jobIds.length > 0) {
-    // eslint-disable-next-line no-await-in-loop
     const wide = await loadPieces(deps, { from: '2000-01-01', to: '2100-01-01' }, { jobIds })
     allTimePieces.push(...wide)
   }
@@ -976,23 +1011,20 @@ git commit -m "feat: budget vs actual per job"
 
 In `src/routes/_app/reports.tsx`, inside the `if (tab === 'billing' && ...)` branch, in the `recon` block (before the `if (sub === 'daily')` block):
 
-Add a tiny local helper near the top of the module (or inside the loader):
+Reuse `src/lib/dateShift.ts` (`parseIsoDate`, `toIsoDate`, `addDays`); do not add a local date helper:
 
 ```ts
-function addDaysIso(iso: string, days: number): string {
-  const d = new Date(`${iso}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + days)
-  return d.toISOString().slice(0, 10)
-}
+import { addDays, parseIsoDate, toIsoDate } from '~/lib/dateShift'
+const shiftIso = (iso: string, days: number) => toIsoDate(addDays(parseIsoDate(iso), days))
 ```
 
-In the loader's default/`recon` branch (the catch-all that loads `recon` + `jobs`):
+In the loader's default/`recon` branch (the catch-all AFTER the `daily`/`leave`/`trends` blocks that loads `recon` + `jobs`):
 
 ```ts
       // For period-over-period deltas: shift by the period length in days, inclusive.
       const len = Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1
-      const prevFrom = addDaysIso(from, -len)
-      const prevTo = addDaysIso(to, -len)
+      const prevFrom = shiftIso(from, -len)
+      const prevTo = shiftIso(to, -len)
       const [recon, jobs, prevRecon] = await Promise.all([
         reconciliationFn({ data: period }),
         perJobFn({ data: period }),
@@ -1100,11 +1132,13 @@ afterAll(async () => {
   await resetDb()
 })
 
+// opWorker's seeded j1 intervals sit on day 0 (09–12 UTC) and day 2; day 4 (Sat, still
+// week 2026-08-31 in Perth) is clear of SAME_JOB_OVERLAP.
 describe('audit timeline (interval events)', () => {
   it('week view merges interval events into the audit data', async () => {
     const iv = await createInterval(deps(), asUser('operator'), {
       workerId: ids.opWorker, jobId: ids.j1,
-      startedAt: at(0, 8).toISOString(), endedAt: at(0, 12).toISOString(),
+      startedAt: at(4, 8).toISOString(), endedAt: at(4, 12).toISOString(),
     })
     await updateInterval(deps(), asUser('operator'), { id: iv.id, note: 'focus' })
     const week = await getWeekForApproval(deps(), asUser('billing'), { workerId: ids.opWorker, weekStart: '2026-08-31' })
@@ -1118,7 +1152,7 @@ describe('audit timeline (interval events)', () => {
   it('operators never receive the rateCents diff (#5)', async () => {
     const iv = await createInterval(deps(), asUser('operator'), {
       workerId: ids.opWorker, jobId: ids.j1,
-      startedAt: at(0, 8).toISOString(), endedAt: at(0, 12).toISOString(),
+      startedAt: at(4, 8).toISOString(), endedAt: at(4, 12).toISOString(),
     })
     // Move to a job whose rate differs (billable→non-billable): rateCents appears only for billing.
     await updateInterval(deps(), asUser('admin'), { id: iv.id, jobId: ids.j4 })
@@ -1140,7 +1174,7 @@ Run: `npx vitest run tests/integration/approvals.service.test.ts` → FAIL.
 
 - [ ] **Step 3: Implement**
 
-In `src/server/services/approvals.ts`, add to imports: `asc` from `drizzle-orm` if not present; `getOrgSettings` already imported in this file by A2 (for `flagsCfg`); ensure `inArray` is imported.
+In `src/server/services/approvals.ts`, add to imports: `asc` and `sql` from `drizzle-orm` if not present; `getOrgSettings` already imported in this file by A2 (for `flagsCfg`); `inArray` is already imported.
 
 Near the `WeekForApproval`/`MyWeek` types, add:
 
@@ -1167,7 +1201,7 @@ In `getWeekForApproval`, after the approval `events` array is built and before t
       .select()
       .from(schema.intervalEvents)
       .where(inArray(schema.intervalEvents.intervalId, idList))
-      .orderBy(asc(schema.intervalEvents.at))
+      .orderBy(asc(schema.intervalEvents.at), sql`rowid`) // rowid breaks same-instant ties
       .all()
     if (rawIe.length > 0) {
       const actors = await workerNames(db, rawIe.map((e) => e.actorWorkerId))
@@ -1178,7 +1212,6 @@ In `getWeekForApproval`, after the approval `events` array is built and before t
           const { rateCents: _drop, ...rest } = changes
           changes = rest as IntervalEventView['changes']
         }
-        // eslint-disable-next-line no-await-in-loop -- actor names already fetched; smallest loop
         intervalEventViews.push({ id: e.id, kind: e.kind, at: e.at, actorName: actors.get(e.actorWorkerId) ?? '?', changes })
       }
     }
@@ -1227,7 +1260,7 @@ In the template, replace the Audit trail section's `{week.events.map(...)}` with
             actor: e.actorName,
             detail: e.changes ? changesText(e.changes) : null,
           })),
-        ].sort((a, b) => b.at.getTime() - a.at.getTime())
+        ].sort((a, b) => b.at.getTime() - a.at.getTime()) // stable sort: same-instant rows keep approval-then-interval order
         if (trail.length === 0)
           return <div className="lanebody-empty">No events yet.</div>
         return (
@@ -1270,7 +1303,7 @@ git commit -m "feat: interval events in audit timeline"
 - Test: `tests/integration/approvals.service.test.ts` (append — reuses C1's file)
 
 **Interfaces:**
-- Extends: `WeekIntervalAudit` with optional `rateCents?: number` (omit-key, `#5`). UI gates the column on `'rateCents' in row`.
+- Extends: `WeekIntervalAudit` with optional `rateCents?: number | null` (omit-key for non-money viewers, `#5`; `null` = non-billable job for money viewers). UI gates the column on `'rateCents' in row`.
 
 - [ ] **Step 1: Failing tests**
 
@@ -1280,17 +1313,20 @@ Append to the same `tests/integration/approvals.service.test.ts`:
 it('interval audit rows carry the rate only for money viewers', async () => {
   const iv = await createInterval(deps(), asUser('operator'), {
     workerId: ids.opWorker, jobId: ids.j1,
-    startedAt: at(0, 8).toISOString(), endedAt: at(0, 9).toISOString(),
+    startedAt: at(4, 8).toISOString(), endedAt: at(4, 9).toISOString(),
   })
-  const billingView = await getWeekForApproval(deps(), asUser('billing'), { workerId: ids.opWorker, weekStart: '2026-08-31' })
-  expect('rateCents' in billingView.intervals[0]!).toBe(true)
+  const week = { workerId: ids.opWorker, weekStart: '2026-08-31' }
+  const billingView = await getWeekForApproval(deps(), asUser('billing'), week)
+  const billingRow = billingView.intervals.find((r) => r.id === iv.id)!
+  expect(billingRow.rateCents).toBe(12_000) // position posSenior overrides j1's 14_000
+  expect(billingView.intervals.every((r) => 'rateCents' in r)).toBe(true) // seeded rows too
   // Operators viewing their own week via the read-only ApproverView path get no rate key (#5).
-  const opsView = await getWeekForApproval(deps(), asUser('operator'), { workerId: ids.opWorker, weekStart: '2026-08-31' })
-  expect('rateCents' in opsView.intervals[0]!).toBe(false)
+  const opsView = await getWeekForApproval(deps(), asUser('operator'), week)
+  expect(opsView.intervals.some((r) => 'rateCents' in r)).toBe(false)
 })
 ```
 
-Note: `createInterval` for `opWorker` on `j1` snapshots $120 (position), so the billing row's `rateCents` is `12000`. Self-view via `operator` is permitted by `assertCanViewWorker` (self) while billing viewers pass via the `billing` role. Adjust `iv` reuse vs per-test fresh: give each test fresh `resetDb` (via `beforeEach`) so there is exactly one row.
+Note: the week already holds seeded opWorker rows, so look rows up by id rather than `[0]`. Self-view via `operator` is permitted by `assertCanViewWorker` (self); billing viewers pass via the role.
 
 - [ ] **Step 2: Run to verify it fails**
 
@@ -1300,13 +1336,7 @@ Run: `npx vitest run tests/integration/approvals.service.test.ts` → FAIL.
 
 In `src/server/services/approvals.ts`, `WeekIntervalAudit` type: add `rateCents?: number` (after `editCount`).
 
-In `getWeekForApproval`'s `intervalsAudit.push({ ... })` block, add conditionally:
-
-```ts
-          rateCents: keepCents ? i.rateCents ?? undefined : undefined,
-```
-
-Note: Drizzle `rateCents` is `number | null`; when `keepCents` is false the key is omitted (set to `undefined` so `...spread` omission works? The push literal should use conditional spread:
+In `getWeekForApproval`'s `intervalsAudit.push({ ... })` block use a conditional spread. Do NOT write `rateCents: keepCents ? … : undefined` — an explicit `undefined` still creates the key and `'rateCents' in row` becomes true for operators (#5):
 
 ```ts
         const row: WeekIntervalAudit = {
@@ -1319,12 +1349,12 @@ Note: Drizzle `rateCents` is `number | null`; when `keepCents` is false the key 
           createdByName: creators.get(i.createdBy) ?? '?',
           createdAt: i.createdAt,
           editCount: i.editCount,
-          ...(keepCents && i.rateCents != null ? { rateCents: i.rateCents } : {}),
+          ...(keepCents ? { rateCents: i.rateCents } : {}),
         }
         intervalsAudit.push(row)
 ```
 
-Adjust the existing minutes/clip block accordingly; keep the wall-clock clip comment (#H4).
+`WeekIntervalAudit.rateCents?: number | null` — a billing viewer sees `null` for a non-billable job (that is information, not a placeholder); the key is absent only for non-money viewers. Adjust the existing minutes/clip block accordingly; keep the wall-clock clip comment (#H4). In the UI cell, render `null` as `—`.
 
 `src/components/approverView.tsx`:
 
@@ -1337,11 +1367,7 @@ Adjust the existing minutes/clip block accordingly; keep the wall-clock clip com
 
 ```tsx
                     {showRate ? (
-                      'rateCents' in iv ? (
-                        <td className="mono">{formatCents(iv.rateCents!)}/h</td>
-                      ) : (
-                        <td />
-                      )
+                      <td className="mono">{iv.rateCents == null ? '—' : `${formatCents(iv.rateCents)}/h`}</td>
                     ) : null}
 ```
 
@@ -1428,14 +1454,11 @@ export async function listTeamWeeks(
   for (const workerId of superviseeIds) {
     const weeks: TeamWeekRow[] = []
     for (const ws of weekStarts) {
-      // eslint-disable-next-line no-await-in-loop -- sequential per week keeps DB handling simple at demo scale
+      // sequential per week keeps DB handling simple at demo scale (no-await-in-loop is not enabled in this repo)
       const row = await loadApprovalRow(db, workerId, ws)
-      // eslint-disable-next-line no-await-in-loop
       const intervals = await loadIntervalsForWeek(db, workerId, ws, tz)
-      // eslint-disable-next-line no-await-in-loop
       const pieces = toPieces(intervals, ws, tz)
       const r = piecesRecon(pieces)
-      // eslint-disable-next-line no-await-in-loop
       const supervisors = await workerSupervisors(db, [workerId])
       const flagInput = {
         weekStart: ws,
@@ -1539,7 +1562,7 @@ function TeamPage() {
 }
 ```
 
-If `reicon-react` does not export `Users`, use `Briefcase` instead (briefcase is already imported elsewhere in the codebase — its fallback is documented here).
+`Users` in `reicon-react` is unverified (the package was not installed when this plan was reviewed). If it is not exported, use `Briefcase` instead; check with `grep -c "Users" node_modules/reicon-react/dist/index.d.ts` before writing the route.
 
 `src/routes/_app/route.tsx` — import `Users` (or fallback) and add after the Leave link:
 
@@ -1551,12 +1574,17 @@ If `reicon-react` does not export `Users`, use `Briefcase` instead (briefcase is
 
 New copy: 'Team', 'No team members yet.', 'Wall clock', 'Flags', 'no flags' (the last three reuse existing copy; only 'No team members yet.' is new).
 
-- [ ] **Step 4: Verify + gate + commit**
+- [ ] **Step 4: Regenerate route tree, verify + gate + commit**
 
-Run: `npx vitest run tests/integration/approvals.service.test.ts` → PASS. Run: `npm run check` → exit 0. Regenerate route tree:
+`npm run check` runs `tsc` and `createFileRoute('/_app/team')` does not typecheck until the Start plugin has regenerated `src/routeTree.gen.ts`, so build FIRST:
 
 ```bash
 npm run build
+```
+
+Then run: `npx vitest run tests/integration/approvals.service.test.ts` → PASS. Run: `npm run check` → exit 0.
+
+```bash
 git add src/server/services/approvals.ts src/server/fns/approvals.ts src/routes/_app/team.tsx src/routes/_app/route.tsx src/routeTree.gen.ts tests/integration/approvals.service.test.ts
 git commit -m "feat: supervisor team view"
 ```
@@ -1644,8 +1672,7 @@ export async function approveWeeksBulk(
   const out: BulkApproveResult[] = []
   for (const w of input.weeks) {
     try {
-      // approveWeek re-checks hasRole/self-approval/status guards — reuse it.
-      // eslint-disable-next-line no-await-in-loop -- per-row result capture is the design
+      // approveWeek re-checks hasRole/self-approval/status guards — reuse it; per-row result capture is the design.
       await approveWeek(deps, ctx, { ...w, comment: input.comment })
       out.push({ ...w, ok: true })
     } catch (e) {
@@ -1659,32 +1686,16 @@ export async function approveWeeksBulk(
 
 Import `BulkApproveInput` from `~/lib/schemas/approvals` and `HttpError` if not already imported (it is — used in `approveWeek`).
 
-`src/server/fns/approvals.ts` — add:
-
-```ts
-import { BulkApproveInput } from '~/lib/schemas/approvals'
-import { approveWeeksBulk } from '~/server/services/approvals'
-
-export const approveWeeksBulkFn = createServerFn({ method: 'POST' })
-  .middleware([authMw, requireRole('admin') ? undefined : undefined] as unknown[])
-  // Note: approvals fns historically gate with `authMw` only — the service throws
-  // 403 for non-billing. Keep the middleware minimal: [authMw].
-  .validator(BulkApproveInput)
-  .handler(({ data, context }) => approveWeeksBulk(runtimeDeps(), ctxOf(context), data))
-
-export type { BulkApproveResult } from '~/server/services/approvals'
-```
-
-Correction: approvals fns use `.middleware([authMw])` only (see `approveWeekFn`). Do:
+`src/server/fns/approvals.ts` — add (this file imports the schema module and `* as svc`; follow that). Approvals fns gate with `authMw` only, the service enforces billing (see `approveWeekFn`):
 
 ```ts
 export const approveWeeksBulkFn = createServerFn({ method: 'POST' })
   .middleware([authMw])
   .validator(BulkApproveInput)
-  .handler(({ data, context }) => approveWeeksBulk(runtimeDeps(), ctxOf(context), data))
-```
+  .handler(({ data, context }) => svc.approveWeeksBulk(runtimeDeps(), ctxOf(context), data))
 
-(No `requireRole('admin')` — service enforces billing.)
+export type { BulkApproveResult } from '~/server/services/approvals'
+```
 
 `src/components/approvalsQueue.tsx`:
 
@@ -1731,19 +1742,15 @@ In `weeks.map`, before the `<button>` add:
 
 - Imports: `useState` from `react`, `Button` from `~/components/ui/button`, `approveWeeksBulkFn` from `~/server/fns/approvals` (alongside existing `listPendingWeeksFn` etc.), `serverErrorMessage` from `~/components/forms/applyServerError`.
 
-- Inside the `if (data.mode === 'approver')` branch, before the `return`, add local state (above the return):
+- Hooks go at the top of `ApprovalsView`, directly after the existing `router`/`invalidate` lines and BEFORE the `if (!data.ctx)` early return. Never inside the `if (data.mode === 'approver')` branch (conditional hooks):
 
 ```tsx
-  const router = (Route as unknown as { useRouter?: () => { invalidate: () => Promise<void> } }).useRouter?.()
-  const invalidate = async () => { if (router) await router.invalidate() }
   const [flaggedOnly, setFlaggedOnly] = useState(false)
   const [checked, setChecked] = useState<Record<string, boolean>>({})
   const [bulkError, setBulkError] = useState('')
 ```
 
-  Note: `router`/`invalidate` already exist in the current file (see the truncated body) — keep the existing names and add the three new state hooks alongside them.
-
-- Filtered queue:
+- Filtered queue, inside the approver branch:
 
 ```ts
   const queue: PendingWeek[] = data.queue.filter((w) => !flaggedOnly || w.flagCount > 0)
@@ -1854,7 +1861,7 @@ Run: `npx vitest run tests/integration/exports.service.test.ts` → FAIL.
 
 `src/server/services/exports.ts`:
 
-Add import: `localDateTimeOf` from `~/lib/dayMath` (keep `localDayBoundariesUtcMs`); ensure `and`, `gte`, `lt` from `drizzle-orm` are imported (used by existing CSV branches).
+Add imports: `localDateOf` and `localDateTimeOf` from `~/lib/dayMath` (keep `localDayBoundariesUtcMs`); add `gte` to the `drizzle-orm` import (`and`, `eq`, `lt`, `inArray` are already there). Reuse the file's existing `workerNamesForBilling(db)` for display names — do not add a second name lookup.
 
 After `DAILY_CSV_COLUMNS`, add:
 
@@ -1919,27 +1926,8 @@ Inside `exportCsv(deps, ctx, input)` dispatch (before the daily fallthrough), ad
       .where(and(gte(schema.intervalEvents.at, new Date(startMs)), lt(schema.intervalEvents.at, new Date(endMs))))
       .all()
 
-    // Resolve display names in one query: subject workers + actors.
-    const ids_ = [
-      ...new Set(
-        [
-          ...approvalRows.flatMap((r) => [r.workerId, r.actorWorkerId]),
-          ...leaveRows.flatMap((r) => [r.workerId, r.actorWorkerId]),
-          ...intervalRows.flatMap((r) => [r.workerId, r.actorWorkerId]),
-        ].filter(Boolean) as string[],
-      ),
-    ]
-    const nameMap = new Map<string, string>()
-    if (ids_.length > 0) {
-      const who = await db
-        .select({ workerId: schema.workers.id, workerName: schema.workers.name, userName: schema.user.name })
-        .from(schema.workers)
-        .leftJoin(schema.humanWorkers, eq(schema.humanWorkers.workerId, schema.workers.id))
-        .leftJoin(schema.user, eq(schema.user.id, schema.humanWorkers.userId))
-        .where(inArray(schema.workers.id, ids_))
-        .all()
-      for (const r of who) nameMap.set(r.workerId, r.userName ?? r.workerName ?? '?')
-    }
+    // `wnames` (workerNamesForBilling) is already loaded at the top of exportCsv and covers every worker.
+    const nameOf = (id: string) => wnames.get(id)?.name ?? '?'
 
     type Row = { at: Date; kind: string; workerId: string; actorId: string; subject: string; detail: string }
     const all: Row[] = [
@@ -1964,9 +1952,9 @@ Inside `exportCsv(deps, ctx, input)` dispatch (before the daily fallthrough), ad
         csvRow([
           localDateTimeOf(r.at.getTime(), tz),
           r.kind,
-          nameMap.get(r.workerId) ?? '?',
+          nameOf(r.workerId),
           r.subject,
-          nameMap.get(r.actorId) ?? '?',
+          nameOf(r.actorId),
           r.detail,
         ]),
       )
@@ -1975,17 +1963,7 @@ Inside `exportCsv(deps, ctx, input)` dispatch (before the daily fallthrough), ad
   }
 ```
 
-`src/routes/_app/approvals.tsx` (approver branch) — add near the other imports: `Button` (already used via C4 — ensure imported), `FileDownload` from `reicon-react`, `exportCsvFn` from `~/server/fns/exports`. In the approver loader branch, ensure `today` is returned (`today` is already fetched: `const today = await getTodayFn()`). Add `today: today.date` to the returned tuple.
-
-Add a local helper at module scope (or reuse the B4 `addDaysIso` if already present — keep one definition):
-
-```ts
-function addDaysIsoLocal(iso: string, days: number): string {
-  const d = new Date(`${iso}T00:00:00Z`)
-  d.setUTCDate(d.getUTCDate() + days)
-  return d.toISOString().slice(0, 10)
-}
-```
+`src/routes/_app/approvals.tsx` (approver branch) — add near the other imports: `Button` (already imported by C4), `FileDownload` from `reicon-react`, `exportCsvFn` from `~/server/fns/exports`, and `addDays`, `parseIsoDate`, `toIsoDate` from `~/lib/dateShift` (no local date helper). In the approver loader branch add `today: today.date` to the returned object (`today` is already fetched there) and add `today: string` to the approver member of the `data` union type in `ApprovalsView`. No `@ts-expect-error`: once the type carries `today` there is no error, and an unused directive fails `tsc`.
 
 In the `if (data.mode === 'approver')` JSX template, inside `approvals-head` after the count:
 
@@ -1996,10 +1974,8 @@ In the `if (data.mode === 'approver')` JSX template, inside `approvals-head` aft
             size="sm"
             type="button"
             onClick={async () => {
-              // @ts-expect-error today's .date is carried on the approver return
-              const today: string = (data as { today?: string }).today ?? new Date().toISOString().slice(0, 10)
-              const from = addDaysIsoLocal(today, -90)
-              const to = today
+              const to = data.today
+              const from = toIsoDate(addDays(parseIsoDate(to), -90))
               const res = await exportCsvFn({ data: { from, to, view: 'events' } })
               const blob = await res.blob()
               const url = URL.createObjectURL(blob)
@@ -2068,7 +2044,7 @@ git commit -m "chore: audit and reporting wrap-up"
 ## Done Criteria
 
 - Interval event table exists, is appended on create/edit/delete, resets cleanly (`resetDb` deletes `intervalEvents` before `intervals`), and is surfaced in the audit timeline and the audit CSV.
-- Flag thresholds are configurable via settings and drive `redFlags`; the gap detail templates `(< 8hh)` with `Math.round(cfg.gapMinWallMin / 60)` and stays byte-identical at the default 480.
+- Flag thresholds are configurable via settings and drive `redFlags`; the gap detail templates `(< Nh)` via `gapHours(cfg.gapMinWallMin)` and stays byte-identical `(< 8h)` at the default 480.
 - Job budgets are per job, money-gated, and visible in the tree + per-job report.
 - Weekly trends, realization, budget-vs-actual, and period deltas are present on the reports page for billing/admin.
 - Audit timeline merges approval + interval events newest-first; `rateCents` diffs are stripped for non-money viewers (#5); the rate column shows only for money viewers.

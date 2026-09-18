@@ -1,0 +1,20 @@
+- generic [ref=f10e2]:
+  - navigation [ref=f10e3]:
+    - link "Today" [ref=f10e4] [cursor=pointer]:
+      - /url: /today
+    - link "Reports" [ref=f10e9] [cursor=pointer]:
+      - /url: /reports
+    - link "Approvals" [ref=f10e16] [cursor=pointer]:
+      - /url: /approvals
+    - link "Leave" [ref=f10e20] [cursor=pointer]:
+      - /url: /leave
+    - generic [ref=f10e28]: Demo Billing
+    - button "Sign out" [ref=f10e29] [cursor=pointer]
+  - main [ref=f10e33]:
+    - generic [ref=f10e34]:
+      - heading "Approvals queue" [level=1] [ref=f10e35]
+      - generic [ref=f10e36]: 0 submitted
+    - generic [ref=f10e37]:
+      - complementary [ref=f10e38]:
+        - generic [ref=f10e39]: No submitted weeks.
+      - generic [ref=f10e40]: Select a submitted week to review.

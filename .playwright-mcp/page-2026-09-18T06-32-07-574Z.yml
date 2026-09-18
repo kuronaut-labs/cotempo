@@ -1,0 +1,10 @@
+- main [ref=f7e129]:
+  - heading "Concurrent Timesheeting" [level=1] [ref=f7e130]
+  - generic [ref=f7e131]:
+    - generic [ref=f7e132]:
+      - generic [ref=f7e133]: Email
+      - textbox "Email" [ref=f7e134]
+    - generic [ref=f7e135]:
+      - generic [ref=f7e136]: Password
+      - textbox "Password" [ref=f7e137]
+    - button "Sign in" [ref=f7e138] [cursor=pointer]

@@ -1,0 +1,111 @@
+- generic [ref=f9e2]:
+  - navigation [ref=f9e3]:
+    - link "Today" [ref=f9e4] [cursor=pointer]:
+      - /url: /today
+    - link "Reports" [ref=f9e9] [cursor=pointer]:
+      - /url: /reports
+    - link "Approvals" [ref=f9e16] [cursor=pointer]:
+      - /url: /approvals
+    - link "Leave" [ref=f9e20] [cursor=pointer]:
+      - /url: /leave
+    - generic [ref=f9e28]: Demo Billing
+    - button "Sign out" [ref=f9e29] [cursor=pointer]
+  - main [ref=f9e33]:
+    - heading "Reports" [level=1] [ref=f9e35]
+    - tablist "Report tabs" [ref=f9e36]:
+      - tab "Billing" [selected] [ref=f9e37] [cursor=pointer]
+      - tab "My time" [ref=f9e38] [cursor=pointer]
+    - generic [ref=f9e39]:
+      - group "Period" [ref=f9e40]:
+        - button "This week" [ref=f9e42]
+        - button "Last week" [ref=f9e43]
+        - button "This month" [ref=f9e44]
+        - generic [ref=f9e45]: Sep 7 – Sep 13
+        - textbox "Period from" [ref=f9e46]: 2026-09-07
+        - generic [ref=f9e47]: →
+        - textbox "Period to" [ref=f9e48]: 2026-09-13
+      - tablist "Report sub-tabs" [ref=f9e49]:
+        - tab "Totals" [selected] [ref=f9e50] [cursor=pointer]
+        - tab "Daily" [ref=f9e51] [cursor=pointer]
+        - tab "Leave" [ref=f9e52] [cursor=pointer]
+      - generic [ref=f9e53]:
+        - button "Export CSV" [ref=f9e54] [cursor=pointer]
+        - link "Export PDF" [ref=f9e58] [cursor=pointer]:
+          - /url: /invoice?from=2026-09-07&to=2026-09-13
+      - generic [ref=f9e59]:
+        - heading "Per-client totals" [level=2] [ref=f9e60]
+        - table [ref=f9e61]:
+          - rowgroup [ref=f9e62]:
+            - row [ref=f9e63]:
+              - columnheader "Client" [ref=f9e64]
+              - columnheader "Figures" [ref=f9e65]
+              - columnheader "$" [ref=f9e66]
+          - rowgroup [ref=f9e67]:
+            - row [ref=f9e68]:
+              - cell "Acme Aerospace" [ref=f9e69]
+              - cell [ref=f9e70]:
+                - group "Time summary" [ref=f9e71]:
+                  - generic [ref=f9e72]:
+                    - generic [ref=f9e73]: Billable
+                    - generic [ref=f9e74]: 20:00
+                  - generic [ref=f9e75]:
+                    - generic [ref=f9e76]: On the clock
+                    - generic [ref=f9e77]: 19:00
+                  - generic [ref=f9e78]:
+                    - generic [ref=f9e79]: Overlap
+                    - generic [ref=f9e80]: +1:00
+                  - generic [ref=f9e81]:
+                    - generic [ref=f9e82]: $ billable
+                    - generic [ref=f9e83]: $2,550.00
+              - cell "$2,550.00" [ref=f9e84]
+            - row [ref=f9e85]:
+              - cell "Nimbus Freight" [ref=f9e86]
+              - cell [ref=f9e87]:
+                - group "Time summary" [ref=f9e88]:
+                  - generic [ref=f9e89]:
+                    - generic [ref=f9e90]: Billable
+                    - generic [ref=f9e91]: 4:00
+                  - generic [ref=f9e92]:
+                    - generic [ref=f9e93]: On the clock
+                    - generic [ref=f9e94]: 6:00
+                  - generic [ref=f9e95]:
+                    - generic [ref=f9e96]: Overlap
+                    - generic [ref=f9e97]: +0:00
+                  - generic [ref=f9e98]:
+                    - generic [ref=f9e99]: $ billable
+                    - generic [ref=f9e100]: $480.00
+              - cell "$480.00" [ref=f9e101]
+          - rowgroup [ref=f9e102]:
+            - row [ref=f9e103]:
+              - cell "Period total" [ref=f9e104]
+              - cell [ref=f9e105]:
+                - group "Time summary" [ref=f9e106]:
+                  - generic [ref=f9e107]:
+                    - generic [ref=f9e108]: Billable
+                    - generic [ref=f9e109]: 24:00
+                  - generic [ref=f9e110]:
+                    - generic [ref=f9e111]: On the clock
+                    - generic [ref=f9e112]: 24:00
+                  - generic [ref=f9e113]:
+                    - generic [ref=f9e114]: Overlap
+                    - generic [ref=f9e115]: +2:00
+                  - generic [ref=f9e116]:
+                    - generic [ref=f9e117]: $ billable
+                    - generic [ref=f9e118]: $3,030.00
+              - cell "$3,030.00" [ref=f9e119]
+      - generic [ref=f9e120]:
+        - heading "Totals bars" [level=2] [ref=f9e121]
+        - generic [ref=f9e122]:
+          - generic [ref=f9e123]:
+            - generic [ref=f9e124]: wall-clock
+            - generic [ref=f9e126]: premium
+          - generic [ref=f9e128]:
+            - generic [ref=f9e129]: Acme Aerospace
+            - generic [ref=f9e130]: 19:00
+            - generic [ref=f9e133]:
+              - text: $2,550.00 ·
+              - generic [ref=f9e134]: +1:00 premium
+          - generic [ref=f9e135]:
+            - generic [ref=f9e136]: Nimbus Freight
+            - generic [ref=f9e137]: 6:00
+            - generic [ref=f9e140]: $480.00

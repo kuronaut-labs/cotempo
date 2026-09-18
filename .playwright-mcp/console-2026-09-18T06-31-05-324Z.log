@@ -1,0 +1,59 @@
+[     525ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ http://localhost:3123/node_modules/.vite/deps/react-dom_client.js?v=75db12f3:14335
+[     682ms] [ERROR] Invalid DOM property `%s`. Did you mean `%s`? crossorigin crossOrigin @ http://localhost:3123/@vite/client:532
+[     693ms] [ERROR] In HTML, %s cannot be a descendant of <%s>.
+This will cause a hydration error.%s <button> button 
+
+  ...
+    <MatchImpl routeId="/_app/appr...">
+      <MatchView router={{...}} match={{id:"/_app/...", ...}}>
+        <SafeFragment>
+          <SafeFragment fallback={null}>
+            <SafeFragment getResetKey={function getResetKey} errorComponent={undefined} onCatch={function onCatch}>
+              <SafeFragment fallback={function fallback}>
+                <MatchInnerImpl match={{id:"/_app/...", ...}}>
+                  <Lazy>
+                    <ApprovalsView>
+                      <main className="approvals">
+                        <header>
+                        <div className="approvals-...">
+                          <aside className="approvals-...">
+                            <ul className="approvalsq...">
+                              <li className={undefined}>
+>                               <button type="button" onClick={function onClick}>
+                                  <div>
+                                  <div>
+                                  <WeekStatusChip week={{workerId:"...", ...}}>
+                                    <WeekStatus week={{workerId:"...", ...}} canSubmit={true} hasIntervals={true} ...>
+                                      <div className="weekstatus">
+                                        <div>
+                                        <Button variant="secondary" size="sm" type="button" onClick={function onSubmit}>
+>                                         <button
+>                                           type="button"
+>                                           className="btn btn--secondary btn--sm"
+>                                           onClick={function onSubmit}
+>                                         >
+                              ...
+                          ...
+ @ http://localhost:3123/@vite/client:532
+[     693ms] [ERROR] <%s> cannot contain a nested %s.
+See this log for the ancestor stack trace. button <button> @ http://localhost:3123/@vite/client:532
+[     711ms] Error: Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+    at throwOnHydrationMismatch (http://localhost:3123/node_modules/.vite/deps/react-dom_client.js?v=75db12f3:2968:51)
+    at beginWork (http://localhost:3123/node_modules/.vite/deps/react-dom_client.js?v=75db12f3:6200:914)
+    at runWithFiberInDEV (http://localhost:3123/node_modules/.vite/deps/react-dom_client.js?v=75db12f3:851:66)
+    at performUnitOfWork (http://localhost:3123/node_modules/.vite/deps/react-dom_client.js?v=75db12f3:8429:92)
+    at workLoopConcurrentByScheduler (http://localhost:3123/node_modules/.vite/deps/react-dom_client.js?v=75db12f3:8425:55)
+    at renderRootConcurrent (http://localhost:3123/node_modules/.vite/deps/react-dom_client.js?v=75db12f3:8408:64)
+    at performWorkOnRoot (http://localhost:3123/node_modules/.vite/deps/react-dom_client.js?v=75db12f3:7957:145)
+    at performWorkOnRootViaSchedulerTask (http://localhost:3123/node_modules/.vite/deps/react-dom_client.js?v=75db12f3:9059:4)
+    at MessagePort.performWorkUntilDeadline (http://localhost:3123/node_modules/.vite/deps/react-dom_client.js?v=75db12f3:36:38)

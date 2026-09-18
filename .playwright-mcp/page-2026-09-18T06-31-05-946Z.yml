@@ -1,0 +1,82 @@
+- generic [active] [ref=f5e1]:
+  - generic [ref=f5e2]:
+    - navigation [ref=f5e3]:
+      - link "Today" [ref=f5e4] [cursor=pointer]:
+        - /url: /today
+      - link "Reports" [ref=f5e9] [cursor=pointer]:
+        - /url: /reports
+      - link "Approvals" [ref=f5e16] [cursor=pointer]:
+        - /url: /approvals
+      - link "Leave" [ref=f5e20] [cursor=pointer]:
+        - /url: /leave
+      - generic [ref=f5e28]: Demo Operator
+      - button "Sign out" [ref=f5e29] [cursor=pointer]
+    - main [ref=f5e33]:
+      - heading "My weeks" [level=1] [ref=f5e35]
+      - complementary [ref=f5e37]:
+        - list [ref=f5e38]:
+          - listitem [ref=f5e39]:
+            - button "Demo Operator Week of 27 Jul Week of 27 Jul Not started" [ref=f5e40] [cursor=pointer]:
+              - generic [ref=f5e41]: Demo Operator
+              - generic [ref=f5e42]: Week of 27 Jul
+              - generic [ref=f5e44]:
+                - generic [ref=f5e45]: Week of 27 Jul
+                - generic [ref=f5e46]: Not started
+            - button "Submit week" [ref=f5e47] [cursor=pointer]
+      - listitem [ref=f5e48]:
+        - button "Demo Operator Week of 3 Aug Week of 3 Aug Not started" [ref=f5e49]:
+          - generic [ref=f5e50]: Demo Operator
+          - generic [ref=f5e51]: Week of 3 Aug
+          - generic [ref=f5e53]:
+            - generic [ref=f5e54]: Week of 3 Aug
+            - generic [ref=f5e55]: Not started
+        - button "Submit week" [ref=f5e56] [cursor=pointer]
+  - listitem [ref=f5e57]:
+    - button "Demo Operator Week of 10 Aug Week of 10 Aug Not started" [ref=f5e58]:
+      - generic [ref=f5e59]: Demo Operator
+      - generic [ref=f5e60]: Week of 10 Aug
+      - generic [ref=f5e62]:
+        - generic [ref=f5e63]: Week of 10 Aug
+        - generic [ref=f5e64]: Not started
+    - button "Submit week" [ref=f5e65] [cursor=pointer]
+  - listitem [ref=f5e66]:
+    - button "Demo Operator Week of 17 Aug Week of 17 Aug Not started" [ref=f5e67]:
+      - generic [ref=f5e68]: Demo Operator
+      - generic [ref=f5e69]: Week of 17 Aug
+      - generic [ref=f5e71]:
+        - generic [ref=f5e72]: Week of 17 Aug
+        - generic [ref=f5e73]: Not started
+    - button "Submit week" [ref=f5e74] [cursor=pointer]
+  - listitem [ref=f5e75]:
+    - button "Demo Operator Week of 24 Aug Week of 24 Aug Not started" [ref=f5e76]:
+      - generic [ref=f5e77]: Demo Operator
+      - generic [ref=f5e78]: Week of 24 Aug
+      - generic [ref=f5e80]:
+        - generic [ref=f5e81]: Week of 24 Aug
+        - generic [ref=f5e82]: Not started
+    - button "Submit week" [ref=f5e83] [cursor=pointer]
+  - listitem [ref=f5e84]:
+    - button "Demo Operator Week of 31 Aug Week of 31 Aug Not started" [ref=f5e85]:
+      - generic [ref=f5e86]: Demo Operator
+      - generic [ref=f5e87]: Week of 31 Aug
+      - generic [ref=f5e89]:
+        - generic [ref=f5e90]: Week of 31 Aug
+        - generic [ref=f5e91]: Not started
+    - button "Submit week" [ref=f5e92] [cursor=pointer]
+  - listitem [ref=f5e93]:
+    - button "Demo Operator Week of 7 Sept Week of 7 Sept Not started" [ref=f5e94]:
+      - generic [ref=f5e95]: Demo Operator
+      - generic [ref=f5e96]: Week of 7 Sept
+      - generic [ref=f5e98]:
+        - generic [ref=f5e99]: Week of 7 Sept
+        - generic [ref=f5e100]: Not started
+    - button "Submit week" [ref=f5e101] [cursor=pointer]
+  - listitem [ref=f5e102]:
+    - button "Demo Operator Week of 14 Sept Week of 14 Sept Not started" [ref=f5e103]:
+      - generic [ref=f5e104]: Demo Operator
+      - generic [ref=f5e105]: Week of 14 Sept
+      - generic [ref=f5e107]:
+        - generic [ref=f5e108]: Week of 14 Sept
+        - generic [ref=f5e109]: Not started
+    - button "Submit week" [ref=f5e110] [cursor=pointer]
+  - generic [ref=f5e111]: Select a week to view.
