@@ -1,4 +1,4 @@
-import { localDayBoundariesUtcMs, localHHMM, type Range } from '~/lib/dayMath'
+import { localHHMM, type Range } from '~/lib/dayMath'
 
 /* Layout maths for the worked-window day strip (LD4/LD5). Pure, unit-tested;
    `stripBlocks` (rule 10) stays byte-identical — this complements it. */
