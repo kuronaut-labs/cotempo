@@ -113,7 +113,7 @@ Then: the plan's Done Criteria all hold, the wrap-up commit exists, and the plan
 ## Progress
 
 - [x] Stage 0 · Housekeeping
-- [ ] Stage 1 · Entry UX Waves 1–3
+- [x] Stage 1 · Entry UX Waves 1–3
 - [ ] Stage 2 · Audit & reporting
 - [ ] Stage 3 · Assignments Waves 1–4
 - [ ] Stage 4 · Clients & projects pages
