@@ -4,6 +4,7 @@ import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { Check } from 'reicon-react'
 import { localDateOf, localHHMM } from '~/lib/dayMath'
+import { endFromDuration } from '~/lib/entryDefaults'
 import { CreateIntervalInput, UpdateIntervalInput } from '~/lib/schemas/intervals'
 import { applyServerError } from '~/components/forms/applyServerError'
 import { Button } from '~/components/ui/button'
@@ -40,6 +41,7 @@ export function EntryForm({
   structure,
   recentJobs,
   initial,
+  compact = false,
   onSubmit,
   onCancel,
 }: {
@@ -52,6 +54,8 @@ export function EntryForm({
   /** Jobs this worker has used recently, ordered most-recent first (P3.15). */
   recentJobs?: { jobId: string; jobName: string; projectName: string; clientName: string; clientId: string }[]
   initial?: Initial
+  /** One-row layout (LD7) for the top-of-Today create form; edit keeps the full layout. */
+  compact?: boolean
   onSubmit: (input: FormInput) => Promise<void>
   /** Shown in edit mode only. */
   onCancel?: () => void
@@ -111,25 +115,126 @@ export function EntryForm({
     initial?.jobId ? (findClientForJob(structure, initial.jobId) ?? '') : (structure[0]?.id ?? ''),
   )
 
-  return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault()
-        form.handleSubmit()
-      }}
-      className="entryform"
-    >
-      <label className="field">
-        <span>Date</span>
-        <input type="date" value={date} disabled />
-      </label>
+  const workerOpts = workerGroups(selfWorkerId, superviseeWorkerIds, workers).flatMap((g) => g.options)
+  const hideWorker = workerOpts.length <= 1
 
-      <form.Field name="workerId">
-        {(f) => (
-          <label className="field">
-            <span>Worker</span>
-            <select value={f.state.value} onChange={(e) => f.handleChange(e.target.value)} onBlur={f.handleBlur}>
-              {workerGroups(selfWorkerId, superviseeWorkerIds, workers).map((g) => (
+  const jobField = (
+    <form.Field name="jobId">
+      {(f) => (
+        <label className="field">
+          <span>Job</span>
+          <select value={f.state.value} onChange={(e) => f.handleChange(e.target.value)} onBlur={f.handleBlur}>
+            <option value="">— select —</option>
+            {recentJobs && recentJobs.length > 0 && (
+              <optgroup label="Recent">
+                {recentJobs.map((j) => (
+                  <option key={j.jobId} value={j.jobId}>
+                    {j.clientName} / {j.projectName} / {j.jobName}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {(structure.find((c) => c.id === selectedClient)?.projects ?? [])
+              .filter((p) => !p.archivedAt)
+              .flatMap((p) =>
+                p.jobs
+                  .filter((j) => !j.archivedAt)
+                  .map((j) => (
+                    <option key={j.id} value={j.id}>
+                      {p.name} / {j.name}
+                    </option>
+                  )),
+              )}
+          </select>
+          <FieldError errors={f.state.meta.errors} />
+        </label>
+      )}
+    </form.Field>
+  )
+
+  const startTimeField = (
+    <form.Field name="startTime">
+      {(f) => (
+        <label className="field">
+          <span>Start</span>
+          <input
+            type="time"
+            step="60"
+            value={f.state.value}
+            onChange={(e) => f.handleChange(e.target.value)}
+            onBlur={f.handleBlur}
+          />
+          <FieldError errors={f.state.meta.errors} />
+        </label>
+      )}
+    </form.Field>
+  )
+
+  const endTimeField = (
+    <form.Field name="endTime">
+      {(f) => (
+        <label className="field">
+          <span>End ({tz})</span>
+          <input
+            type="time"
+            step="60"
+            value={f.state.value}
+            onChange={(e) => f.handleChange(e.target.value)}
+            onBlur={f.handleBlur}
+          />
+          <form.Subscribe
+            selector={(s) => durationText(s.values.startTime as string, s.values.endTime as string, s.values.crossesMidnight as boolean)}
+          >
+            {(duration) => (duration ? <span className="entryform-duration">= {duration}</span> : null)}
+          </form.Subscribe>
+          <FieldError errors={f.state.meta.errors} />
+        </label>
+      )}
+    </form.Field>
+  )
+
+  const durationField = (
+    <form.Subscribe selector={(s) => durationText(s.values.startTime as string, s.values.endTime as string, s.values.crossesMidnight as boolean)}>
+      {(duration) => (
+        <label className="field">
+          <span>Duration</span>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={duration}
+            onChange={(e) => {
+              const min = parseDuration(e.target.value)
+              if (min === null) return
+              const v = form.state.values
+              const { end, crossesMidnight } = endFromDuration(v.startTime as string, min)
+              form.setFieldValue('endTime', end)
+              form.setFieldValue('crossesMidnight', crossesMidnight)
+            }}
+          />
+        </label>
+      )}
+    </form.Subscribe>
+  )
+
+  const noteField = (
+    <form.Field name="note">
+      {(f) => (
+        <label className="field">
+          <span>Note</span>
+          <textarea value={f.state.value} onChange={(e) => f.handleChange(e.target.value)} rows={2} />
+        </label>
+      )}
+    </form.Field>
+  )
+
+  const workerField = hideWorker ? null : (
+    <form.Field name="workerId">
+      {(f) => (
+        <label className="field">
+          <span>Worker</span>
+          <select value={f.state.value} onChange={(e) => f.handleChange(e.target.value)} onBlur={f.handleBlur}>
+            {workerOpts.length ? (
+              workerGroups(selfWorkerId, superviseeWorkerIds, workers).map((g) => (
                 <optgroup key={g.label} label={g.label}>
                   {g.options.map((o) => (
                     <option key={o.value} value={o.value}>
@@ -137,154 +242,149 @@ export function EntryForm({
                     </option>
                   ))}
                 </optgroup>
-              ))}
-            </select>
-          </label>
-        )}
-      </form.Field>
-
-      <label className="field">
-        <span>Client</span>
-        <select
-          value={selectedClient}
-          onChange={(e) => {
-            setSelectedClient(e.target.value)
-            form.setFieldValue('jobId', '')
-          }}
-        >
-          {structure
-            .filter((c) => !c.archivedAt)
-            .map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-        </select>
-      </label>
-
-      <form.Field name="jobId">
-        {(f) => (
-          <label className="field">
-            <span>Job</span>
-            <select value={f.state.value} onChange={(e) => f.handleChange(e.target.value)} onBlur={f.handleBlur}>
-              <option value="">— select —</option>
-              {recentJobs && recentJobs.length > 0 && (
-                <optgroup label="Recent">
-                  {recentJobs.map((j) => (
-                    <option key={j.jobId} value={j.jobId}>
-                      {j.clientName} / {j.projectName} / {j.jobName}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {(structure.find((c) => c.id === selectedClient)?.projects ?? [])
-                .filter((p) => !p.archivedAt)
-                .flatMap((p) =>
-                  p.jobs
-                    .filter((j) => !j.archivedAt)
-                    .map((j) => (
-                      <option key={j.id} value={j.id}>
-                        {p.name} / {j.name}
-                      </option>
-                    )),
-                )}
-            </select>
-            <FieldError errors={f.state.meta.errors} />
-          </label>
-        )}
-      </form.Field>
-
-      <div className="entryform-row">
-        <form.Field name="startTime">
-          {(f) => (
-            <label className="field">
-              <span>Start ({tz})</span>
-              <input
-                type="time"
-                step="60"
-                value={f.state.value}
-                onChange={(e) => f.handleChange(e.target.value)}
-                onBlur={f.handleBlur}
-              />
-              <FieldError errors={f.state.meta.errors} />
-            </label>
-          )}
-        </form.Field>
-        <form.Field name="endTime">
-          {(f) => (
-            <label className="field">
-              <span>End ({tz})</span>
-              <input
-                type="time"
-                step="60"
-                value={f.state.value}
-                onChange={(e) => f.handleChange(e.target.value)}
-                onBlur={f.handleBlur}
-              />
-              <form.Subscribe
-                selector={(s) => {
-                  const start = s.values.startTime as string | undefined
-                  const end = f.state.value
-                  if (!start || !end) return ''
-                  const [sh, sm] = start.split(':').map(Number) as [number, number]
-                  const [eh, em] = end.split(':').map(Number) as [number, number]
-                  let totalMin = eh * 60 + em - (sh * 60 + sm)
-                  if (totalMin < 0 && s.values.crossesMidnight) totalMin += 24 * 60
-                  const hh = Math.floor(totalMin / 60)
-                  const mm = totalMin % 60
-                  return `${hh}:${String(mm).padStart(2, '0')}`
-                }}
-              >
-                {(duration) =>
-                  duration ? <span className="entryform-duration">= {duration}</span> : null
-                }
-              </form.Subscribe>
-              <FieldError errors={f.state.meta.errors} />
-            </label>
-          )}
-        </form.Field>
-      </div>
-      <form.Field name="crossesMidnight">
-        {(f) => (
-          <label className="checkline">
-            <input
-              type="checkbox"
-              checked={f.state.value}
-              onChange={(e) => f.handleChange(e.target.checked)}
-              onBlur={f.handleBlur}
-            />
-            Crosses midnight (end time is on the next day)
-          </label>
-        )}
-      </form.Field>
-
-      <form.Field name="note">
-        {(f) => (
-          <label className="field">
-            <span>Note</span>
-            <textarea value={f.state.value} onChange={(e) => f.handleChange(e.target.value)} rows={2} />
-          </label>
-        )}
-      </form.Field>
-
-      {form.state.errorMap.onServer && (
-        <p role="alert" className="form-error">
-          {String(form.state.errorMap.onServer)}
-        </p>
+              ))
+            ) : (
+              <option value={selfWorkerId}>{workers.find((w) => w.workerId === selfWorkerId)?.name ?? 'Me'}</option>
+            )}
+          </select>
+        </label>
       )}
+    </form.Field>
+  )
 
-      <div className="entryform-actions">
-        <Button type="submit" variant="primary">
-          <Check size={14} /> {isEdit ? 'Save' : 'Add'}
+  const actions = (
+    <div className="entryform-actions">
+      <Button type="submit" variant="primary">
+        <Check size={14} /> {isEdit ? 'Save' : 'Add'}
+      </Button>
+      {isEdit && onCancel && (
+        <Button type="button" variant="secondary" onClick={onCancel}>
+          Cancel
         </Button>
-        {isEdit && onCancel && (
-          <Button type="button" variant="secondary" onClick={onCancel}>
-            Cancel
-          </Button>
-        )}
-      </div>
+      )}
+    </div>
+  )
+
+  const crossesCheckbox = (
+    <form.Field name="crossesMidnight">
+      {(f) => (
+        <label className="checkline">
+          <input
+            type="checkbox"
+            checked={f.state.value}
+            onChange={(e) => f.handleChange(e.target.checked)}
+            onBlur={f.handleBlur}
+          />
+          Crosses midnight (end time is on the next day)
+        </label>
+      )}
+    </form.Field>
+  )
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault()
+        form.handleSubmit()
+      }}
+      className={compact ? 'entryform compact' : 'entryform'}
+    >
+      {compact ? (
+        <>
+          <div className="entryform-row entryform-main">
+            {jobField}
+            {startTimeField}
+            {durationField}
+            <div className="entryform-actions">{submitButton(isEdit)}</div>
+          </div>
+          <details className="entryform-more">
+            <summary>More</summary>
+            {workerField}
+            {endTimeField}
+            {noteField}
+            {form.state.errorMap.onServer && (
+              <p role="alert" className="form-error">
+                {String(form.state.errorMap.onServer)}
+              </p>
+            )}
+          </details>
+        </>
+      ) : (
+        <>
+          {workerField}
+          <label className="field">
+            <span>Client</span>
+            <select
+              value={selectedClient}
+              onChange={(e) => {
+                setSelectedClient(e.target.value)
+                form.setFieldValue('jobId', '')
+              }}
+            >
+              {structure
+                .filter((c) => !c.archivedAt)
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          {jobField}
+          <div className="entryform-row">
+            {startTimeField}
+            {endTimeField}
+          </div>
+          {crossesCheckbox}
+          {noteField}
+          {form.state.errorMap.onServer && (
+            <p role="alert" className="form-error">
+              {String(form.state.errorMap.onServer)}
+            </p>
+          )}
+          {actions}
+        </>
+      )}
     </form>
   )
+}
+
+function submitButton(isEdit: boolean) {
+  return (
+    <Button type="submit" variant="primary">
+      <Check size={14} /> {isEdit ? 'Save' : 'Add'}
+    </Button>
+  )
+}
+
+function durationText(startHHMM: string, endHHMM: string, crossesMidnight: boolean): string {
+  if (!startHHMM || !endHHMM) return ''
+  const [sh, sm] = startHHMM.split(':').map(Number) as [number, number]
+  const [eh, em] = endHHMM.split(':').map(Number) as [number, number]
+  let totalMin = eh * 60 + em - (sh * 60 + sm)
+  if (totalMin < 0 && crossesMidnight) totalMin += 24 * 60
+  const hh = Math.floor(totalMin / 60)
+  const mm = totalMin % 60
+  return `${hh}:${String(mm).padStart(2, '0')}`
+}
+
+/** Accepts `H:MM` / `HH:MM` or `H.HH` hours; rejects garbage. */
+export function parseDuration(text: string): number | null {
+  const t = text.trim()
+  if (!t) return null
+  if (t.includes(':')) {
+    const m = /^(\d{1,2}):(\d{1,2})$/.exec(t)
+    if (!m) return null
+    return Number(m[1]) * 60 + Number(m[2])
+  }
+  if (t.includes('.')) {
+    const h = Number(t)
+    if (Number.isNaN(h) || h < 0 || h > 24) return null
+    return Math.round(h * 60)
+  }
+  const min = Number(t)
+  if (Number.isNaN(min) || min < 0 || min > 1440) return null
+  return min
 }
 
 function FieldError({ errors }: { errors: unknown[] }) {

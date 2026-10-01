@@ -503,6 +503,33 @@ input[type='radio']:disabled:checked::after {
   color: var(--color-info);
 }
 
+.entryform.compact .entryform-main {
+  grid-template-columns: minmax(240px, 2fr) 120px 120px auto;
+}
+.entryform.compact .field input,
+.entryform.compact .field select {
+  height: 40px;
+}
+.entryform-more {
+  font: 400 13px/1.4 var(--font-body);
+}
+.entryform-more summary {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border: 1px solid var(--color-tertiary);
+  border-radius: var(--radius-sm);
+  color: var(--color-primary);
+  background: var(--surface-base);
+}
+.entryform-more summary:hover {
+  background: var(--fill-hover);
+}
+.entryform-more[open] > summary {
+  margin-bottom: var(--space-3);
+}
+
 /* ---------- /today page ---------- */
 
 .today {

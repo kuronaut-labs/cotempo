@@ -142,6 +142,37 @@ function TodayView() {
         onChange={(next) => navigate({ to: '/today', search: next === today ? {} : { date: next } })}
       />
 
+      {ctx && (
+        <section className="panel today-add">
+          <h2 className="today-section-title">{editing ? 'Edit entry' : 'Add entry'}</h2>
+          <EntryForm
+            key={editing?.id ?? 'new'}
+            date={date}
+            tz={tz}
+            selfWorkerId={ctx.workerId}
+            superviseeWorkerIds={ctx.superviseeWorkerIds}
+            workers={workers}
+            structure={structure}
+            recentJobs={recentJobs}
+            initial={rowToInitial(editing)}
+            compact={editing === null}
+            onSubmit={submit}
+            onCancel={() => setEditing(null)}
+          />
+          {/* Plan 4.4d: link to /approvals?worker=&week= once that route exists (4.6). */}
+          {lockedWeek && (
+            <p role="alert" className="form-error">
+              Week {lockedWeek} is approved. Ask an admin to unlock it before editing intervals on it.
+            </p>
+          )}
+          {actionError && (
+            <p role="alert" className="form-error">
+              {actionError}
+            </p>
+          )}
+        </section>
+      )}
+
       <div className="today-lanes">
         {lanes.map((w) => {
           const intervals = day.intervals.filter((i) => i.workerId === w.workerId)
@@ -194,35 +225,6 @@ function TodayView() {
         </aside>
       )}
 
-      {ctx && (
-        <section className="panel">
-          <h2 className="today-section-title">{editing ? 'Edit entry' : 'Add entry'}</h2>
-          <EntryForm
-            key={editing?.id ?? 'new'}
-            date={date}
-            tz={tz}
-            selfWorkerId={ctx.workerId}
-            superviseeWorkerIds={ctx.superviseeWorkerIds}
-            workers={workers}
-            structure={structure}
-            recentJobs={recentJobs}
-            initial={rowToInitial(editing)}
-            onSubmit={submit}
-            onCancel={() => setEditing(null)}
-          />
-          {/* Plan 4.4d: link to /approvals?worker=&week= once that route exists (4.6). */}
-          {lockedWeek && (
-            <p role="alert" className="form-error">
-              Week {lockedWeek} is approved. Ask an admin to unlock it before editing intervals on it.
-            </p>
-          )}
-          {actionError && (
-            <p role="alert" className="form-error">
-              {actionError}
-            </p>
-          )}
-        </section>
-      )}
     </main>
   )
 }
