@@ -43,6 +43,13 @@
       "when": 1790844968929,
       "tag": "0005_crazy_infant_terrible",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1790845402931,
+      "tag": "0006_fuzzy_pete_wisdom",
+      "breakpoints": true
     }
   ]
 }

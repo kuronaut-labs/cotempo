@@ -15,7 +15,7 @@ import type {
 import type { Deps } from './deps'
 import { getOrgSettings } from './settings'
 
-export type JobNode = { id: string; name: string; archivedAt: Date | null; billableRateCents?: number | null }
+export type JobNode = { id: string; name: string; archivedAt: Date | null; billableRateCents?: number | null; budgetCents?: number | null }
 export type ProjectNode = { id: string; name: string; archivedAt: Date | null; jobs: JobNode[] }
 export type ClientNode = { id: string; name: string; archivedAt: Date | null; projects: ProjectNode[] }
 
@@ -65,7 +65,7 @@ export async function listStructure(
       .filter((j) => j.projectId === p.id)
       .map((j) =>
         showMoney
-          ? { id: j.id, name: j.name, archivedAt: j.archivedAt, billableRateCents: j.billableRateCents }
+          ? { id: j.id, name: j.name, archivedAt: j.archivedAt, billableRateCents: j.billableRateCents, budgetCents: j.budgetCents }
           : { id: j.id, name: j.name, archivedAt: j.archivedAt },
       )
     projectsByClient.set(p.clientId, [
@@ -144,6 +144,7 @@ export async function createJob(deps: Deps, ctx: SessionContext, input: CreateJo
     projectId: input.projectId,
     name: input.name,
     billableRateCents: rate,
+    budgetCents: input.budgetCents ?? null,
     createdAt: now,
   })
   return { id }
@@ -156,6 +157,7 @@ export async function updateJob(deps: Deps, ctx: SessionContext, input: UpdateJo
   const patch: Record<string, unknown> = {}
   if (input.name !== undefined) patch.name = input.name
   if (input.billableRateCents !== undefined) patch.billableRateCents = input.billableRateCents
+  if (input.budgetCents !== undefined) patch.budgetCents = input.budgetCents
   if (Object.keys(patch).length === 0) return
   await deps.db.update(schema.jobs).set(patch).where(eq(schema.jobs.id, input.id))
 }

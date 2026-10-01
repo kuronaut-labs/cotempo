@@ -125,6 +125,7 @@ export const jobs = sqliteTable('jobs', {
     .references(() => projects.id),
   name: text('name').notNull(),
   billableRateCents: integer('billable_rate_cents'), // null = non-billable, 0 = billable at $0 (#18)
+  budgetCents: integer('budget_cents'), // optional total budget; money → canSeeMoney only (#5)
   createdAt: ts('created_at').notNull(),
   archivedAt: ts('archived_at'),
 })

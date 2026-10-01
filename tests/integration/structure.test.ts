@@ -356,3 +356,21 @@ describe('archived-worker guards (#M8)', () => {
     ).rejects.toMatchObject({ code: 'NOT_FOUND', field: 'workerId' })
   })
 })
+
+describe('job budgets (A3)', () => {
+  it('jobs carry an optional budget, money-gated in the tree', async () => {
+    const live = { includeArchived: false } // listStructure takes the ListStructureInput object, not a boolean
+    const { id } = await createJob(deps(), asUser('admin'), { projectId: ids.p1, name: 'Budgeted job', budgetCents: 50_000 })
+    const adminTree = await listStructure(deps(), asUser('admin'), live)
+    const node = adminTree.flatMap((c) => c.projects).flatMap((p) => p.jobs).find((j) => j.id === id)!
+    expect(node.budgetCents).toBe(50_000)
+
+    const opsTree = await listStructure(deps(), asUser('operator'), live)
+    const opsNode = opsTree.flatMap((c) => c.projects).flatMap((p) => p.jobs).find((j) => j.id === id)!
+    expect('budgetCents' in opsNode).toBe(false) // #5: key omitted, never null
+
+    await updateJob(deps(), asUser('admin'), { id, budgetCents: 75_000 })
+    const after = await listStructure(deps(), asUser('admin'), live)
+    expect(after.flatMap((c) => c.projects).flatMap((p) => p.jobs).find((j) => j.id === id)!.budgetCents).toBe(75_000)
+  })
+})

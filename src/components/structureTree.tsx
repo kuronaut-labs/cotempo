@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Archive as ArchiveIcon, Briefcase, Building, Folder } from 'reicon-react'
+import { formatCents } from '~/lib/money'
 import { serverErrorMessage } from '~/components/forms/applyServerError'
 import { Button } from '~/components/ui/button'
 import type { ClientNode, JobNode, ProjectNode } from '~/server/services/structure'
@@ -213,6 +214,7 @@ function JobRow({ node, manage, run }: { node: JobNode; manage: ManageLevel; run
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(node.name)
   const [rate, setRate] = useState(centsToDollarsInput(node.billableRateCents))
+  const [budget, setBudget] = useState(centsToDollarsInput(node.budgetCents ?? null))
   const [fieldError, setFieldError] = useState<string | null>(null)
 
   if (editing && manage === 'job' && live) {
@@ -222,14 +224,13 @@ function JobRow({ node, manage, run }: { node: JobNode; manage: ManageLevel; run
         onSubmit={(e) => {
           e.preventDefault()
           const parsed = parseDollars(rate)
-          if (!parsed.ok) {
-            setFieldError(parsed.error)
-            return
-          }
+          const parsedBudget = parseDollars(budget)
+          if (!parsed.ok) { setFieldError(parsed.error); return }
+          if (!parsedBudget.ok) { setFieldError(parsedBudget.error); return }
           if (!name.trim()) return
           setFieldError(null)
           void run(() =>
-            updateJobFn({ data: { id: node.id, name: name.trim(), billableRateCents: parsed.cents } }),
+            updateJobFn({ data: { id: node.id, name: name.trim(), billableRateCents: parsed.cents, budgetCents: parsedBudget.cents } }),
           ).then((ok) => {
             if (ok) setEditing(false)
           })
@@ -242,6 +243,13 @@ function JobRow({ node, manage, run }: { node: JobNode; manage: ManageLevel; run
           onChange={(e) => setRate(e.target.value)}
           placeholder="$/hr"
           aria-label="Hourly rate in dollars"
+        />
+        <input
+          className="tree-input tree-rate"
+          value={budget}
+          onChange={(e) => setBudget(e.target.value)}
+          placeholder="Budget $"
+          aria-label="Budget in dollars"
         />
         <Button type="submit" variant="primary">
           Save
@@ -258,6 +266,7 @@ function JobRow({ node, manage, run }: { node: JobNode; manage: ManageLevel; run
     <div className={`tree-row${live ? '' : ' archived'}`}>
       <span className="name"><Briefcase size={13} /> {node.name}</span>
       <span className="rate">{rateLabel(node.billableRateCents)}</span>
+      {node.budgetCents != null && <span className="rate">{formatCents(node.budgetCents)} budget</span>}
       {node.archivedAt && <span className="tag">archived</span>}
       {manage === 'job' && live && (
         <span className="tree-actions">
@@ -339,6 +348,7 @@ function AddProjectForm({ clientId, run }: { clientId: string; run: RunFn }) {
 function AddJobForm({ projectId, run }: { projectId: string; run: RunFn }) {
   const [name, setName] = useState('')
   const [rate, setRate] = useState('')
+  const [budget, setBudget] = useState('')
   const [fieldError, setFieldError] = useState<string | null>(null)
   return (
     <form
@@ -346,19 +356,25 @@ function AddJobForm({ projectId, run }: { projectId: string; run: RunFn }) {
       onSubmit={(e) => {
         e.preventDefault()
         const parsed = parseDollars(rate)
+        const parsedBudget = parseDollars(budget)
         if (!parsed.ok) {
           setFieldError(parsed.error)
+          return
+        }
+        if (!parsedBudget.ok) {
+          setFieldError(parsedBudget.error)
           return
         }
         if (!name.trim()) return
         setFieldError(null)
         void run(() =>
-          createJobFn({ data: { projectId, name: name.trim(), billableRateCents: parsed.cents } }),
+          createJobFn({ data: { projectId, name: name.trim(), billableRateCents: parsed.cents, budgetCents: parsedBudget.cents } }),
         ).then((ok) => {
           // Only clear on success — see AddClientForm (#L2).
           if (ok) {
             setName('')
             setRate('')
+            setBudget('')
           }
         })
       }}
@@ -376,6 +392,13 @@ function AddJobForm({ projectId, run }: { projectId: string; run: RunFn }) {
         onChange={(e) => setRate(e.target.value)}
         placeholder="$/hr (blank = non-billable)"
         aria-label="Hourly rate in dollars, blank for non-billable"
+      />
+      <input
+        className="tree-input tree-rate"
+        value={budget}
+        onChange={(e) => setBudget(e.target.value)}
+        placeholder="Budget $"
+        aria-label="Budget in dollars"
       />
       <Button type="submit" variant="primary" disabled={!name.trim()}>
         Add job

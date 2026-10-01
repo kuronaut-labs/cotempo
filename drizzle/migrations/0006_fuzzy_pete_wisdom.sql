@@ -1,0 +1,1 @@
+ALTER TABLE `jobs` ADD `budget_cents` integer;
