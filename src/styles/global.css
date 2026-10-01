@@ -1056,6 +1056,72 @@ input[type='radio']:disabled:checked::after {
   color: var(--color-primary);
 }
 
+/* ---------- today lane collapse + how-counted popover (LD2/LD10) ---------- */
+
+.today-lane.collapsed {
+  padding: 0;
+}
+.today-lane.collapsed .collapsed-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  min-height: 48px;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.today-lane.collapsed .collapsed-head:hover {
+  background: var(--fill-hover);
+}
+.today-lane.collapsed .collapsed-head h2 {
+  font: 600 15px/1.4 var(--font-body);
+  color: var(--color-primary);
+}
+.lane-empty-note {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--border-input-hover);
+}
+.howcounted {
+  position: relative;
+}
+.howcounted .iconbtn {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid var(--color-tertiary);
+  color: var(--color-primary);
+  font: 600 12px/1 var(--font-body);
+}
+.howcounted .iconbtn::-webkit-details-marker {
+  display: none;
+}
+.howcounted-body {
+  position: absolute;
+  right: 0;
+  top: 28px;
+  z-index: var(--z-popover, 30);
+  max-width: 360px;
+  padding: var(--space-3);
+  background: var(--surface-card);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
+  font: 400 13px/1.5 var(--font-body);
+}
+.howcounted-body h2 {
+  font: 600 14px/1.4 var(--font-body);
+}
+
 .lanebody {
   flex: 1;
   display: flex;

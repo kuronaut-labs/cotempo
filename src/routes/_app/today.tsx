@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { z } from 'zod'
-import { X } from 'reicon-react'
 import { Button } from '~/components/ui/button'
 import { DateNav } from '~/components/dateNav'
 import { DayMathChip } from '~/components/dayMathChip'
@@ -9,6 +8,7 @@ import { EntryForm, type Initial } from '~/components/entryForm'
 import { IntervalList } from '~/components/intervalList'
 import { MiniStrip } from '~/components/miniStrip'
 import { colorIndexFromStructure } from '~/lib/jobColors'
+import { HowCounted } from '~/components/howCounted'
 import { parseHttpError } from '~/lib/errors'
 import { serverErrorMessage } from '~/components/forms/applyServerError'
 import type { CreateIntervalInput, UpdateIntervalInput } from '~/lib/schemas/intervals'
@@ -78,20 +78,10 @@ function TodayView() {
   const [editing, setEditing] = useState<DayIntervalRow | null>(null)
   const [lockedWeek, setLockedWeek] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
-  // P3.20: dismissible "How time is counted" explainer, shown once per browser.
-  const [showHowCounted, setShowHowCounted] = useState(false)
-  useEffect(() => {
-    try {
-      if (window.localStorage.getItem('timesheets:how-time-counted-dismissed') !== '1') setShowHowCounted(true)
-    } catch {}
-  }, [])
-  const dismissHowCounted = () => {
-    setShowHowCounted(false)
-    try {
-      window.localStorage.setItem('timesheets:how-time-counted-dismissed', '1')
-    } catch {}
-  }
-
+  // LD10: an empty lane of "someone else" collapses; 'Add' opens the compact form with Worker preset.
+  const [presetWorker, setPresetWorker] = useState<string | null>(null)
+  // LD3: which lane's expand toggle is open (collapsed lanes can still be expanded by name click).
+  const [expandedLanes, setExpandedLanes] = useState<Set<string>>(new Set())
   const noteLock = (e: unknown) => {
     // Defensive: server-fn errors may arrive as a plain object that lost the
     // HttpError prototype over the wire (#M11). parseHttpError handles both.
@@ -107,6 +97,7 @@ function TodayView() {
       if ('id' in input) await updateIntervalFn({ data: input })
       else await createIntervalFn({ data: input })
       setEditing(null)
+      setPresetWorker(null)
       setLockedWeek(null)
       await invalidate()
     } catch (e) {
@@ -146,7 +137,6 @@ function TodayView() {
         <section className="panel today-add">
           <h2 className="today-section-title">{editing ? 'Edit entry' : 'Add entry'}</h2>
           <EntryForm
-            key={editing?.id ?? 'new'}
             date={date}
             tz={tz}
             selfWorkerId={ctx.workerId}
@@ -154,8 +144,9 @@ function TodayView() {
             workers={workers}
             structure={structure}
             recentJobs={recentJobs}
-            initial={rowToInitial(editing)}
+            initial={rowToInitial(editing) ?? (presetWorker ? { workerId: presetWorker } : undefined)}
             compact={editing === null}
+            key={editing?.id ?? presetWorker ?? 'new'}
             onSubmit={submit}
             onCancel={() => setEditing(null)}
           />
@@ -177,11 +168,42 @@ function TodayView() {
         {lanes.map((w) => {
           const intervals = day.intervals.filter((i) => i.workerId === w.workerId)
           const trio = day.trioByWorker[w.workerId] ?? { wallClockMin: 0, effortMin: 0, premiumMin: 0 }
+          const isSelf = Boolean(ctx && ctx.workerId === w.workerId)
+          const collapsed = intervals.length === 0 && !isSelf && !expandedLanes.has(w.workerId)
+          if (collapsed) {
+            return (
+              <section key={w.workerId} className="panel today-lane collapsed">
+                <button
+                  type="button"
+                  className="today-lane-head collapsed-head"
+                  onClick={() => setExpandedLanes((s) => new Set(s).add(w.workerId))}
+                >
+                  <h2>{w.name}</h2>
+                  <span className="lane-empty-note">nothing logged</span>
+                  {ctx && canEditRow(w.workerId) ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setEditing(null)
+                        setPresetWorker(w.workerId)
+                      }}
+                    >
+                      Add
+                    </Button>
+                  ) : null}
+                </button>
+              </section>
+            )
+          }
           return (
             <section key={w.workerId} className="panel today-lane">
               <header className="today-lane-head">
                 <h2>{w.name}</h2>
                 <DayMathChip trio={trio} />
+                {isSelf ? <HowCounted /> : null}
               </header>
               <MiniStrip
                 day={day.day}
@@ -209,21 +231,6 @@ function TodayView() {
         })}
       </div>
 
-      {showHowCounted && (
-        <aside className="how-counted-card" role="region" aria-label="How time is counted">
-          <Button variant="ghost" size="sm" onClick={dismissHowCounted} aria-label="Dismiss">
-            <X size={13} />
-          </Button>
-          <h2>How time is counted</h2>
-          <p>Three numbers over the same day:</p>
-          <ul>
-            <li><b>On the clock</b> — time covered. 9:00–17:00 is 8:00, even if three jobs overlapped.</li>
-            <li><b>Total of entries</b> — what you'd get by adding every entry, including ones that overlap.</li>
-            <li><b>Overlap</b> — the difference. Extra minutes from working two jobs at once.</li>
-          </ul>
-          <p>Overlap is what gets billed when shared time is counted once per job — the audit disclosure on invoices.</p>
-        </aside>
-      )}
 
     </main>
   )
