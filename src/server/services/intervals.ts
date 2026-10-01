@@ -38,6 +38,35 @@ async function liveJob(db: Db, jobId: string) {
   return job
 }
 
+type IntervalChanges = Record<string, { from: unknown; to: unknown }>
+
+function intervalEventRow(
+  intervalId: string,
+  kind: 'create' | 'edit' | 'delete',
+  actorWorkerId: string,
+  changes: IntervalChanges | null,
+  at: Date,
+) {
+  return { id: crypto.randomUUID(), intervalId, kind, actorWorkerId, changes: changes === null ? null : JSON.stringify(changes), at }
+}
+
+/* Audit diff of the mutable fields; times as ISO. The rateCents diff makes
+   position re-snapshots visible to reviewers (#18). */
+function diffInterval(
+  cur: IntervalRow,
+  next: Pick<IntervalRow, 'startedAt' | 'endedAt' | 'jobId' | 'note' | 'rateCents'>,
+): IntervalChanges {
+  const out: IntervalChanges = {}
+  if (cur.startedAt.getTime() !== next.startedAt.getTime())
+    out.startedAt = { from: cur.startedAt.toISOString(), to: next.startedAt.toISOString() }
+  if (cur.endedAt.getTime() !== next.endedAt.getTime())
+    out.endedAt = { from: cur.endedAt.toISOString(), to: next.endedAt.toISOString() }
+  if (cur.jobId !== next.jobId) out.jobId = { from: cur.jobId, to: next.jobId }
+  if (cur.note !== next.note) out.note = { from: cur.note, to: next.note }
+  if (cur.rateCents !== next.rateCents) out.rateCents = { from: cur.rateCents, to: next.rateCents }
+  return out
+}
+
 // position rate for a human worker, else null; archived positions stop overriding
 async function positionRateCents(db: Db, workerId: string): Promise<number | null> {
   const row = await db
@@ -105,6 +134,7 @@ export async function createInterval(
     deletedAt: null,
   }
   await db.insert(schema.intervals).values(row)
+  await db.insert(schema.intervalEvents).values(intervalEventRow(row.id, 'create', ctx.workerId, null, now))
   await resetSubmittedWeeks(db, input.workerId, keys, ctx.workerId)
   return row
 }
@@ -159,7 +189,6 @@ export async function updateInterval(
       updatedAt: now,
     })
     .where(eq(schema.intervals.id, cur.id))
-  await resetSubmittedWeeks(db, cur.workerId, keys, ctx.workerId)
   const updated: IntervalRow = {
     ...cur,
     startedAt: new Date(after.startMs),
@@ -170,6 +199,9 @@ export async function updateInterval(
     editCount: cur.editCount + 1,
     updatedAt: now,
   }
+  // No-op saves still emit (editCount also increments). (#L4-like; diff may be {})
+  await db.insert(schema.intervalEvents).values(intervalEventRow(cur.id, 'edit', ctx.workerId, diffInterval(cur, updated), now))
+  await resetSubmittedWeeks(db, cur.workerId, keys, ctx.workerId)
   return updated
 }
 
@@ -193,6 +225,7 @@ export async function deleteInterval(
     .update(schema.intervals)
     .set({ deletedAt: now, updatedAt: now })
     .where(eq(schema.intervals.id, cur.id))
+  await db.insert(schema.intervalEvents).values(intervalEventRow(cur.id, 'delete', ctx.workerId, null, now))
   await resetSubmittedWeeks(db, cur.workerId, keys, ctx.workerId)
 }
 

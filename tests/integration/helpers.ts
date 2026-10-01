@@ -15,6 +15,7 @@ export const userIdOf = (workerId: string) => `user-${workerId}`
 
 export async function resetDb() {
   await db.batch([
+    db.delete(schema.intervalEvents),
     db.delete(schema.approvalEvents),
     db.delete(schema.leaveEvents),
     db.delete(schema.leaveRequests),

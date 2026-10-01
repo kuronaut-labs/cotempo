@@ -159,6 +159,18 @@ export const intervals = sqliteTable(
   ],
 )
 
+// ---- Interval edit history (audit) ----
+export const intervalEvents = sqliteTable('interval_events', {
+  id: text('id').primaryKey(),
+  intervalId: text('interval_id')
+    .notNull()
+    .references(() => intervals.id),
+  kind: text('kind', { enum: ['create', 'edit', 'delete'] }).notNull(),
+  actorWorkerId: text('actor_worker_id').notNull(),
+  changes: text('changes'), // JSON { field: { from, to } }; null for create/delete
+  at: ts('at').notNull(),
+})
+
 // ---- Approvals (#12, #23, #26) ----
 export const approvals = sqliteTable(
   'approvals',

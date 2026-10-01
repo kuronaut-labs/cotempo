@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { and, eq } from 'drizzle-orm'
+import { and, asc, eq, sql } from 'drizzle-orm'
 import { asUser, at, db, deps, iso, resetDb, setWeekStatus } from './helpers'
 import { ids } from '~/server/fixtures/demo'
 import {
@@ -291,5 +291,59 @@ describe('listDay (#5, #13)', () => {
     await expect(
       listDay(deps(), op, { date: '2026-09-05', workerId: ids.billingWorker }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN_TARGET' })
+  })
+})
+
+describe('interval events', () => {
+  const events = async (intervalId: string) =>
+    db
+      .select()
+      .from(schema.intervalEvents)
+      .where(eq(schema.intervalEvents.intervalId, intervalId))
+      .orderBy(asc(schema.intervalEvents.at), sql`rowid`)
+      .all()
+
+  it('create emits a create event', async () => {
+    const iv = await createInterval(deps(), asUser('billing'), {
+      workerId: ids.billingWorker, jobId: ids.j1,
+      startedAt: at(1, 9).toISOString(), endedAt: at(1, 11).toISOString(),
+    })
+    const evs = await events(iv.id)
+    expect(evs.map((e) => e.kind)).toEqual(['create'])
+    expect(evs[0]!.actorWorkerId).toBe(ids.billingWorker)
+    expect(evs[0]!.changes).toBeNull()
+  })
+
+  it('note edit emits an edit event with the note diff', async () => {
+    const iv = await createInterval(deps(), asUser('billing'), {
+      workerId: ids.billingWorker, jobId: ids.j1,
+      startedAt: at(1, 9).toISOString(), endedAt: at(1, 11).toISOString(),
+    })
+    await updateInterval(deps(), asUser('billing'), { id: iv.id, note: 'focus' })
+    const evs = await events(iv.id)
+    expect(evs.map((e) => e.kind)).toEqual(['create', 'edit'])
+    const changes = JSON.parse(evs[1]!.changes!) as { note: { from: unknown; to: unknown } }
+    expect(changes.note).toEqual({ from: null, to: 'focus' })
+  })
+
+  it('job change records jobId and rateCents diffs', async () => {
+    const iv = await createInterval(deps(), asUser('billing'), {
+      workerId: ids.billingWorker, jobId: ids.j1,
+      startedAt: at(1, 9).toISOString(), endedAt: at(1, 11).toISOString(),
+    })
+    await updateInterval(deps(), asUser('billing'), { id: iv.id, jobId: ids.j3 })
+    const changes = JSON.parse((await events(iv.id))[1]!.changes!) as Record<string, { from: unknown; to: unknown }>
+    expect(changes.jobId).toEqual({ from: ids.j1, to: ids.j3 })
+    expect(changes.rateCents).toEqual({ from: 14000, to: 12000 }) // billingWorker has no position; j1 $140 → j3 $120
+  })
+
+  it('delete emits a delete event', async () => {
+    const iv = await createInterval(deps(), asUser('billing'), {
+      workerId: ids.billingWorker, jobId: ids.j1,
+      startedAt: at(1, 9).toISOString(), endedAt: at(1, 11).toISOString(),
+    })
+    await deleteInterval(deps(), asUser('billing'), { id: iv.id })
+    const evs = await events(iv.id)
+    expect(evs.map((e) => e.kind)).toEqual(['create', 'delete'])
   })
 })
