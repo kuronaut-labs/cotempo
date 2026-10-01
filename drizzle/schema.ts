@@ -268,5 +268,8 @@ export const orgSettings = sqliteTable('org_settings', {
   defaultBillableRateCents: integer('default_billable_rate_cents'),
   defaultDayMinutes: integer('default_day_minutes').notNull().default(480),
   defaultWeeklyTargetHours: integer('default_weekly_target_hours'),
+  flagGapMinWallMin: integer('flag_gap_min_wall_min'), // null = built-in default (src/lib/redFlags.ts)
+  flagLateEntryDays: integer('flag_late_entry_days'),
+  flagMultiEditOver: integer('flag_multi_edit_over'),
   updatedAt: ts('updated_at').notNull(),
 })

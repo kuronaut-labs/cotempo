@@ -2,8 +2,9 @@ import { and, eq, gt, inArray, isNull, lt } from 'drizzle-orm'
 import { explode, recon as piecesRecon, type Piece } from '~/lib/attribution'
 import { localDateOf, localDayBoundariesUtcMs } from '~/lib/dayMath'
 import { HttpError } from '~/lib/errors'
-import { redFlags, type Flag } from '~/lib/redFlags'
+import { defaults as flagDefaults, redFlags, type Flag } from '~/lib/redFlags'
 import { isMonday } from '~/lib/week'
+import { getOrgSettings, type OrgSettingsView } from './settings'
 import { canSeeMoney, hasRole, isAdmin, type SessionContext } from '~/server/context'
 import { schema, type Db } from '~/server/db'
 import { assertCanEditWorker, assertCanViewWorker } from '~/server/guards/worker'
@@ -344,6 +345,15 @@ export async function unlockWeek(deps: Deps, ctx: SessionContext, input: UnlockW
   return { ...existing, status: 'draft', updatedAt: now, approvedAt: null, approvedBy: null, approvedComment: null }
 }
 
+/* A2: org-configurable thresholds; null falls back to redFlags' built-in defaults. */
+function flagsCfg(s: OrgSettingsView) {
+  return {
+    gapMinWallMin: s.flagGapMinWallMin ?? flagDefaults.gapMinWallMin,
+    lateEntryDays: s.flagLateEntryDays ?? flagDefaults.lateEntryDays,
+    multiEditOver: s.flagMultiEditOver ?? flagDefaults.multiEditOver,
+  }
+}
+
 export async function listPendingWeeks(deps: Deps, ctx: SessionContext): Promise<PendingWeek[]> {
   if (!hasRole(ctx, 'billing')) throw new HttpError(403, 'FORBIDDEN')
   const { db, tz } = deps
@@ -367,7 +377,7 @@ export async function listPendingWeeks(deps: Deps, ctx: SessionContext): Promise
       intervals: toIntervalsForRedFlags(intervals),
       pieces,
     }
-    const flags = redFlags(flagInput)
+    const flags = redFlags(flagInput, flagsCfg(await getOrgSettings(deps, ctx)))
     out.push({
       workerId: r.workerId,
       workerName: names.get(r.workerId) ?? '?',
@@ -423,7 +433,7 @@ export async function getWeekForApproval(deps: Deps, ctx: SessionContext, input:
     worker: { id: input.workerId, supervisorId: supervisors.get(input.workerId) ?? null },
     intervals: toIntervalsForRedFlags(intervals),
     pieces,
-  })
+  }, flagsCfg(await getOrgSettings(deps, ctx)))
   const events: (ApprovalEventRow & { actorName: string })[] = []
   if (row) {
     const raw = await loadEvents(db, row.id)

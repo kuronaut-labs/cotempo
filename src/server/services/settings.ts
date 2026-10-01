@@ -15,6 +15,9 @@ export async function getOrgSettings(deps: Deps, ctx: SessionContext): Promise<O
   const view: OrgSettingsView = {
     defaultDayMinutes: row?.defaultDayMinutes ?? FALLBACK_DAY_MINUTES,
     defaultWeeklyTargetHours: row?.defaultWeeklyTargetHours ?? null,
+    flagGapMinWallMin: row?.flagGapMinWallMin ?? null,
+    flagLateEntryDays: row?.flagLateEntryDays ?? null,
+    flagMultiEditOver: row?.flagMultiEditOver ?? null,
   }
   if (canSeeMoney(ctx)) view.defaultBillableRateCents = row?.defaultBillableRateCents ?? null
   return view
@@ -26,6 +29,9 @@ export async function updateOrgSettings(deps: Deps, ctx: SessionContext, input: 
   if (input.defaultBillableRateCents !== undefined) patch.defaultBillableRateCents = input.defaultBillableRateCents
   if (input.defaultDayMinutes !== undefined) patch.defaultDayMinutes = input.defaultDayMinutes
   if (input.defaultWeeklyTargetHours !== undefined) patch.defaultWeeklyTargetHours = input.defaultWeeklyTargetHours
+  if (input.flagGapMinWallMin !== undefined) patch.flagGapMinWallMin = input.flagGapMinWallMin
+  if (input.flagLateEntryDays !== undefined) patch.flagLateEntryDays = input.flagLateEntryDays
+  if (input.flagMultiEditOver !== undefined) patch.flagMultiEditOver = input.flagMultiEditOver
   if (Object.keys(patch).length > 0) {
     patch.updatedAt = deps.now()
     await deps.db

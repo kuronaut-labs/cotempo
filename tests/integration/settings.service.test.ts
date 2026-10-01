@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { asUser, db, deps, resetDb } from './helpers'
 import { getOrgSettings, updateOrgSettings } from '~/server/services/settings'
 import { orgSettings } from '../../drizzle/schema'
+import * as schema from '../../drizzle/schema'
 import { insertDemo } from '~/server/fixtures/demo'
 
 beforeEach(async () => {
@@ -60,5 +61,28 @@ describe('settings service', () => {
   it('sees the seeded values', async () => {
     const bill = await getOrgSettings(deps(), asUser('billing'))
     expect(bill).toMatchObject({ defaultDayMinutes: 480, defaultWeeklyTargetHours: 40, defaultBillableRateCents: 10_000 })
+  })
+})
+
+describe('flag thresholds (A2)', () => {
+  it('round-trips flag thresholds; null clears to the built-in default', async () => {
+    await updateOrgSettings(deps(), asUser('admin'), { flagGapMinWallMin: 240, flagLateEntryDays: 14, flagMultiEditOver: 5 })
+    const s = await getOrgSettings(deps(), asUser('billing'))
+    expect(s.flagGapMinWallMin).toBe(240)
+    expect(s.flagLateEntryDays).toBe(14)
+    expect(s.flagMultiEditOver).toBe(5)
+    await updateOrgSettings(deps(), asUser('admin'), { flagGapMinWallMin: null })
+    expect((await getOrgSettings(deps(), asUser('billing'))).flagGapMinWallMin).toBeNull()
+  })
+
+  it('thresholds drive gap flags in the week view', async () => {
+    const { getWeekForApproval } = await import('~/server/services/approvals')
+    // A worker with no intervals this week gets 5 gap flags at the default 480.
+    await db.insert(schema.workers).values({ id: 'w-fresh', kind: 'human', createdAt: deps().now() }).onConflictDoNothing()
+    const before = await getWeekForApproval(deps(), asUser('billing'), { workerId: 'w-fresh', weekStart: '2026-08-31' })
+    expect(before.flags.filter((f) => f.kind === 'gap')).toHaveLength(5)
+    await updateOrgSettings(deps(), asUser('admin'), { flagGapMinWallMin: 0 })
+    const after = await getWeekForApproval(deps(), asUser('billing'), { workerId: 'w-fresh', weekStart: '2026-08-31' })
+    expect(after.flags.filter((f) => f.kind === 'gap')).toHaveLength(0)
   })
 })

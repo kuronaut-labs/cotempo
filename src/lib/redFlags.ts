@@ -38,6 +38,8 @@ function wallMinByDay(pieces: Piece[], workerId: string): Map<string, number> {
 }
 
 /* gap: a Mon–Fri day in the week with no time or wall-clock < gapMinWallMin (#12, #17). */
+// 480 → "8", 450 → "7.5", 500 → "8.33" — no whole-hour rounding (#A2).
+const gapHours = (min: number) => String(Math.round((min / 60) * 100) / 100)
 function gapFlags(input: RedFlagInput, cfg: FlagConfig): Flag[] {
   const dates = weekDates(input.weekStart).slice(0, 5) // Mon..Fri
   const walls = wallMinByDay(input.pieces, input.worker.id)
@@ -48,7 +50,8 @@ function gapFlags(input: RedFlagInput, cfg: FlagConfig): Flag[] {
       out.push({
         kind: 'gap',
         day,
-        detail: wall === 0 ? `No time logged on ${day}.` : `Only ${Math.round(wall)} min on ${day} (< 8h).`,
+        // 480 → "8", 450 → "7.5"; A2 templated the threshold in, byte-identical at default.
+        detail: wall === 0 ? `No time logged on ${day}.` : `Only ${Math.round(wall)} min on ${day} (< ${gapHours(cfg.gapMinWallMin)}h).`,
       })
     }
   }

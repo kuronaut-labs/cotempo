@@ -53,3 +53,11 @@ describe('gap uses unioned wall-clock, not summed piece minutes', () => {
     expect(gap).toEqual(undefined)
   })
 })
+
+it('templates the gap threshold into the detail (byte-identical at default)', () => {
+  const ivs = [toIv(['a', '09:00', '14:00'])]
+  const input = { weekStart: WEEK, tz: TZ, worker, intervals: ivs, pieces: piecesOf(ivs) }
+  const onDay = (flags: ReturnType<typeof redFlags>) => flags.find((f) => f.kind === 'gap' && f.day === DAY)!.detail
+  expect(onDay(redFlags(input))).toBe(`Only 300 min on ${DAY} (< 8h).`)
+  expect(onDay(redFlags(input, { gapMinWallMin: 450, lateEntryDays: 7, multiEditOver: 2 }))).toBe(`Only 300 min on ${DAY} (< 7.5h).`)
+})
