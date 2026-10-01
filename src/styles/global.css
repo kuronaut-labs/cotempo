@@ -387,24 +387,42 @@ input[type='radio']:disabled:checked::after {
 
 .ministrip-block {
   position: absolute;
-  top: 4px;
-  bottom: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   overflow: hidden;
   min-width: 1px;
+  border-radius: 0;
   font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
   color: var(--j-ink);
 }
 
+.ministrip-tick {
+  position: absolute;
+  top: 0;
+  bottom: 16px;
+  border-left: 1px solid var(--color-tertiary);
+  pointer-events: none;
+}
+
+.ministrip-tick-label {
+  position: absolute;
+  bottom: 0;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--color-info);
+}
+
 .ministrip-overlap {
   position: absolute;
-  bottom: 2px;
-  height: 6px;
-  background: repeating-linear-gradient(45deg, transparent 0 3px, rgba(55, 53, 47, 0.45) 3px 5px);
+  top: 0;
+  bottom: 16px;
+  background: repeating-linear-gradient(45deg, var(--premium-fill) 0 4px, transparent 4px 8px);
+  opacity: 0.35;
 }
 
 .ministrip-overlap-tag {

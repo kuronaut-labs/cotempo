@@ -215,6 +215,7 @@ function TodayView() {
                   endMs: i.endedAt.getTime(),
                 }))}
                 jobColorIndex={jobColorIndex}
+                jobNames={Object.fromEntries(intervals.map((i) => [i.jobId, i.jobName]))}
               />
               <IntervalList
                 rows={intervals}

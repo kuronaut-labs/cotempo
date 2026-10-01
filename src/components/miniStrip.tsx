@@ -1,4 +1,5 @@
 import { localHHMM, type Range } from '~/lib/dayMath'
+import { assignRows, hourTicks, stripWindow } from '~/lib/stripLayout'
 
 export type StripInterval = { id: string; jobId: string; startMs: number; endMs: number }
 
@@ -102,14 +103,28 @@ export function MiniStrip({
   tz,
   intervals,
   jobColorIndex,
+  jobNames,
 }: {
   day: Range
   tz: string
   intervals: StripInterval[]
   /** Maps `jobId` → 1..5 → CSS class `.job-c{n}`. Missing jobs fall back to `--line`. */
   jobColorIndex: Record<string, number>
+  /** Optional `jobId` → display name; used for in-block labels and tooltips. */
+  jobNames?: Record<string, string>
 }) {
-  const { blocks, overlaps } = stripBlocks(day, intervals)
+  const window = stripWindow(day, intervals, tz)
+  const { blocks, overlaps } = stripBlocks(window, intervals)
+  const rows = assignRows(blocks)
+  const ticks = hourTicks(window, tz)
+  const trackHeight = Math.max(56, rows.size ? (Math.max(...rows.values()) + 1) * 24 + 8 : 32)
+
+  const tip = (b: StripBlock) => {
+    const name = jobNames?.[b.jobId]
+    const time = `${b.leadingClip}${localHHMM(b.clippedStart, tz)}–${localHHMM(b.clippedEnd, tz)}${b.trailingClip}`
+    return name ? `${name} · ${time}` : time
+  }
+
   return (
     <div className="ministrip" role="img" aria-label="Day timeline">
       <div className="ministrip-tags" aria-hidden>
@@ -119,26 +134,35 @@ export function MiniStrip({
           </span>
         ))}
       </div>
-      <div className="ministrip-track">
+      <div className="ministrip-track" style={{ height: trackHeight }}>
+        {ticks.map((t, i) => (
+          <div key={i} className="ministrip-tick" style={{ left: `${t.leftPct}%` }}>
+            {t.label ? <span className="ministrip-tick-label">{t.label}</span> : null}
+          </div>
+        ))}
+        {overlaps.map((o, i) => (
+          <div key={i} className="ministrip-overlap" style={{ left: `${o.leftPct}%`, width: `${o.widthPct}%` }} />
+        ))}
         {blocks.map((b) => {
           const n = jobColorIndex[b.jobId]
           const colorClass = n ? `job-c${Math.min(5, Math.max(1, n))}` : ''
-          const style = colorClass ? undefined : { background: 'var(--color-tertiary)', color: 'var(--color-primary)' }
+          const row = rows.get(b.id) ?? 0
+          const style = colorClass
+            ? { top: row * 24, height: 22 }
+            : { top: row * 24, height: 22, background: 'var(--color-tertiary)', color: 'var(--color-primary)' }
           return (
             <div
               key={b.id}
+              data-tip={tip(b)}
               className={`ministrip-block ${colorClass}`}
               style={{ left: `${b.leftPct}%`, width: `${b.widthPct}%`, ...style }}
-              title={`${b.leadingClip}${localHHMM(b.clippedStart, tz)}–${localHHMM(b.clippedEnd, tz)}${b.trailingClip}`}
             >
               {b.leadingClip}
+              {b.widthPct >= 8 && jobNames?.[b.jobId] ? <span>{jobNames[b.jobId]}</span> : null}
               {b.trailingClip}
             </div>
           )
         })}
-        {overlaps.map((o, i) => (
-          <div key={i} className="ministrip-overlap" style={{ left: `${o.leftPct}%`, width: `${o.widthPct}%` }} />
-        ))}
       </div>
       <div className="ministrip-legend" aria-label="Timeline legend">
         <span><b>‹</b> starts before this day</span>
