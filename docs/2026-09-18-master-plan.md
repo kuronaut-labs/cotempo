@@ -18,13 +18,13 @@ Each stage names the plan, the waves or tasks it covers, why it sits here, what 
 
 ### Stage 0 · Housekeeping (S)
 
-- [ ] Delete `docs/2026-09-17-leave-management.md` (shipped; keeps the "finished plans are removed" convention).
-- [ ] Add `.playwright-mcp/` to `.gitignore` (screenshot scratch from the UX review).
-- [ ] Record the `.wayfinder` tickets the four plans ask for, so decisions exist before code refines them:
+- [x] Delete `docs/2026-09-17-leave-management.md` (shipped; keeps the "finished plans are removed" convention).
+- [x] Add `.playwright-mcp/` to `.gitignore` (screenshot scratch from the UX review).
+- [x] Record the `.wayfinder` tickets the four plans ask for, so decisions exist before code refines them:
   - assignments table refines #4/#9; #5 gains `assign_worker`, `view_assignments`; #7 gains a setting-gated exception (from `2026-09-18-assignments-and-allocation.md`).
   - `clients` contact columns + `client_contacts` refine #4; #5 gains `edit_client_contacts` (admin) / `view_client_contacts` (all); #11 gains entity pages (from `2026-09-18-clients-and-projects-pages.md`).
   - vocabulary decision (entry / Overlap / On the clock) and the "overlap emphasised when non-zero" call (from `2026-09-18-entry-ux-pass.md`, Locked Decisions 1 and 3).
-- [ ] Resolve the open contract gap in `CLAUDE.md` ("clips a midnight-crossing interval …" in `phase4-intervals.contract.test.ts`): reviewer picks "fix the expected trio" or "move `iv('07')`". Everything after this stage runs `npm run test:contract` and needs it green.
+- [x] Resolve the open contract gap in `CLAUDE.md` ("clips a midnight-crossing interval …" in `phase4-intervals.contract.test.ts`): reviewer picks "fix the expected trio" or "move `iv('07')`". Everything after this stage runs `npm run test:contract` and needs it green. **Resolved 2026-10-01:** already fixed in-tree — the contract expects `{210, 240, 30}` ("fix the trio" side) and passes; MANIFEST intact. The gap note in `CLAUDE.md` should be dropped at the next wrap-up that touches it.
 
 **Hands forward:** clean gate, decisions on record.
 
@@ -112,7 +112,7 @@ Then: the plan's Done Criteria all hold, the wrap-up commit exists, and the plan
 
 ## Progress
 
-- [ ] Stage 0 · Housekeeping
+- [x] Stage 0 · Housekeeping
 - [ ] Stage 1 · Entry UX Waves 1–3
 - [ ] Stage 2 · Audit & reporting
 - [ ] Stage 3 · Assignments Waves 1–4

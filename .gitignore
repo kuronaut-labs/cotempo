@@ -8,3 +8,4 @@ coverage/
 worker-configuration.d.ts
 .DS_Store
 docs/reports/
+.playwright-mcp/
