@@ -8,6 +8,7 @@ import { DayMathChip } from '~/components/dayMathChip'
 import { EntryForm, type Initial } from '~/components/entryForm'
 import { IntervalList } from '~/components/intervalList'
 import { MiniStrip } from '~/components/miniStrip'
+import { colorIndexFromStructure } from '~/lib/jobColors'
 import { parseHttpError } from '~/lib/errors'
 import { serverErrorMessage } from '~/components/forms/applyServerError'
 import type { CreateIntervalInput, UpdateIntervalInput } from '~/lib/schemas/intervals'
@@ -116,7 +117,7 @@ function TodayView() {
   }
 
   async function remove(id: string) {
-    if (!window.confirm('Delete this interval?')) return
+    if (!window.confirm('Delete this entry?')) return
     setActionError(null)
     try {
       await deleteIntervalFn({ data: { id } })
@@ -195,7 +196,7 @@ function TodayView() {
 
       {ctx && (
         <section className="panel">
-          <h2 className="today-section-title">{editing ? 'Edit interval' : 'Add interval'}</h2>
+          <h2 className="today-section-title">{editing ? 'Edit entry' : 'Add entry'}</h2>
           <EntryForm
             key={editing?.id ?? 'new'}
             date={date}
@@ -238,12 +239,7 @@ function rowToInitial(row: DayIntervalRow | null): Initial | undefined {
   }
 }
 
-function colorIndexFromStructure(structure: { projects: { jobs: { id: string }[] }[] }[]): Record<string, number> {
-  const out: Record<string, number> = {}
-  let n = 0
-  for (const c of structure) for (const p of c.projects) for (const j of p.jobs) out[j.id] = (n++ % 5) + 1
-  return out
-}
+// (moved to ~/lib/jobColors)
 
 // null = no filter (billing/admin); mirrors assertCanViewWorker for the lane list.
 function scopeWorkerIds(ctx: SessionContext | null): Set<string> | null {

@@ -34,9 +34,10 @@ near their section. No inline styles outside `src/routes/dev.components.tsx`
 5. **Numbers are mono.** Every metric, timestamp, and rate renders in IBM Plex
    Mono with `tabular-nums`, 400 body / 600 emphasis.
 6. **Transitions ≤ 200ms.** Standard is 150ms ease on bg/border/color/shadow.
-7. **Copy is design material but it is frozen.** UI strings are governed by
-   `docs/reports/2026-09-13-ux-terminology-review.md`; visual changes must not
-   reword labels, placeholders, or messages.
+7. **Copy is design material.** UI strings follow the current vocabulary in
+   `docs/reports/2026-09-18-ux-terminology.md` — entry, Overlap, On the clock,
+   Billable (wayfinder #29); visual changes must not reword labels, placeholders,
+   or messages outside that vocabulary.
 
 ## Tokens (`src/styles/tokens.css`)
 

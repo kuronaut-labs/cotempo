@@ -34,8 +34,8 @@ export function EffortBars({ series }: { series: AdminKpis['effortSeries'] }) {
             <div className="bar premium" style={{ left: `${r.wallPct}%`, width: `${r.premiumPct}%` }} />
           </div>
           <div className="nums">
-            {r.wallMin}m wall
-            {r.effortMin - r.wallMin > 0 ? <> · <span className="p">+{r.effortMin - r.wallMin}m premium</span></> : null}
+            {r.wallMin}m on the clock
+            {r.effortMin - r.wallMin > 0 ? <> · <span className="p">+{r.effortMin - r.wallMin}m overlap</span></> : null}
           </div>
         </div>
       ))}

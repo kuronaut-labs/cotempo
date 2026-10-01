@@ -23,6 +23,7 @@ import {
 import { exportCsvFn } from '~/server/fns/exports'
 import { leaveReportFn } from '~/server/fns/leave'
 import { listStructureFn } from '~/server/fns/structure'
+import { colorIndexFromStructure } from '~/lib/jobColors'
 import { StructureTree, rateLabel } from '~/components/structureTree'
 import type { SessionContext } from '~/server/context'
 import type { AdminKpis } from '~/server/services/reports'
@@ -97,7 +98,8 @@ export const Route = createFileRoute('/_app/reports')({
       return { today: today.date, tz, ctx, tab, sub, from, to, recon, jobs }
     }
     const lanes = await operatorLanesFn({ data: { from, to } })
-    return { today: today.date, tz, ctx, tab, sub, from, to, lanes }
+    const structure = await listStructureFn({ data: { includeArchived: false } })
+    return { today: today.date, tz, ctx, tab, sub, from, to, lanes, structure }
   },
   component: ReportsView,
 })
@@ -175,7 +177,9 @@ function ReportsView() {
         />
       ) : null}
 
-      {activeTab === 'operator' && data.lanes ? <OperatorPanel lanes={data.lanes} tz={tz} /> : null}
+      {activeTab === 'operator' && data.lanes ? (
+        <OperatorPanel lanes={data.lanes} tz={tz} from={from} to={to} today={today} onPeriodChange={(p) => goSearch(navigate, { from: p.from, to: p.to })} jobColorIndex={colorIndexFromStructure(data.structure ?? [])} />
+      ) : null}
     </main>
   )
 }
@@ -392,13 +396,30 @@ function BillingPanel({
   )
 }
 
-function OperatorPanel({ lanes, tz }: { lanes: import('~/server/services/reports').OperatorLane[]; tz: string }) {
+function OperatorPanel({
+  lanes,
+  tz,
+  from,
+  to,
+  today,
+  onPeriodChange,
+  jobColorIndex,
+}: {
+  lanes: import('~/server/services/reports').OperatorLane[]
+  tz: string
+  from: string
+  to: string
+  today: string
+  jobColorIndex: Record<string, number>
+  onPeriodChange: (next: { from: string; to: string }) => void
+}) {
   return (
     <div className="reports-panel">
       <header className="reports-subhead">
         <h2>My time and my team's</h2>
       </header>
-      <OperatorLanes lanes={lanes} tz={tz} />
+      <PeriodSelector from={from} to={to} today={today} tz={tz} onChange={onPeriodChange} />
+      <OperatorLanes lanes={lanes} tz={tz} jobColorIndex={jobColorIndex} />
     </div>
   )
 }

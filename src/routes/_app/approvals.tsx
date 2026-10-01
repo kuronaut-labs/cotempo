@@ -6,7 +6,7 @@ import { WeekStatus } from '~/components/weekStatus'
 import { canSeeMoney, hasRole, type SessionContext } from '~/server/context'
 import { formatWeekLabel } from '~/lib/dayMath'
 import { getSessionCtxFn } from '~/server/fns/auth'
-import { getWeekForApprovalFn, listMyWeeksFn, listPendingWeeksFn, submitWeekFn } from '~/server/fns/approvals'
+import { getWeekForApprovalFn, listMyWeeksFn, listPendingWeeksFn, submitWeekFn, weeksWithEntriesFn } from '~/server/fns/approvals'
 import { getTodayFn } from '~/server/fns/intervals'
 import { listWorkersFn } from '~/server/fns/workers'
 import { submitWeek as submitWeekSvc } from '~/server/services/approvals'
@@ -39,12 +39,13 @@ export const Route = createFileRoute('/_app/approvals')({
       return { ctx, tz, mode: 'approver' as const, queue, view, selected: deps.worker && deps.week ? { workerId: deps.worker, weekStart: deps.week } : null }
     }
     const weeks = await listMyWeeksFn({ data: { weeks: 8 } })
+    const withEntries = await weeksWithEntriesFn({ data: { workerId: ctx.workerId, weekStarts: weeks.map((w) => w.weekStart) } })
     let view: WeekForApproval | null = null
     if (deps.worker && deps.week) {
       view = await getWeekForApprovalFn({ data: { workerId: deps.worker, weekStart: deps.week } })
     }
     const workers = await listWorkersFn()
-    return { ctx, tz, mode: 'operator' as const, weeks, view, workers, selected: deps.worker && deps.week ? { workerId: deps.worker, weekStart: deps.week } : null }
+    return { ctx, tz, mode: 'operator' as const, weeks, withEntries, view, workers, selected: deps.worker && deps.week ? { workerId: deps.worker, weekStart: deps.week } : null }
   },
   component: ApprovalsView,
 })
@@ -57,7 +58,7 @@ function ApprovalsView() {
   const data = Route.useLoaderData() as
     | { ctx: null }
     | { ctx: SessionContext; tz: string; mode: 'approver'; queue: PendingWeek[]; view: WeekForApproval | null; selected: { workerId: string; weekStart: string } | null }
-    | { ctx: SessionContext; tz: string; mode: 'operator'; weeks: MyWeek[]; view: WeekForApproval | null; workers: { workerId: string; name: string; kind: 'human' | 'agent' }[]; selected: { workerId: string; weekStart: string } | null }
+    | { ctx: SessionContext; tz: string; mode: 'operator'; weeks: MyWeek[]; withEntries: string[]; view: WeekForApproval | null; workers: { workerId: string; name: string; kind: 'human' | 'agent' }[]; selected: { workerId: string; weekStart: string } | null }
   const navigate = useNavigate()
   const router = (Route as unknown as { useRouter?: () => { invalidate: () => Promise<void> } }).useRouter?.()
   const invalidate = async () => {
@@ -108,15 +109,26 @@ function ApprovalsView() {
       <div className="approvals-split">
         <aside className="approvals-queue-pane">
           <ul className="approvalsqueue">
-            {data.weeks.map((w) => {
+            {[...data.weeks].reverse().map((w) => {
               const isSel = data.selected && data.selected.workerId === w.workerId && data.selected.weekStart === w.weekStart
               return (
                 <li key={`${w.workerId}-${w.weekStart}`} className={isSel ? 'selected' : undefined}>
-              <button type="button" onClick={() => goSearch(navigate, { worker: w.workerId, week: w.weekStart })}>
-                <div className="nm">{data.workers.find((x) => x.workerId === w.workerId)?.name ?? w.workerId}</div>
-                <div className="wk">{formatWeekLabel(w.weekStart)}</div>
-                    <WeekStatusChip week={w} />
-                  </button>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    className={isSel ? 'queue-row selected' : 'queue-row'}
+                    onClick={() => goSearch(navigate, { worker: w.workerId, week: w.weekStart })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        goSearch(navigate, { worker: w.workerId, week: w.weekStart })
+                      }
+                    }}
+                  >
+                    <div className="nm">{data.workers.find((x) => x.workerId === w.workerId)?.name ?? w.workerId}</div>
+                    <div className="wk">{formatWeekLabel(w.weekStart)}</div>
+                    <WeekStatusChip week={w} hasIntervals={data.withEntries.includes(w.weekStart)} onNavigate={() => goSearch(navigate, { worker: w.workerId, week: w.weekStart })} />
+                  </div>
                 </li>
               )
             })}
@@ -142,15 +154,16 @@ function ApprovalsView() {
   )
 }
 
-function WeekStatusChip({ week }: { week: MyWeek }) {
+function WeekStatusChip({ week, hasIntervals, onNavigate }: { week: MyWeek; hasIntervals: boolean; onNavigate?: () => void }) {
   return (
     <WeekStatus
       week={week}
       canSubmit
-      hasIntervals
+      hasIntervals={hasIntervals}
       onSubmit={async () => {
         // Submit through the fn so the role check runs server-side.
         await submitWeekFn({ data: { workerId: week.workerId, weekStart: week.weekStart } })
+        onNavigate?.()
       }}
     />
   )

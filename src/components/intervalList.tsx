@@ -57,7 +57,7 @@ export function IntervalList({
               <td className="mono">{localHHMM(startMs, tz)}{crossesDay && startMs < dayStartMs ? '‹' : ''}</td>
               <td className="mono">{localHHMM(endMs, tz)}{crossesDay && endMs > dayEndMs ? '›' : ''}</td>
               <td className="mono">
-                {crossesDay ? <span title={`Full interval: ${formatHmm(min)}`}>{formatHmm(clippedMin)}</span> : formatHmm(min)}
+                {crossesDay ? <span title={`Full entry (spans midnight): ${formatHmm(min)}`}>{formatHmm(clippedMin)}</span> : formatHmm(min)}
               </td>
               <td>{r.note ?? ''}</td>
               <td className="intervallist-actions">

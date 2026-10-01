@@ -445,6 +445,27 @@ export async function getWeekForApproval(deps: Deps, ctx: SessionContext, input:
   }
 }
 
+/* Weeks (out of the given keys) with at least one live interval for the worker.
+   Used to disable Submit on empty weeks (#12 posture); no money, no recon. */
+export async function weeksWithEntries(deps: Deps, ctx: SessionContext, input: { workerId: string; weekStarts: string[] }): Promise<string[]> {
+  await assertCanViewWorker(ctx, input.workerId)
+  const { db, tz } = deps
+  const starts = input.weekStarts.map((ws) => localDayBoundariesUtcMs(ws, tz).startMs)
+  const ends = input.weekStarts.map((ws) => localDayBoundariesUtcMs(ws, tz).endMs)
+  const ivs = await db
+    .select({ startedAt: schema.intervals.startedAt, endedAt: schema.intervals.endedAt })
+    .from(schema.intervals)
+    .where(and(eq(schema.intervals.workerId, input.workerId), isNull(schema.intervals.deletedAt), lt(schema.intervals.startedAt, new Date(Math.max(...ends)))))
+    .all()
+  const out: string[] = []
+  input.weekStarts.forEach((ws, i) => {
+    const s = starts[i]!
+    const e = ends[i]!
+    if (ivs.some((iv) => iv.startedAt.getTime() < e && iv.endedAt.getTime() > s)) out.push(ws)
+  })
+  return out
+}
+
 export async function listMyWeeks(deps: Deps, ctx: SessionContext, input: ListMyWeeksInput): Promise<MyWeek[]> {
   const { db, tz } = deps
   const weekStart = weekDatesOf(tz, input.weeks, deps.now())

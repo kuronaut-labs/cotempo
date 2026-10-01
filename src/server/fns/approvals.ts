@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
 import {
   ApproveWeekInput,
   GetWeekInput,
@@ -44,6 +45,11 @@ export const listMyWeeksFn = createServerFn({ method: 'GET' })
   .middleware([authMw])
   .validator(ListMyWeeksInput)
   .handler(({ data, context }) => svc.listMyWeeks(runtimeDeps(), ctxOf(context), data))
+
+export const weeksWithEntriesFn = createServerFn({ method: 'GET' })
+  .middleware([authMw])
+  .validator(z.object({ workerId: z.string().min(1), weekStarts: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)) }))
+  .handler(({ data, context }) => svc.weeksWithEntries(runtimeDeps(), ctxOf(context), data))
 
 export type {
   ApprovalEventRow,

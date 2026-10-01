@@ -112,6 +112,13 @@ export function MiniStrip({
   const { blocks, overlaps } = stripBlocks(day, intervals)
   return (
     <div className="ministrip" role="img" aria-label="Day timeline">
+      <div className="ministrip-tags" aria-hidden>
+        {overlaps.map((o, i) => (
+          <span key={i} className="ministrip-overlap-tag" style={{ left: `${o.leftPct}%` }}>
+            ×{o.count}
+          </span>
+        ))}
+      </div>
       <div className="ministrip-track">
         {blocks.map((b) => {
           const n = jobColorIndex[b.jobId]
@@ -130,9 +137,7 @@ export function MiniStrip({
           )
         })}
         {overlaps.map((o, i) => (
-          <div key={i} className="ministrip-overlap" style={{ left: `${o.leftPct}%`, width: `${o.widthPct}%` }}>
-            <span className="ministrip-overlap-tag">×{o.count}</span>
-          </div>
+          <div key={i} className="ministrip-overlap" style={{ left: `${o.leftPct}%`, width: `${o.widthPct}%` }} />
         ))}
       </div>
       <div className="ministrip-legend" aria-label="Timeline legend">

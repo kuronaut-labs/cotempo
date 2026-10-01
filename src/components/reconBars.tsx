@@ -26,14 +26,15 @@ export function ReconBars({ report }: { report: ReconciliationReport }) {
     <div className="reconbars">
       <div className="legend">
         <span>
-          <span className="sw" style={{ background: 'var(--color-primary)' }} />wall-clock
+          <span className="sw" style={{ background: 'var(--color-primary)' }} />{' '}
+          On the clock
         </span>
         <span>
           <span
             className="sw"
             style={{ background: 'var(--premium-fill)' }}
           />
-          premium
+          Overlap
         </span>
       </div>
       {report.clients.map((c) => {
