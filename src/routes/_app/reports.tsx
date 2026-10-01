@@ -11,6 +11,7 @@ import { ReconTable } from '~/components/reconTable'
 import { DailyTable } from '~/components/dailyTable'
 import { SubTabs } from '~/components/subTabs'
 import { formatCents, formatHmm } from '~/lib/money'
+import { formatWeekLabel } from '~/lib/dayMath'
 import { getSessionCtxFn } from '~/server/fns/auth'
 import { getTodayFn } from '~/server/fns/intervals'
 import {
@@ -19,6 +20,7 @@ import {
   operatorLanesFn,
   perJobFn,
   reconciliationFn,
+  weeklyTrendsFn,
 } from '~/server/fns/reports'
 import { exportCsvFn } from '~/server/fns/exports'
 import { leaveReportFn } from '~/server/fns/leave'
@@ -31,7 +33,7 @@ import type { ClientNode } from '~/server/services/structure'
 
 const searchSchema = z.object({
   tab: z.enum(['admin', 'billing', 'operator']).optional(),
-  sub: z.enum(['recon', 'daily', 'leave']).optional(),
+  sub: z.enum(['recon', 'daily', 'leave', 'trends']).optional(),
   from: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD')
@@ -44,7 +46,7 @@ const searchSchema = z.object({
 
 type Search = z.infer<typeof searchSchema>
 type TabId = 'admin' | 'billing' | 'operator'
-type SubId = 'recon' | 'daily' | 'leave'
+type SubId = 'recon' | 'daily' | 'leave' | 'trends'
 
 /* Default tab = highest role; default sub = 'recon' under billing. */
 function defaultTab(ctx: SessionContext | null): TabId {
@@ -94,6 +96,10 @@ export const Route = createFileRoute('/_app/reports')({
         const leave = await leaveReportFn({ data: period })
         return { today: today.date, tz, ctx, tab, sub, from, to, leave }
       }
+      if (sub === 'trends') {
+        const trends = await weeklyTrendsFn({ data: { weeks: 8 } })
+        return { today: today.date, tz, ctx, tab, sub, from, to, trends }
+      }
       const [recon, jobs] = await Promise.all([reconciliationFn({ data: period }), perJobFn({ data: period })])
       return { today: today.date, tz, ctx, tab, sub, from, to, recon, jobs }
     }
@@ -124,6 +130,7 @@ function ReportsView() {
     jobs?: import('~/server/services/reports').JobRecon[]
     lanes?: import('~/server/services/reports').OperatorLane[]
     leave?: import('~/server/fns/leave').LeaveReportView[]
+    trends?: import('~/server/services/reports').WeekTrend[]
   }
   const navigate = useNavigate()
   const { today, tz, ctx, tab, sub, from, to } = data
@@ -172,6 +179,7 @@ function ReportsView() {
           recon={data.recon}
           daily={data.daily}
           leave={data.leave}
+          trends={data.trends}
           onPeriodChange={(p) => goSearch(navigate, { from: p.from, to: p.to })}
           onSubChange={(s) => goSearch(navigate, { sub: s })}
         />
@@ -285,6 +293,7 @@ function BillingPanel({
   recon,
   daily,
   leave,
+  trends,
   onPeriodChange,
   onSubChange,
 }: {
@@ -296,6 +305,7 @@ function BillingPanel({
   recon?: import('~/server/services/reports').ReconciliationReport
   daily?: import('~/server/services/reports').DailyReport
   leave?: import('~/server/fns/leave').LeaveReportView[]
+  trends?: import('~/server/services/reports').WeekTrend[]
   onPeriodChange: (next: { from: string; to: string }) => void
   onSubChange: (next: SubId) => void
 }) {
@@ -308,6 +318,7 @@ function BillingPanel({
           { id: 'recon', label: 'Totals' },
           { id: 'daily', label: 'Daily' },
           { id: 'leave', label: 'Leave' },
+          { id: 'trends', label: 'Trends' },
         ]}
         active={sub}
         onChange={(id) => onSubChange(id as SubId)}
@@ -318,7 +329,7 @@ function BillingPanel({
           onClick={async () => {
             // Sub tab 'recon' maps to CSV view 'intervals'; 'daily' to 'daily'; 'leave' to 'leave'.
             const view: 'intervals' | 'daily' | 'leave' =
-              sub === 'recon' ? 'intervals' : sub === 'daily' ? 'daily' : 'leave'
+              sub === 'recon' || sub === 'trends' ? 'intervals' : sub === 'daily' ? 'daily' : 'leave'
             const res = await exportCsvFn({ data: { from, to, view } })
             const blob = await res.blob()
             const url = URL.createObjectURL(blob)
@@ -386,6 +397,26 @@ function BillingPanel({
                   <td className="money">{formatHmm(r.takenMinutes)}</td>
                   <td className="money">{formatHmm(r.pendingMinutes)}</td>
                   <td className="money">{formatHmm(r.balanceMinutes)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
+
+      {sub === 'trends' && trends ? (
+        <section className="card">
+          <h2>Weekly trends</h2>
+          <table className="recontable">
+            <thead><tr><th className="nm">Week</th><th>Wall clock</th><th>Effort</th><th>Overlap</th><th>Utilization</th></tr></thead>
+            <tbody>
+              {trends.map((t) => (
+                <tr key={t.weekStart}>
+                  <td className="nm">{formatWeekLabel(t.weekStart)}</td>
+                  <td className="money">{formatHmm(t.wallClockMin)}</td>
+                  <td className="money">{formatHmm(t.effortMin)}</td>
+                  <td className="money">+{formatHmm(t.premiumMin)}</td>
+                  <td className="money">{(t.utilization * 100).toFixed(0)}%</td>
                 </tr>
               ))}
             </tbody>

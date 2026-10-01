@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-import { KpiInput, PeriodInput } from '~/lib/schemas/reports'
+import { KpiInput, PeriodInput, WeeksInput } from '~/lib/schemas/reports'
 import { authMw, ctxOf } from '~/server/middleware/authMw'
 import { requireRole } from '~/server/middleware/roleGuard'
 import { runtimeDeps } from '~/server/runtimeDeps'
@@ -40,3 +40,10 @@ export type {
   RoleRecon,
   TimeRecon,
 } from '~/server/services/reports'
+
+export const weeklyTrendsFn = createServerFn({ method: 'GET' })
+  .middleware([authMw])
+  .validator(WeeksInput)
+  .handler(({ data, context }) => svc.weeklyTrends(runtimeDeps(), ctxOf(context), data))
+
+export type { WeekTrend } from '~/server/services/reports'

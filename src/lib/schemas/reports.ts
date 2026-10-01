@@ -11,4 +11,7 @@ export const InvoiceInput = z.object({ clientId: z.string().min(1), from: z.iso.
 export type PeriodInput = z.infer<typeof PeriodInput>
 export type KpiInput = z.infer<typeof KpiInput>
 export type ExportCsvInput = z.infer<typeof ExportCsvInput>
+
+export const WeeksInput = z.object({ weeks: z.number().int().min(1).max(26).default(8) })
+export type WeeksInput = z.infer<typeof WeeksInput>
 export type InvoiceInput = z.infer<typeof InvoiceInput>

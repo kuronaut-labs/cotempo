@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { and, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm'
 import {
   clipPieces,
@@ -7,11 +8,11 @@ import {
   type Piece,
   type Recon,
 } from '~/lib/attribution'
-import { localDayBoundariesUtcMs } from '~/lib/dayMath'
+import { localDateOf, localDayBoundariesUtcMs } from '~/lib/dayMath'
 import { HttpError } from '~/lib/errors'
+import { WeeksInput, type KpiInput, type PeriodInput } from '~/lib/schemas/reports'
 import { canSeeMoney, hasRole, type SessionContext } from '~/server/context'
 import { schema, type Db } from '~/server/db'
-import type { KpiInput, PeriodInput } from '~/lib/schemas/reports'
 import type { Deps } from './deps'
 import { getOrgSettings } from './settings'
 import { isoWeekStart, weekDates } from '~/lib/week'
@@ -265,6 +266,50 @@ export async function operatorLanes(deps: Deps, ctx: SessionContext, input: Peri
     })
   }
   return lanes.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+export type WeekTrend = {
+  weekStart: string
+  wallClockMin: number
+  effortMin: number
+  premiumMin: number
+  utilization: number
+}
+
+/* Org-wide weekly aggregates, oldest → newest, for the billing/admin tab (B1).
+   Utilization = wall-clock over (active humans × default day minutes × 5 weekdays);
+   adminKpis' single-day denominator would read 100% for one day's work in a week. */
+const WEEKDAYS = 5
+export async function weeklyTrends(
+  deps: Deps,
+  ctx: SessionContext,
+  input: z.infer<typeof WeeksInput>,
+): Promise<WeekTrend[]> {
+  if (!canSeeMoney(ctx)) throw new HttpError(403, 'FORBIDDEN')
+  const { db, tz } = deps
+  const settings = await getOrgSettings(deps, ctx)
+  const humans = await db
+    .select({ id: schema.workers.id })
+    .from(schema.workers)
+    .where(and(eq(schema.workers.kind, 'human'), isNull(schema.workers.archivedAt)))
+    .all()
+  const dayMinutes = settings.defaultDayMinutes
+  const thisMondayMs = localDayBoundariesUtcMs(isoWeekStart(deps.now().getTime(), tz), tz).startMs
+  const out: WeekTrend[] = []
+  for (let i = input.weeks - 1; i >= 0; i--) {
+    const weekStart = localDateOf(thisMondayMs - i * 7 * 86_400_000, tz)
+    const days = weekDates(weekStart)
+    const pieces = await loadPieces(deps, { from: weekStart, to: days[6]! })
+    const r = recon(pieces)
+    out.push({
+      weekStart,
+      wallClockMin: r.wallClockMin,
+      effortMin: r.effortMin,
+      premiumMin: r.premiumMin,
+      utilization: humans.length > 0 ? r.wallClockMin / (humans.length * dayMinutes * WEEKDAYS) : 0,
+    })
+  }
+  return out
 }
 
 export async function adminKpis(deps: Deps, ctx: SessionContext, input: KpiInput): Promise<AdminKpis> {
