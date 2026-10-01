@@ -82,6 +82,7 @@ function TodayView() {
   const [presetWorker, setPresetWorker] = useState<string | null>(null)
   // LD3: which lane's expand toggle is open (collapsed lanes can still be expanded by name click).
   const [expandedLanes, setExpandedLanes] = useState<Set<string>>(new Set())
+  const [hoverId, setHoverId] = useState<string | null>(null)
   const noteLock = (e: unknown) => {
     // Defensive: server-fn errors may arrive as a plain object that lost the
     // HttpError prototype over the wire (#M11). parseHttpError handles both.
@@ -216,6 +217,8 @@ function TodayView() {
                 }))}
                 jobColorIndex={jobColorIndex}
                 jobNames={Object.fromEntries(intervals.map((i) => [i.jobId, i.jobName]))}
+                highlightId={hoverId}
+                onHover={setHoverId}
               />
               <IntervalList
                 rows={intervals}
@@ -226,6 +229,9 @@ function TodayView() {
                   setLockedWeek(null)
                 }}
                 onDelete={remove}
+                jobColorIndex={jobColorIndex}
+                hoverId={hoverId}
+                onHover={setHoverId}
               />
             </section>
           )

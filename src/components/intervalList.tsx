@@ -11,12 +11,18 @@ export function IntervalList({
   canEdit,
   onEdit,
   onDelete,
+  jobColorIndex,
+  hoverId,
+  onHover,
 }: {
   rows: DayIntervalRow[]
   tz: string
   canEdit: (workerId: string) => boolean
   onEdit: (id: string) => void
   onDelete: (id: string) => void
+  jobColorIndex?: Record<string, number>
+  hoverId?: string | null
+  onHover?: (id: string | null) => void
 }) {
   if (rows.length === 0) {
     return <div className="intervallist-empty">No entries logged for this day.</div>
@@ -50,9 +56,19 @@ export function IntervalList({
           const clippedMin = Math.max(0, Math.round((clippedEnd - clippedStart) / 60_000))
           const crossesDay = startMs < dayStartMs || endMs > dayEndMs
           const editable = canEdit(r.workerId)
+          const n = jobColorIndex?.[r.jobId]
+          const swatch = n ? ` job-c${Math.min(5, Math.max(1, n))}` : ''
           return (
-            <tr key={r.id} className={crossesDay ? 'intervallist-crosses' : undefined}>
-              <td>{r.jobName}</td>
+            <tr
+              key={r.id}
+              className={`${crossesDay ? 'intervallist-crosses' : ''}${hoverId === r.id ? ' is-hover' : ''}`.trim() || undefined}
+              onMouseEnter={onHover ? () => onHover(r.id) : undefined}
+              onMouseLeave={onHover ? () => onHover(null) : undefined}
+            >
+              <td>
+                {n ? <span aria-hidden className={`swatch${swatch}`} /> : null}
+                {r.jobName}
+              </td>
               <td>{r.clientName}</td>
               <td className="mono">{localHHMM(startMs, tz)}{crossesDay && startMs < dayStartMs ? '‹' : ''}</td>
               <td className="mono">{localHHMM(endMs, tz)}{crossesDay && endMs > dayEndMs ? '›' : ''}</td>

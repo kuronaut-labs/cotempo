@@ -104,6 +104,8 @@ export function MiniStrip({
   intervals,
   jobColorIndex,
   jobNames,
+  highlightId,
+  onHover,
 }: {
   day: Range
   tz: string
@@ -112,6 +114,9 @@ export function MiniStrip({
   jobColorIndex: Record<string, number>
   /** Optional `jobId` → display name; used for in-block labels and tooltips. */
   jobNames?: Record<string, string>
+  /** When set, that block gets a `.is-hover` outline (row↔block hover linkage). */
+  highlightId?: string | null
+  onHover?: (id: string | null) => void
 }) {
   const window = stripWindow(day, intervals, tz)
   const { blocks, overlaps } = stripBlocks(window, intervals)
@@ -154,8 +159,10 @@ export function MiniStrip({
             <div
               key={b.id}
               data-tip={tip(b)}
-              className={`ministrip-block ${colorClass}`}
+              className={`ministrip-block${colorClass ? ` ${colorClass}` : ''}${highlightId === b.id ? ' is-hover' : ''}`}
               style={{ left: `${b.leftPct}%`, width: `${b.widthPct}%`, ...style }}
+              onMouseEnter={onHover ? () => onHover(b.id) : undefined}
+              onMouseLeave={onHover ? () => onHover(null) : undefined}
             >
               {b.leadingClip}
               {b.widthPct >= 8 && jobNames?.[b.jobId] ? <span>{jobNames[b.jobId]}</span> : null}

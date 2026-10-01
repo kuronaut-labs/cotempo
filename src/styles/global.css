@@ -338,10 +338,21 @@ input[type='radio']:disabled:checked::after {
 
 .dm.premium {
   border-color: var(--premium-fill);
+  border-width: 2px;
+  font-size: 14px;
 }
 
 .dm.premium b {
   color: var(--premium-text);
+}
+
+.dm.zero {
+  color: var(--color-faint);
+}
+
+.dm.zero .k,
+.dm.zero b {
+  color: var(--color-faint);
 }
 
 /* ---------- date nav ---------- */
@@ -794,6 +805,29 @@ input[type='radio']:disabled:checked::after {
 .trio.lg .v { font-size: 16px; }
 .trio .seg.b .v { color: var(--color-success-text); }
 .trio .seg.p .v { color: var(--premium-text); }
+.trio .seg.p.zero .v,
+.trio .seg.p.zero .k { color: var(--color-faint); }
+
+/* ---------- swatch + hover linkage (entry-ux 3.2) ---------- */
+
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 6px;
+  vertical-align: baseline;
+  border-radius: 0;
+}
+
+.intervallist tbody tr.is-hover {
+  background: var(--fill-hover);
+}
+
+.ministrip-block.is-hover {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
+  z-index: 2;
+}
 .trio .dollar .v {
   color: var(--color-primary);
   font-family: var(--font-body);

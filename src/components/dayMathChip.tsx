@@ -13,7 +13,7 @@ export function DayMathChip({ trio }: { trio: Trio }) {
         <span className="k">Total of entries</span>
         <b>{formatHmm(trio.effortMin)}</b>
       </div>
-      <div className={`dm${trio.premiumMin > 0 ? ' premium' : ''}`} title={`Overlap — ${formatHmm(trio.premiumMin)}. Extra minutes from working two jobs at once.`}>
+      <div className={`dm${trio.premiumMin > 0 ? ' premium' : ' zero'}`} title={`Overlap — ${formatHmm(trio.premiumMin)}. Extra minutes from working two jobs at once.`}>
         <span className="k">Overlap</span>
         <b>{formatHmm(trio.premiumMin)}</b>
       </div>

@@ -16,7 +16,7 @@ export function TrioChip({ recon, size = 'sm' }: { recon: RoleRecon; size?: 'sm'
         <span className="k">On the clock</span>
         <span className="v">{formatHmm(recon.wallClockMin)}</span>
       </div>
-      <div className="seg p" data-tip={`Overlap — ${formatHmm(recon.premiumMin)}. Extra minutes from working two jobs at once.`}>
+      <div className={`seg p${recon.premiumMin > 0 ? '' : ' zero'}`} data-tip={`Overlap — ${formatHmm(recon.premiumMin)}. Extra minutes from working two jobs at once.`}>
         <span className="k">Overlap</span>
         <span className="v">+{formatHmm(recon.premiumMin)}</span>
       </div>
