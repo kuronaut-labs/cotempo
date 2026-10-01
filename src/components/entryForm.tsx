@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { TZDate } from '@date-fns/tz'
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
@@ -42,6 +42,8 @@ export function EntryForm({
   recentJobs,
   initial,
   compact = false,
+  heading,
+  autoFocusJob = false,
   onSubmit,
   onCancel,
 }: {
@@ -56,6 +58,10 @@ export function EntryForm({
   initial?: Initial
   /** One-row layout (LD7) for the top-of-Today create form; edit keeps the full layout. */
   compact?: boolean
+  /** Rendered above the form when set (e.g. 'Add entry over X–Y'). */
+  heading?: string
+  /** Focus the job picker on mount (+ Overlap gesture lands here). */
+  autoFocusJob?: boolean
   onSubmit: (input: FormInput) => Promise<void>
   /** Shown in edit mode only. */
   onCancel?: () => void
@@ -115,6 +121,11 @@ export function EntryForm({
     initial?.jobId ? (findClientForJob(structure, initial.jobId) ?? '') : (structure[0]?.id ?? ''),
   )
 
+  const jobRef = useRef<HTMLSelectElement>(null)
+  useEffect(() => {
+    if (autoFocusJob) jobRef.current?.focus()
+  }, [autoFocusJob])
+
   const workerOpts = workerGroups(selfWorkerId, superviseeWorkerIds, workers).flatMap((g) => g.options)
   const hideWorker = workerOpts.length <= 1
 
@@ -123,7 +134,7 @@ export function EntryForm({
       {(f) => (
         <label className="field">
           <span>Job</span>
-          <select value={f.state.value} onChange={(e) => f.handleChange(e.target.value)} onBlur={f.handleBlur}>
+          <select ref={jobRef} value={f.state.value} onChange={(e) => f.handleChange(e.target.value)} onBlur={f.handleBlur}>
             <option value="">— select —</option>
             {recentJobs && recentJobs.length > 0 && (
               <optgroup label="Recent">
@@ -289,6 +300,7 @@ export function EntryForm({
       }}
       className={compact ? 'entryform compact' : 'entryform'}
     >
+      {heading ? <h2 className="today-section-title">{heading}</h2> : null}
       {compact ? (
         <>
           <div className="entryform-row entryform-main">

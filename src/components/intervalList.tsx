@@ -1,4 +1,4 @@
-import { Pen, Trash2 } from 'reicon-react'
+import { Layers, Pen, Trash2 } from 'reicon-react'
 import { Button } from '~/components/ui/button'
 import { localHHMM } from '~/lib/dayMath'
 import { formatHmm } from '~/lib/money'
@@ -14,6 +14,7 @@ export function IntervalList({
   jobColorIndex,
   hoverId,
   onHover,
+  onOverlap,
 }: {
   rows: DayIntervalRow[]
   tz: string
@@ -23,6 +24,7 @@ export function IntervalList({
   jobColorIndex?: Record<string, number>
   hoverId?: string | null
   onHover?: (id: string | null) => void
+  onOverlap?: (id: string) => void
 }) {
   if (rows.length === 0) {
     return <div className="intervallist-empty">No entries logged for this day.</div>
@@ -79,6 +81,11 @@ export function IntervalList({
               <td className="intervallist-actions">
                 {editable && (
                   <>
+                    {onOverlap && (
+                      <Button variant="ghost" size="sm" onClick={() => onOverlap(r.id)} aria-label="Add overlap">
+                        <Layers size={13} /> + Overlap
+                      </Button>
+                    )}
                     <Button variant="ghost" size="sm" onClick={() => onEdit(r.id)} aria-label="Edit">
                       <Pen size={13} /> Edit
                     </Button>

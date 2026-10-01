@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { z } from 'zod'
 import { Button } from '~/components/ui/button'
@@ -7,6 +7,7 @@ import { DayMathChip } from '~/components/dayMathChip'
 import { EntryForm, type Initial } from '~/components/entryForm'
 import { IntervalList } from '~/components/intervalList'
 import { MiniStrip } from '~/components/miniStrip'
+import { localHHMM } from '~/lib/dayMath'
 import { colorIndexFromStructure } from '~/lib/jobColors'
 import { HowCounted } from '~/components/howCounted'
 import { parseHttpError } from '~/lib/errors'
@@ -83,6 +84,9 @@ function TodayView() {
   // LD3: which lane's expand toggle is open (collapsed lanes can still be expanded by name click).
   const [expandedLanes, setExpandedLanes] = useState<Set<string>>(new Set())
   const [hoverId, setHoverId] = useState<string | null>(null)
+  // + Overlap gesture (LD6): clone the row's span but no job — the picker lands focused.
+  const [prefill, setPrefill] = useState<Initial | null>(null)
+  const addPanelRef = useRef<HTMLElement>(null)
   const noteLock = (e: unknown) => {
     // Defensive: server-fn errors may arrive as a plain object that lost the
     // HttpError prototype over the wire (#M11). parseHttpError handles both.
@@ -98,6 +102,7 @@ function TodayView() {
       if ('id' in input) await updateIntervalFn({ data: input })
       else await createIntervalFn({ data: input })
       setEditing(null)
+      setPrefill(null)
       setPresetWorker(null)
       setLockedWeek(null)
       await invalidate()
@@ -135,8 +140,7 @@ function TodayView() {
       />
 
       {ctx && (
-        <section className="panel today-add">
-          <h2 className="today-section-title">{editing ? 'Edit entry' : 'Add entry'}</h2>
+        <section className="panel today-add" ref={addPanelRef}>
           <EntryForm
             date={date}
             tz={tz}
@@ -145,11 +149,27 @@ function TodayView() {
             workers={workers}
             structure={structure}
             recentJobs={recentJobs}
-            initial={rowToInitial(editing) ?? (presetWorker ? { workerId: presetWorker } : undefined)}
+            heading={
+              prefill
+                ? `Add entry over ${localHHMM(Date.parse(prefill.startedAt ?? ''), tz)}–${localHHMM(Date.parse(prefill.endedAt ?? ''), tz)}`
+                : editing
+                  ? 'Edit entry'
+                  : 'Add entry'
+            }
+            initial={
+              rowToInitial(editing) ?? (prefill ?? (presetWorker ? { workerId: presetWorker } : undefined))
+            }
             compact={editing === null}
-            key={editing?.id ?? presetWorker ?? 'new'}
+            autoFocusJob={Boolean(prefill)}
+            key={
+              editing?.id ??
+              (prefill ? `ov:${prefill.startedAt}:${prefill.endedAt}` : presetWorker ?? 'new')
+            }
             onSubmit={submit}
-            onCancel={() => setEditing(null)}
+            onCancel={() => {
+              setEditing(null)
+              setPrefill(null)
+            }}
           />
           {/* Plan 4.4d: link to /approvals?worker=&week= once that route exists (4.6). */}
           {lockedWeek && (
@@ -226,12 +246,21 @@ function TodayView() {
                 canEdit={canEditRow}
                 onEdit={(id) => {
                   setEditing(intervals.find((i) => i.id === id) ?? null)
+                  setPrefill(null)
                   setLockedWeek(null)
                 }}
                 onDelete={remove}
                 jobColorIndex={jobColorIndex}
                 hoverId={hoverId}
                 onHover={setHoverId}
+                onOverlap={(id) => {
+                  const r = intervals.find((i) => i.id === id)
+                  if (!r) return
+                  setEditing(null)
+                  setPresetWorker(null)
+                  setPrefill({ workerId: r.workerId, startedAt: r.startedAt.toISOString(), endedAt: r.endedAt.toISOString() })
+                  addPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                }}
               />
             </section>
           )
