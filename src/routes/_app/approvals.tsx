@@ -1,12 +1,15 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { useState } from 'react'
 import { z } from 'zod'
 import { ApprovalsQueue } from '~/components/approvalsQueue'
 import { ApproverView } from '~/components/approverView'
 import { WeekStatus } from '~/components/weekStatus'
+import { Button } from '~/components/ui/button'
+import { serverErrorMessage } from '~/components/forms/applyServerError'
 import { canSeeMoney, hasRole, type SessionContext } from '~/server/context'
 import { formatWeekLabel } from '~/lib/dayMath'
 import { getSessionCtxFn } from '~/server/fns/auth'
-import { getWeekForApprovalFn, listMyWeeksFn, listPendingWeeksFn, submitWeekFn, weeksWithEntriesFn } from '~/server/fns/approvals'
+import { approveWeeksBulkFn, getWeekForApprovalFn, listMyWeeksFn, listPendingWeeksFn, submitWeekFn, weeksWithEntriesFn } from '~/server/fns/approvals'
 import { getTodayFn } from '~/server/fns/intervals'
 import { listWorkersFn } from '~/server/fns/workers'
 import { submitWeek as submitWeekSvc } from '~/server/services/approvals'
@@ -64,6 +67,10 @@ function ApprovalsView() {
   const invalidate = async () => {
     if (router) await router.invalidate()
   }
+  // C4: exception-based review hooks — declared before any early return.
+  const [flaggedOnly, setFlaggedOnly] = useState(false)
+  const [checked, setChecked] = useState<Record<string, boolean>>({})
+  const [bulkError, setBulkError] = useState('')
 
   if (!data.ctx) {
     return <main className="approvals">Sign in to view approvals.</main>
@@ -71,6 +78,7 @@ function ApprovalsView() {
   const showMoney = canSeeMoney(data.ctx)
 
   if (data.mode === 'approver') {
+    const queue: PendingWeek[] = data.queue.filter((w) => !flaggedOnly || w.flagCount > 0)
     return (
       <main className="approvals">
         <header className="approvals-head">
@@ -79,10 +87,40 @@ function ApprovalsView() {
         </header>
         <div className="approvals-split">
           <aside className="approvals-queue-pane">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
+              <label className="checkline">
+                <input type="checkbox" checked={flaggedOnly} onChange={(e) => setFlaggedOnly(e.target.checked)} />
+                Only weeks with flags
+              </label>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                disabled={Object.values(checked).filter(Boolean).length === 0}
+                onClick={async () => {
+                  setBulkError('')
+                  const weeks = queue
+                    .filter((w) => checked[`${w.workerId}-${w.weekStart}`])
+                    .map((w) => ({ workerId: w.workerId, weekStart: w.weekStart }))
+                  try {
+                    await approveWeeksBulkFn({ data: { weeks } })
+                    setChecked({})
+                    await invalidate()
+                  } catch (e) {
+                    setBulkError(serverErrorMessage(e))
+                  }
+                }}
+              >
+                Approve selected
+              </Button>
+            </div>
+            {bulkError && <span className="field-error" role="alert">{bulkError}</span>}
             <ApprovalsQueue
-              weeks={data.queue}
+              weeks={queue}
               selected={data.selected ?? undefined}
               onSelect={(w) => goSearch(navigate, { worker: w.workerId, week: w.weekStart })}
+              checked={checked}
+              onToggle={(k) => setChecked((prev) => ({ ...prev, [`${k.workerId}-${k.weekStart}`]: !prev[`${k.workerId}-${k.weekStart}`] }))}
             />
           </aside>
           <section className="approvals-detail-pane">

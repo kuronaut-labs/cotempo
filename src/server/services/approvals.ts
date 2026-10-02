@@ -10,6 +10,7 @@ import { schema, type Db } from '~/server/db'
 import { assertCanEditWorker, assertCanViewWorker } from '~/server/guards/worker'
 import type {
   ApproveWeekInput,
+  BulkApproveInput,
   GetWeekInput,
   ListMyWeeksInput,
   RejectWeekInput,
@@ -362,6 +363,30 @@ function flagsCfg(s: OrgSettingsView) {
     lateEntryDays: s.flagLateEntryDays ?? flagDefaults.lateEntryDays,
     multiEditOver: s.flagMultiEditOver ?? flagDefaults.multiEditOver,
   }
+}
+
+export type BulkApproveResult = { workerId: string; weekStart: string; ok: boolean; code?: string }
+
+/* C4: bulk approve — per-week guards run individually so one locked or
+   self-approval week never blocks the rest (#M6 shape). */
+export async function approveWeeksBulk(
+  deps: Deps,
+  ctx: SessionContext,
+  input: BulkApproveInput,
+): Promise<BulkApproveResult[]> {
+  if (!hasRole(ctx, 'billing')) throw new HttpError(403, 'FORBIDDEN')
+  const out: BulkApproveResult[] = []
+  for (const w of input.weeks) {
+    try {
+      // approveWeek re-checks role/self-approval/status — reuse it; capturing per-row results is the design.
+      await approveWeek(deps, ctx, { ...w, comment: input.comment })
+      out.push({ ...w, ok: true })
+    } catch (e) {
+      if (e instanceof HttpError) out.push({ ...w, ok: false, code: e.code })
+      else throw e
+    }
+  }
+  return out
 }
 
 export async function listPendingWeeks(deps: Deps, ctx: SessionContext): Promise<PendingWeek[]> {

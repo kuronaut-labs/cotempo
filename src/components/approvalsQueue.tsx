@@ -8,10 +8,14 @@ export function ApprovalsQueue({
   weeks,
   selected,
   onSelect,
+  checked,
+  onToggle,
 }: {
   weeks: PendingWeek[]
   selected?: { workerId: string; weekStart: string }
   onSelect: (w: { workerId: string; weekStart: string }) => void
+  checked?: Record<string, boolean>
+  onToggle?: (key: { workerId: string; weekStart: string }) => void
 }) {
   if (weeks.length === 0) {
     return <div className="approvalsqueue-empty">No submitted weeks.</div>
@@ -23,6 +27,15 @@ export function ApprovalsQueue({
         const cents = 'cents' in w.recon ? w.recon.cents : undefined
         return (
           <li key={`${w.workerId}-${w.weekStart}`} className={isSel ? 'selected' : undefined}>
+            {onToggle ? (
+              <input
+                type="checkbox"
+                checked={checked?.[`${w.workerId}-${w.weekStart}`] ?? false}
+                aria-label={`Select ${w.workerName} week ${w.weekStart}`}
+                onChange={() => onToggle({ workerId: w.workerId, weekStart: w.weekStart })}
+                style={{ flex: '0 0 auto' }}
+              />
+            ) : null}
             <button type="button" onClick={() => onSelect({ workerId: w.workerId, weekStart: w.weekStart })}>
               <div className="nm">{w.workerName}</div>
               <div className="wk">{formatWeekLabel(w.weekStart)}</div>

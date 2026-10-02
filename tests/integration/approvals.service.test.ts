@@ -94,3 +94,31 @@ describe('team view (C3)', () => {
     expect(await listTeamWeeks(deps(), asUser('billing'), { weeks: 4 })).toEqual([])
   })
 })
+
+describe('bulk approve (C4)', () => {
+  beforeEach(() => resetDb())
+
+  it('bulk approve handles each week independently', async () => {
+    const { submitWeek, approveWeeksBulk } = await import('~/server/services/approvals')
+    await submitWeek(deps(), asUser('operator'), { workerId: ids.opWorker, weekStart: '2026-08-31' })
+    await submitWeek(deps(), asUser('billing'), { workerId: ids.billingWorker, weekStart: '2026-08-31' })
+    const res = await approveWeeksBulk(deps(), asUser('billing'), {
+      weeks: [
+        { workerId: ids.opWorker, weekStart: '2026-08-31' },
+        { workerId: ids.billingWorker, weekStart: '2026-08-31' },
+      ],
+    })
+    expect(res.find((r) => r.workerId === ids.opWorker)!.ok).toBe(true)
+    expect(res.find((r) => r.workerId === ids.billingWorker)).toMatchObject({ ok: false, code: 'SELF_APPROVAL' })
+
+    // Already approved → INVALID_TRANSITION per row, without breaking the batch.
+    const again = await approveWeeksBulk(deps(), asUser('billing'), {
+      weeks: [{ workerId: ids.opWorker, weekStart: '2026-08-31' }],
+    })
+    expect(again[0]).toMatchObject({ ok: false, code: 'INVALID_TRANSITION' })
+
+    await expect(
+      approveWeeksBulk(deps(), asUser('operator'), { weeks: [{ workerId: ids.opWorker, weekStart: '2026-08-31' }] }),
+    ).rejects.toMatchObject({ status: 403 })
+  })
+})

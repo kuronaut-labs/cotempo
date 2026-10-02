@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import {
   ApproveWeekInput,
+  BulkApproveInput,
   GetWeekInput,
   ListMyWeeksInput,
   RejectWeekInput,
@@ -52,6 +53,13 @@ export const listTeamWeeksFn = createServerFn({ method: 'GET' })
   .handler(({ data, context }) => svc.listTeamWeeks(runtimeDeps(), ctxOf(context), data))
 
 export type { TeamMember, TeamWeekRow } from '~/server/services/approvals'
+
+export const approveWeeksBulkFn = createServerFn({ method: 'POST' })
+  .middleware([authMw])
+  .validator(BulkApproveInput)
+  .handler(({ data, context }) => svc.approveWeeksBulk(runtimeDeps(), ctxOf(context), data))
+
+export type { BulkApproveResult } from '~/server/services/approvals'
 
 export const weeksWithEntriesFn = createServerFn({ method: 'GET' })
   .middleware([authMw])

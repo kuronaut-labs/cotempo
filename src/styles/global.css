@@ -1519,6 +1519,9 @@ input[type='radio']:disabled:checked::after {
   gap: var(--space-1);
 }
 
+.approvalsqueue li { display: flex; align-items: center; gap: var(--space-2); }
+.approvalsqueue li > button { flex: 1; }
+
 .approvalsqueue li button, .approvalsqueue li .queue-row {
   display: grid;
   grid-template-columns: 1fr auto;

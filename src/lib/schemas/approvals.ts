@@ -7,6 +7,11 @@ export const ApproveWeekInput = WeekTarget.extend({ comment: z.string().max(500)
 export const RejectWeekInput = WeekTarget.extend({ reason: z.string().min(1).max(500) })
 export const UnlockWeekInput = WeekTarget.extend({ reason: z.string().min(1).max(500) })
 export const GetWeekInput = WeekTarget
+export const BulkApproveInput = z.object({
+  weeks: z.array(WeekTarget).min(1).max(50),
+  comment: z.string().max(500).optional(),
+})
+export type BulkApproveInput = z.infer<typeof BulkApproveInput>
 export const ListMyWeeksInput = z.object({ weeks: z.number().int().min(1).max(26).default(8) })
 
 export type SubmitWeekInput = z.infer<typeof SubmitWeekInput>
