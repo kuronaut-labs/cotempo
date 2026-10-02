@@ -3,6 +3,7 @@ import { asUser, deps, resetDb } from './helpers'
 import { leaveExportRows } from '~/server/services/leave'
 import { exportCsv } from '~/server/services/exports'
 import { HttpError } from '~/lib/errors'
+import { ids } from '../../src/server/fixtures/demo'
 
 // Demo seed ships an approved leave request (lr-demo-1, lt-annual, 2026-09-24..25,
 // decided by the demo billing worker) inside the period below — reuse it.
@@ -42,5 +43,26 @@ describe('leave exports', () => {
     await expect(
       exportCsv(deps(), asUser('operator'), { ...period, view: 'leave' }),
     ).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' } satisfies Partial<HttpError>)
+  })
+})
+
+describe('audit CSV (C5)', () => {
+  beforeEach(() => resetDb())
+
+  it('audit CSV exports approval, leave and interval events for billing', async () => {
+    const { submitWeek } = await import('~/server/services/approvals')
+    await submitWeek(deps(), asUser('operator'), { workerId: ids.opWorker, weekStart: '2026-08-31' })
+    const res = await exportCsv(deps(), asUser('billing'), { from: '2000-01-01', to: '2100-01-01', view: 'events' })
+    expect(res.body.split('\n')[0]).toBe('at,kind,worker,subject,actor,detail')
+    expect(res.body).toContain('submit')
+    expect(res.body).toContain('Demo Operator')
+    expect(res.body).toContain('leave_approve') // seeded leave request lr-demo-1's event
+    expect(res.filename).toContain('events')
+  })
+
+  it('audit CSV is billing-only', async () => {
+    await expect(
+      exportCsv(deps(), asUser('operator'), { from: '2000-01-01', to: '2100-01-01', view: 'events' }),
+    ).rejects.toMatchObject({ status: 403 })
   })
 })

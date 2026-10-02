@@ -1,6 +1,6 @@
-import { and, eq, gt, inArray, isNull, lt } from 'drizzle-orm'
+import { and, eq, gt, gte, inArray, isNull, lt } from 'drizzle-orm'
 import { clipPieces, explode, recon as piecesRecon, type Piece, type Recon } from '~/lib/attribution'
-import { localDayBoundariesUtcMs } from '~/lib/dayMath'
+import { localDateOf, localDateTimeOf, localDayBoundariesUtcMs } from '~/lib/dayMath'
 import { moneyCents, formatDecimalHours } from '~/lib/money'
 import { HttpError } from '~/lib/errors'
 import { canSeeMoney, type SessionContext } from '~/server/context'
@@ -41,6 +41,8 @@ export const LEAVE_CSV_COLUMNS = [
   'status',
   'decidedBy',
 ] as const
+
+export const EVENTS_CSV_COLUMNS = ['at', 'kind', 'worker', 'subject', 'actor', 'detail'] as const
 
 export const DAILY_CSV_COLUMNS = [
   'day',
@@ -211,6 +213,94 @@ export async function exportCsv(
           interval.createdAt.toISOString(), // created_at
           interval.editCount, // edit_count
           tz, // org_timezone
+        ]),
+      )
+    }
+    return { filename, body: out.join('\n') + '\n' }
+  }
+
+  if (input.view === 'events') {
+    // C5: audit log — approval/leave/interval events; billing via the money gate above.
+    const startMs = start
+    const endMs = end
+
+    const approvalRows = await db
+      .select({
+        kind: schema.approvalEvents.kind,
+        at: schema.approvalEvents.at,
+        actorWorkerId: schema.approvalEvents.actorWorkerId,
+        reason: schema.approvalEvents.reason,
+        workerId: schema.approvals.workerId,
+        weekStart: schema.approvals.weekStart,
+      })
+      .from(schema.approvalEvents)
+      .innerJoin(schema.approvals, eq(schema.approvals.id, schema.approvalEvents.approvalId))
+      .where(and(gte(schema.approvalEvents.at, new Date(startMs)), lt(schema.approvalEvents.at, new Date(endMs))))
+      .all()
+
+    const leaveRows = await db
+      .select({
+        kind: schema.leaveEvents.kind,
+        at: schema.leaveEvents.at,
+        actorWorkerId: schema.leaveEvents.actorWorkerId,
+        reason: schema.leaveEvents.reason,
+        workerId: schema.leaveRequests.workerId,
+        typeName: schema.leaveTypes.name,
+        startDay: schema.leaveRequests.startDay,
+        endDay: schema.leaveRequests.endDay,
+      })
+      .from(schema.leaveEvents)
+      .innerJoin(schema.leaveRequests, eq(schema.leaveRequests.id, schema.leaveEvents.requestId))
+      .innerJoin(schema.leaveTypes, eq(schema.leaveTypes.id, schema.leaveRequests.typeId))
+      .where(and(gte(schema.leaveEvents.at, new Date(startMs)), lt(schema.leaveEvents.at, new Date(endMs))))
+      .all()
+
+    const intervalRows = await db
+      .select({
+        kind: schema.intervalEvents.kind,
+        at: schema.intervalEvents.at,
+        actorWorkerId: schema.intervalEvents.actorWorkerId,
+        intervalId: schema.intervalEvents.intervalId,
+        changes: schema.intervalEvents.changes,
+        workerId: schema.intervals.workerId,
+        jobName: schema.jobs.name,
+        startedAt: schema.intervals.startedAt,
+      })
+      .from(schema.intervalEvents)
+      .innerJoin(schema.intervals, eq(schema.intervals.id, schema.intervalEvents.intervalId))
+      .innerJoin(schema.jobs, eq(schema.jobs.id, schema.intervals.jobId))
+      .where(and(gte(schema.intervalEvents.at, new Date(startMs)), lt(schema.intervalEvents.at, new Date(endMs))))
+      .all()
+
+    const nameOf = (id: string) => wnames.get(id)?.name ?? '?'
+
+    type Row = { at: Date; kind: string; workerId: string; actorId: string; subject: string; detail: string }
+    const all: Row[] = [
+      ...approvalRows.map((r) => ({
+        at: r.at, kind: r.kind, workerId: r.workerId, actorId: r.actorWorkerId,
+        subject: `week ${r.weekStart}`, detail: r.reason ?? '',
+      })),
+      ...leaveRows.map((r) => ({
+        at: r.at, kind: `leave_${r.kind}`, workerId: r.workerId, actorId: r.actorWorkerId,
+        subject: `${r.typeName} ${r.startDay}→${r.endDay}`, detail: r.reason ?? '',
+      })),
+      ...intervalRows.map((r) => ({
+        at: r.at, kind: `interval_${r.kind}`, workerId: r.workerId, actorId: r.actorWorkerId,
+        subject: `${r.jobName} ${localDateOf(r.startedAt.getTime(), tz)}`, detail: r.changes ?? '',
+      })),
+    ].sort((a, b) => a.at.getTime() - b.at.getTime())
+
+    const filename = `timesheets-${input.from}_${input.to}-events.csv`
+    const out: string[] = [csvRow(EVENTS_CSV_COLUMNS as unknown as string[])]
+    for (const r of all) {
+      out.push(
+        csvRow([
+          localDateTimeOf(r.at.getTime(), tz),
+          r.kind,
+          nameOf(r.workerId),
+          r.subject,
+          nameOf(r.actorId),
+          r.detail,
         ]),
       )
     }
