@@ -11,6 +11,7 @@ import {
   listStructure,
   updateClient,
   updateJob,
+  updateProject,
 } from '~/server/services/structure'
 import {
   archiveWorker,
@@ -372,5 +373,26 @@ describe('job budgets (A3)', () => {
     await updateJob(deps(), asUser('admin'), { id, budgetCents: 75_000 })
     const after = await listStructure(deps(), asUser('admin'), live)
     expect(after.flatMap((c) => c.projects).flatMap((p) => p.jobs).find((j) => j.id === id)!.budgetCents).toBe(75_000)
+  })
+})
+
+describe('due dates (Task 1.1)', () => {
+  it('projects and jobs carry a nullable due date for every role', async () => {
+    const live = { includeArchived: false }
+    const { id: pid } = await createProject(deps(), asUser('admin'), { clientId: ids.c1, name: 'Dated', dueOn: '2026-10-30' })
+    const { id: jid } = await createJob(deps(), asUser('admin'), { projectId: pid, name: 'Dated job', dueOn: '2026-10-15' })
+    const find = (tree: Awaited<ReturnType<typeof listStructure>>) => {
+      const p = tree.flatMap((c) => c.projects).find((p) => p.id === pid)!
+      return { p, j: p.jobs.find((j) => j.id === jid)! }
+    }
+    const admin = find(await listStructure(deps(), asUser('admin'), live))
+    expect(admin.p.dueOn).toBe('2026-10-30')
+    expect(admin.j.dueOn).toBe('2026-10-15')
+    const ops = find(await listStructure(deps(), asUser('operator'), live))
+    expect(ops.j.dueOn).toBe('2026-10-15') // dates are not money; operators see them
+    await updateJob(deps(), asUser('admin'), { id: jid, dueOn: null })
+    expect(find(await listStructure(deps(), asUser('admin'), live)).j.dueOn).toBeNull()
+    await updateProject(deps(), asUser('admin'), { id: pid, name: 'Dated' }) // undefined keeps
+    expect(find(await listStructure(deps(), asUser('admin'), live)).p.dueOn).toBe('2026-10-30')
   })
 })

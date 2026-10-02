@@ -114,6 +114,7 @@ export const projects = sqliteTable('projects', {
     .notNull()
     .references(() => clients.id),
   name: text('name').notNull(),
+  dueOn: text('due_on'), // org-tz 'YYYY-MM-DD'; null = no due date
   createdAt: ts('created_at').notNull(),
   archivedAt: ts('archived_at'),
 })
@@ -126,6 +127,7 @@ export const jobs = sqliteTable('jobs', {
   name: text('name').notNull(),
   billableRateCents: integer('billable_rate_cents'), // null = non-billable, 0 = billable at $0 (#18)
   budgetCents: integer('budget_cents'), // optional total budget; money → canSeeMoney only (#5)
+  dueOn: text('due_on'), // org-tz 'YYYY-MM-DD'; null = no due date
   createdAt: ts('created_at').notNull(),
   archivedAt: ts('archived_at'),
 })

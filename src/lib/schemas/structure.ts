@@ -4,13 +4,14 @@ const name = z.string().min(1).max(100)
 // null = non-billable, 0 = billable at $0 (#18); omitted in create = org default
 const rate = z.number().int().min(0).nullable()
 const createRate = z.number().int().min(0).nullish()
+const dueOn = z.iso.date().nullish()
 
 export const CreateClientInput = z.object({ name })
 export const UpdateClientInput = z.object({ id: z.string().min(1), name })
-export const CreateProjectInput = z.object({ clientId: z.string().min(1), name })
-export const UpdateProjectInput = z.object({ id: z.string().min(1), name })
-export const CreateJobInput = z.object({ projectId: z.string().min(1), name, billableRateCents: createRate, budgetCents: z.number().int().min(0).max(1_000_000_000).nullish() })
-export const UpdateJobInput = z.object({ id: z.string().min(1), name: name.optional(), billableRateCents: rate.optional(), budgetCents: z.number().int().min(0).max(1_000_000_000).nullish() })
+export const CreateProjectInput = z.object({ clientId: z.string().min(1), name, dueOn })
+export const UpdateProjectInput = z.object({ id: z.string().min(1), name, dueOn })
+export const CreateJobInput = z.object({ projectId: z.string().min(1), name, billableRateCents: createRate, budgetCents: z.number().int().min(0).max(1_000_000_000).nullish(), dueOn })
+export const UpdateJobInput = z.object({ id: z.string().min(1), name: name.optional(), billableRateCents: rate.optional(), budgetCents: z.number().int().min(0).max(1_000_000_000).nullish(), dueOn })
 export const ArchiveInput = z.object({ id: z.string().min(1) })
 export const ListStructureInput = z.object({ includeArchived: z.boolean().default(false) })
 

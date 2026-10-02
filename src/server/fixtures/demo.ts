@@ -86,16 +86,16 @@ export async function insertDemo(db: Db, opts: { anchorMs?: number } = {}) {
     db
       .insert(schema.projects)
       .values([
-        { id: ids.p1, clientId: ids.c1, name: 'Flight Ops Automation', createdAt: now },
+        { id: ids.p1, clientId: ids.c1, name: 'Flight Ops Automation', dueOn: '2026-10-30', createdAt: now },
         { id: ids.p2, clientId: ids.c2, name: 'Route Optimization', createdAt: now },
       ])
       .onConflictDoNothing(),
     db
       .insert(schema.jobs)
       .values([
-        { id: ids.j1, projectId: ids.p1, name: 'Pipeline Maintenance', billableRateCents: 14000, createdAt: now },
+        { id: ids.j1, projectId: ids.p1, name: 'Pipeline Maintenance', billableRateCents: 14000, dueOn: '2026-09-08', createdAt: now },
         { id: ids.j2, projectId: ids.p1, name: 'Eval Harness Runs', billableRateCents: 9000, createdAt: now },
-        { id: ids.j3, projectId: ids.p2, name: 'Route Model Tuning', billableRateCents: 12000, createdAt: now },
+        { id: ids.j3, projectId: ids.p2, name: 'Route Model Tuning', billableRateCents: 12000, dueOn: '2026-09-01', createdAt: now },
         { id: ids.j4, projectId: ids.p2, name: 'Internal Data Cleansing', billableRateCents: null, createdAt: now },
       ])
       .onConflictDoNothing(),

@@ -15,8 +15,8 @@ import type {
 import type { Deps } from './deps'
 import { getOrgSettings } from './settings'
 
-export type JobNode = { id: string; name: string; archivedAt: Date | null; billableRateCents?: number | null; budgetCents?: number | null }
-export type ProjectNode = { id: string; name: string; archivedAt: Date | null; jobs: JobNode[] }
+export type JobNode = { id: string; name: string; archivedAt: Date | null; billableRateCents?: number | null; budgetCents?: number | null; dueOn: string | null }
+export type ProjectNode = { id: string; name: string; archivedAt: Date | null; dueOn: string | null; jobs: JobNode[] }
 export type ClientNode = { id: string; name: string; archivedAt: Date | null; projects: ProjectNode[] }
 
 function requireAdmin(ctx: SessionContext) {
@@ -65,12 +65,12 @@ export async function listStructure(
       .filter((j) => j.projectId === p.id)
       .map((j) =>
         showMoney
-          ? { id: j.id, name: j.name, archivedAt: j.archivedAt, billableRateCents: j.billableRateCents, budgetCents: j.budgetCents }
-          : { id: j.id, name: j.name, archivedAt: j.archivedAt },
+          ? { id: j.id, name: j.name, archivedAt: j.archivedAt, billableRateCents: j.billableRateCents, budgetCents: j.budgetCents, dueOn: j.dueOn }
+          : { id: j.id, name: j.name, archivedAt: j.archivedAt, dueOn: j.dueOn },
       )
     projectsByClient.set(p.clientId, [
       ...(projectsByClient.get(p.clientId) ?? []),
-      { id: p.id, name: p.name, archivedAt: p.archivedAt, jobs: jobNodes },
+      { id: p.id, name: p.name, archivedAt: p.archivedAt, dueOn: p.dueOn, jobs: jobNodes },
     ])
   }
 
@@ -110,14 +110,16 @@ export async function createProject(deps: Deps, ctx: SessionContext, input: Crea
   await assertExists(deps.db, schema.clients, input.clientId, 'clientId', true)
   const id = crypto.randomUUID()
   const now = deps.now()
-  await deps.db.insert(schema.projects).values({ id, clientId: input.clientId, name: input.name, createdAt: now })
+  await deps.db.insert(schema.projects).values({ id, clientId: input.clientId, name: input.name, dueOn: input.dueOn ?? null, createdAt: now })
   return { id }
 }
 
 export async function updateProject(deps: Deps, ctx: SessionContext, input: UpdateProjectInput): Promise<void> {
   requireAdmin(ctx)
   await assertExists(deps.db, schema.projects, input.id, 'id')
-  await deps.db.update(schema.projects).set({ name: input.name }).where(eq(schema.projects.id, input.id))
+  const patch: Record<string, unknown> = { name: input.name }
+  if (input.dueOn !== undefined) patch.dueOn = input.dueOn
+  await deps.db.update(schema.projects).set(patch).where(eq(schema.projects.id, input.id))
 }
 
 export async function archiveProject(deps: Deps, ctx: SessionContext, input: ArchiveInput): Promise<void> {
@@ -145,6 +147,7 @@ export async function createJob(deps: Deps, ctx: SessionContext, input: CreateJo
     name: input.name,
     billableRateCents: rate,
     budgetCents: input.budgetCents ?? null,
+    dueOn: input.dueOn ?? null,
     createdAt: now,
   })
   return { id }
@@ -158,6 +161,7 @@ export async function updateJob(deps: Deps, ctx: SessionContext, input: UpdateJo
   if (input.name !== undefined) patch.name = input.name
   if (input.billableRateCents !== undefined) patch.billableRateCents = input.billableRateCents
   if (input.budgetCents !== undefined) patch.budgetCents = input.budgetCents
+  if (input.dueOn !== undefined) patch.dueOn = input.dueOn
   if (Object.keys(patch).length === 0) return
   await deps.db.update(schema.jobs).set(patch).where(eq(schema.jobs.id, input.id))
 }
