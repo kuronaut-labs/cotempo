@@ -100,6 +100,11 @@ export async function insertDemo(db: Db, opts: { anchorMs?: number } = {}) {
       ])
       .onConflictDoNothing(),
     db.insert(schema.orgSettings).values({ id: 'org', defaultBillableRateCents: 10_000, defaultDayMinutes: 480, defaultWeeklyTargetHours: 40, updatedAt: now }).onConflictDoNothing(),
+    db.insert(schema.assignments).values([
+      { id: 'asg-demo-1', workerId: ids.opWorker, targetKind: 'project', targetId: ids.p1, allocatedMinutes: 2400, createdBy: ids.adminWorker, createdAt: at(-7, 0), updatedAt: at(-7, 0) },
+      { id: 'asg-demo-2', workerId: ids.agent1, targetKind: 'job', targetId: ids.j1, allocatedMinutes: 1200, createdBy: ids.adminWorker, createdAt: at(-7, 0), updatedAt: at(-7, 0) },
+      { id: 'asg-demo-3', workerId: ids.agent2, targetKind: 'job', targetId: ids.j3, allocatedMinutes: null, createdBy: ids.adminWorker, createdAt: at(-7, 0), updatedAt: at(-7, 0) },
+    ]).onConflictDoNothing(),
     db.insert(schema.leaveTypes).values(leaveTypeRows).onConflictDoNothing(),
     db.insert(schema.positions).values([
       { id: ids.posSenior, name: 'Senior developer', rateCents: 12_000, createdAt: now },

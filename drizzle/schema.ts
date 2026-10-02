@@ -132,6 +132,32 @@ export const jobs = sqliteTable('jobs', {
   archivedAt: ts('archived_at'),
 })
 
+// ---- Assignments: who is expected to work on what, with an optional hours cap ----
+export const assignments = sqliteTable(
+  'assignments',
+  {
+    id: text('id').primaryKey(),
+    workerId: text('worker_id')
+      .notNull()
+      .references(() => workers.id),
+    targetKind: text('target_kind', { enum: ['project', 'job'] }).notNull(),
+    targetId: text('target_id').notNull(), // projects.id or jobs.id by targetKind (app-enforced)
+    allocatedMinutes: integer('allocated_minutes'), // null = no cap; never money
+    note: text('note'),
+    createdBy: text('created_by')
+      .notNull()
+      .references(() => workers.id),
+    createdAt: ts('created_at').notNull(),
+    updatedAt: ts('updated_at').notNull(),
+    archivedAt: ts('archived_at'),
+  },
+  (t) => [
+    uniqueIndex('assignments_worker_target')
+      .on(t.workerId, t.targetKind, t.targetId)
+      .where(sql`${t.archivedAt} IS NULL`),
+  ],
+)
+
 // ---- Intervals ----
 export const intervals = sqliteTable(
   'intervals',
