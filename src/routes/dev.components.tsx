@@ -97,10 +97,11 @@ const structureFixture: ClientNode[] = [
       {
         id: 'p1',
         name: 'Flight Ops Automation',
+        dueOn: null,
         archivedAt: null,
         jobs: [
-          { id: 'j1', name: 'Pipeline Maintenance', archivedAt: null },
-          { id: 'j2', name: 'Eval Harness Runs', archivedAt: null },
+          { id: 'j1', name: 'Pipeline Maintenance', archivedAt: null, dueOn: null },
+          { id: 'j2', name: 'Eval Harness Runs', archivedAt: null, dueOn: null },
         ],
       },
     ],
@@ -113,8 +114,9 @@ const structureFixture: ClientNode[] = [
       {
         id: 'p2',
         name: 'Route Optimization',
+        dueOn: null,
         archivedAt: null,
-        jobs: [{ id: 'j3', name: 'Route Model Tuning', archivedAt: null }],
+        jobs: [{ id: 'j3', name: 'Route Model Tuning', archivedAt: null, dueOn: null }],
       },
     ],
   },
