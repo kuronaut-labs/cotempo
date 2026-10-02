@@ -13,6 +13,10 @@ import { DailyTable } from '~/components/dailyTable'
 import { SubTabs } from '~/components/subTabs'
 import { formatCents, formatHmm } from '~/lib/money'
 import { formatWeekLabel } from '~/lib/dayMath'
+import { addDays, parseIsoDate, toIsoDate } from '~/lib/dateShift'
+
+// B4: previous-period window for delta columns (module scope, pure).
+const shiftIso = (iso: string, days: number) => toIsoDate(addDays(parseIsoDate(iso), days))
 import { getSessionCtxFn } from '~/server/fns/auth'
 import { getTodayFn } from '~/server/fns/intervals'
 import {
@@ -102,7 +106,12 @@ export const Route = createFileRoute('/_app/reports')({
         return { today: today.date, tz, ctx, tab, sub, from, to, trends }
       }
       const [recon, jobs] = await Promise.all([reconciliationFn({ data: period }), perJobFn({ data: period })])
-      return { today: today.date, tz, ctx, tab, sub, from, to, recon, jobs }
+      // B4 period-over-period deltas: shift by the period length in days, inclusive.
+      const len = Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1
+      const prevRecon = await reconciliationFn({
+        data: { from: shiftIso(from, -len), to: shiftIso(to, -len) },
+      })
+      return { today: today.date, tz, ctx, tab, sub, from, to, recon, jobs, prevRecon }
     }
     const lanes = await operatorLanesFn({ data: { from, to } })
     const structure = await listStructureFn({ data: { includeArchived: false } })
@@ -132,6 +141,7 @@ function ReportsView() {
     lanes?: import('~/server/services/reports').OperatorLane[]
     leave?: import('~/server/fns/leave').LeaveReportView[]
     trends?: import('~/server/services/reports').WeekTrend[]
+    prevRecon?: import('~/server/services/reports').ReconciliationReport
   }
   const navigate = useNavigate()
   const { today, tz, ctx, tab, sub, from, to } = data
@@ -182,6 +192,7 @@ function ReportsView() {
           leave={data.leave}
           trends={data.trends}
           jobs={data.jobs}
+          prevRecon={data.prevRecon}
           onPeriodChange={(p) => goSearch(navigate, { from: p.from, to: p.to })}
           onSubChange={(s) => goSearch(navigate, { sub: s })}
         />
@@ -297,6 +308,7 @@ function BillingPanel({
   leave,
   trends,
   jobs,
+  prevRecon,
   onPeriodChange,
   onSubChange,
 }: {
@@ -309,6 +321,7 @@ function BillingPanel({
   daily?: import('~/server/services/reports').DailyReport
   leave?: import('~/server/fns/leave').LeaveReportView[]
   trends?: import('~/server/services/reports').WeekTrend[]
+  prevRecon?: import('~/server/services/reports').ReconciliationReport
   jobs?: import('~/server/services/reports').JobRecon[]
   onPeriodChange: (next: { from: string; to: string }) => void
   onSubChange: (next: SubId) => void
@@ -364,7 +377,7 @@ function BillingPanel({
         <>
           <section className="card">
             <h2>Per-client totals</h2>
-            <ReconTable report={recon} />
+            <ReconTable report={recon} prev={prevRecon} />
           </section>
           <section className="card">
             <h2>Totals bars</h2>
