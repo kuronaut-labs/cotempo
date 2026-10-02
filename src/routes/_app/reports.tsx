@@ -175,6 +175,7 @@ function ReportsView() {
         <AdminPanel
           kpis={data.kpis}
           structure={data.structure}
+          today={data.today}
           to={to}
           onDateChange={(next) => goSearch(navigate, { to: next })}
         />
@@ -208,11 +209,13 @@ function ReportsView() {
 function AdminPanel({
   kpis,
   structure,
+  today,
   to,
   onDateChange,
 }: {
   kpis: AdminKpis
   structure: ClientNode[]
+  today: string
   to: string
   onDateChange: (next: string) => void
 }) {
@@ -280,7 +283,7 @@ function AdminPanel({
 
       <section className="card">
         <h2>Structure &amp; rates</h2>
-        <StructureTree tree={structure} manage="job" showArchived={false} onRefresh={() => {}} />
+        <StructureTree tree={structure} manage="job" showArchived={false} today={today} onRefresh={() => {}} />
         <div className="legend" style={{ marginTop: 8 }}>
           <span>
             <span className="sw" style={{ background: 'var(--color-success)' }} />billable

@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Archive as ArchiveIcon, Briefcase, Building, Folder } from 'reicon-react'
 import { formatCents } from '~/lib/money'
+import { dueStatus, jobDueAfterProject } from '~/lib/dueDates'
+import { StatusChip } from '~/components/ui/chip'
 import { serverErrorMessage } from '~/components/forms/applyServerError'
 import { Button } from '~/components/ui/button'
 import type { ClientNode, JobNode, ProjectNode } from '~/server/services/structure'
@@ -44,20 +46,31 @@ export function rateLabel(cents: number | null | undefined): string {
 
 /* ---------- component ---------- */
 
+function DueChip({ dueOn, today }: { dueOn: string | null; today: string }) {
+  const st = dueStatus(dueOn, today)
+  if (st === 'none') return null
+  return (
+    <StatusChip kind={st === 'ok' ? 'outline' : st === 'soon' ? 'inverse' : 'error'}>Due {dueOn}</StatusChip>
+  )
+}
+
 type RunFn = (op: () => Promise<unknown>) => Promise<boolean>
 
 export function StructureTree({
   tree,
   manage,
   showArchived,
+  today,
   onRefresh,
 }: {
   tree: ClientNode[]
   manage: ManageLevel
   showArchived: boolean
+  today: string
   onRefresh: () => void
 }) {
   const [error, setError] = useState<string | null>(null)
+  const todayIso = today
 
   async function run(op: () => Promise<unknown>): Promise<boolean> {
     setError(null)
@@ -94,13 +107,14 @@ export function StructureTree({
             {(showArchived ? c.projects : c.projects.filter(live)).map((p) => (
               <div key={p.id} className={`tree-project${p.archivedAt ? ' archived' : ''}`}>
                 <div className="tree-row">
-                  <span className="name"><Folder size={14} /> {p.name}</span>
+                   <span className="name"><Folder size={14} /> {p.name}</span>
                   {p.archivedAt && <span className="tag">archived</span>}
+                  <DueChip dueOn={p.dueOn} today={todayIso} />
                   {manage === 'project' && live(p) && <ProjectActions node={p} run={run} />}
                 </div>
                 <div className="tree-jobs">
                   {(showArchived ? p.jobs : p.jobs.filter(live)).map((j) => (
-                    <JobRow key={j.id} node={j} manage={manage} run={run} />
+                    <JobRow key={j.id} node={j} manage={manage} run={run} today={todayIso} project={p} />
                   ))}
                   {manage === 'job' && live(p) && <AddJobForm projectId={p.id} run={run} />}
                 </div>
@@ -165,6 +179,7 @@ function ClientActions({ node, run }: { node: ClientNode; run: RunFn }) {
 function ProjectActions({ node, run }: { node: ProjectNode; run: RunFn }) {
   const [renaming, setRenaming] = useState(false)
   const [name, setName] = useState(node.name)
+  const [dueOn, setDueOn] = useState(node.dueOn ?? '')
 
   if (renaming) {
     return (
@@ -174,12 +189,15 @@ function ProjectActions({ node, run }: { node: ProjectNode; run: RunFn }) {
           e.preventDefault()
           if (!name.trim()) return
           // Only close on success — see ClientActions (#L2).
-          void run(() => updateProjectFn({ data: { id: node.id, name: name.trim() } })).then((ok) => {
+          void run(() =>
+            updateProjectFn({ data: { id: node.id, name: name.trim(), dueOn: dueOn === '' ? null : dueOn } }),
+          ).then((ok) => {
             if (ok) setRenaming(false)
           })
         }}
       >
         <input className="tree-input" value={name} onChange={(e) => setName(e.target.value)} aria-label="Project name" />
+        <input className="tree-input" type="date" value={dueOn} onChange={(e) => setDueOn(e.target.value)} aria-label="Due date" />
         <Button type="submit" variant="primary">
           Save
         </Button>
@@ -209,12 +227,25 @@ function ProjectActions({ node, run }: { node: ProjectNode; run: RunFn }) {
   )
 }
 
-function JobRow({ node, manage, run }: { node: JobNode; manage: ManageLevel; run: RunFn }) {
+function JobRow({
+  node,
+  manage,
+  run,
+  today,
+  project,
+}: {
+  node: JobNode
+  manage: ManageLevel
+  run: RunFn
+  today: string
+  project: ProjectNode
+}) {
   const live = !node.archivedAt
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState(node.name)
   const [rate, setRate] = useState(centsToDollarsInput(node.billableRateCents))
   const [budget, setBudget] = useState(centsToDollarsInput(node.budgetCents ?? null))
+  const [dueOn, setDueOn] = useState(node.dueOn ?? '')
   const [fieldError, setFieldError] = useState<string | null>(null)
 
   if (editing && manage === 'job' && live) {
@@ -230,7 +261,15 @@ function JobRow({ node, manage, run }: { node: JobNode; manage: ManageLevel; run
           if (!name.trim()) return
           setFieldError(null)
           void run(() =>
-            updateJobFn({ data: { id: node.id, name: name.trim(), billableRateCents: parsed.cents, budgetCents: parsedBudget.cents } }),
+            updateJobFn({
+              data: {
+                id: node.id,
+                name: name.trim(),
+                billableRateCents: parsed.cents,
+                budgetCents: parsedBudget.cents,
+                dueOn: dueOn === '' ? null : dueOn,
+              },
+            }),
           ).then((ok) => {
             if (ok) setEditing(false)
           })
@@ -251,6 +290,7 @@ function JobRow({ node, manage, run }: { node: JobNode; manage: ManageLevel; run
           placeholder="Budget $"
           aria-label="Budget in dollars"
         />
+        <input className="tree-input" type="date" value={dueOn} onChange={(e) => setDueOn(e.target.value)} aria-label="Due date" />
         <Button type="submit" variant="primary">
           Save
         </Button>
@@ -268,6 +308,8 @@ function JobRow({ node, manage, run }: { node: JobNode; manage: ManageLevel; run
       <span className="rate">{rateLabel(node.billableRateCents)}</span>
       {node.budgetCents != null && <span className="rate">{formatCents(node.budgetCents)} budget</span>}
       {node.archivedAt && <span className="tag">archived</span>}
+      <DueChip dueOn={node.dueOn} today={today} />
+      {jobDueAfterProject(node.dueOn, project.dueOn) && <span data-tip="Due after its project">!</span>}
       {manage === 'job' && live && (
         <span className="tree-actions">
           <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
@@ -319,6 +361,7 @@ function AddClientForm({ run }: { run: RunFn }) {
 
 function AddProjectForm({ clientId, run }: { clientId: string; run: RunFn }) {
   const [name, setName] = useState('')
+  const [dueOn, setDueOn] = useState('')
   return (
     <form
       className="tree-row tree-add"
@@ -326,8 +369,13 @@ function AddProjectForm({ clientId, run }: { clientId: string; run: RunFn }) {
         e.preventDefault()
         if (!name.trim()) return
         // Only clear on success — see AddClientForm (#L2).
-        void run(() => createProjectFn({ data: { clientId, name: name.trim() } })).then((ok) => {
-          if (ok) setName('')
+        void run(() =>
+          createProjectFn({ data: { clientId, name: name.trim(), ...(dueOn !== '' ? { dueOn } : {}) } }),
+        ).then((ok) => {
+          if (ok) {
+            setName('')
+            setDueOn('')
+          }
         })
       }}
     >
@@ -338,6 +386,7 @@ function AddProjectForm({ clientId, run }: { clientId: string; run: RunFn }) {
         placeholder="New project name"
         aria-label="New project name"
       />
+      <input className="tree-input" type="date" value={dueOn} onChange={(e) => setDueOn(e.target.value)} aria-label="Due date" />
       <Button type="submit" variant="primary" disabled={!name.trim()}>
         Add project
       </Button>
@@ -349,6 +398,7 @@ function AddJobForm({ projectId, run }: { projectId: string; run: RunFn }) {
   const [name, setName] = useState('')
   const [rate, setRate] = useState('')
   const [budget, setBudget] = useState('')
+  const [dueOn, setDueOn] = useState('')
   const [fieldError, setFieldError] = useState<string | null>(null)
   return (
     <form
@@ -368,13 +418,22 @@ function AddJobForm({ projectId, run }: { projectId: string; run: RunFn }) {
         if (!name.trim()) return
         setFieldError(null)
         void run(() =>
-          createJobFn({ data: { projectId, name: name.trim(), billableRateCents: parsed.cents, budgetCents: parsedBudget.cents } }),
+          createJobFn({
+            data: {
+              projectId,
+              name: name.trim(),
+              billableRateCents: parsed.cents,
+              budgetCents: parsedBudget.cents,
+              ...(dueOn !== '' ? { dueOn } : {}),
+            },
+          }),
         ).then((ok) => {
           // Only clear on success — see AddClientForm (#L2).
           if (ok) {
             setName('')
             setRate('')
             setBudget('')
+            setDueOn('')
           }
         })
       }}
@@ -400,6 +459,7 @@ function AddJobForm({ projectId, run }: { projectId: string; run: RunFn }) {
         placeholder="Budget $"
         aria-label="Budget in dollars"
       />
+      <input className="tree-input" type="date" value={dueOn} onChange={(e) => setDueOn(e.target.value)} aria-label="Due date" />
       <Button type="submit" variant="primary" disabled={!name.trim()}>
         Add job
       </Button>
