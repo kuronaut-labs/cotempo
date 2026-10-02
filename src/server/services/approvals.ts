@@ -537,6 +537,54 @@ export async function listMyWeeks(deps: Deps, ctx: SessionContext, input: ListMy
   })
 }
 
+export type TeamWeekRow = {
+  weekStart: string
+  status: ApprovalStatus | 'none'
+  wallClockMin: number
+  effortMin: number
+  flagCount: number
+}
+export type TeamMember = { workerId: string; workerName: string; weeks: TeamWeekRow[] }
+
+/* C3: supervisor's team dashboard — each supervisee's last N weeks with statuses,
+   wall/effort and flag counts. Supervisees come from the session context (#12).
+   No role guard — an empty team renders the empty state. */
+export async function listTeamWeeks(
+  deps: Deps,
+  ctx: SessionContext,
+  input: ListMyWeeksInput,
+): Promise<TeamMember[]> {
+  const { db, tz } = deps
+  const superviseeIds = ctx.superviseeWorkerIds
+  if (superviseeIds.length === 0) return []
+  const names = await workerNames(db, superviseeIds)
+  const cfg = flagsCfg(await getOrgSettings(deps, ctx))
+  const weekStarts = weekDatesOf(tz, input.weeks, deps.now())
+  const out: TeamMember[] = []
+  for (const workerId of superviseeIds) {
+    const weeks: TeamWeekRow[] = []
+    for (const ws of weekStarts) {
+      // sequential per week keeps DB handling simple at demo scale
+      const row = await loadApprovalRow(db, workerId, ws)
+      const intervals = await loadIntervalsForWeek(db, workerId, ws, tz)
+      const pieces = toPieces(intervals, ws, tz)
+      const r = piecesRecon(pieces)
+      const supervisors = await workerSupervisors(db, [workerId])
+      const flagInput = {
+        weekStart: ws,
+        tz,
+        worker: { id: workerId, supervisorId: supervisors.get(workerId) ?? null },
+        intervals: toIntervalsForRedFlags(intervals),
+        pieces,
+      }
+      const flags = redFlags(flagInput, cfg)
+      weeks.push({ weekStart: ws, status: row?.status ?? 'none', wallClockMin: r.wallClockMin, effortMin: r.effortMin, flagCount: flags.length })
+    }
+    out.push({ workerId, workerName: names.get(workerId) ?? '?', weeks })
+  }
+  return out
+}
+
 function weekDatesOf(tz: string, count: number, now: Date = new Date()): string[] {
   // The "current week" is the Monday containing `now`, in tz. `now` is injected
   // so the Deps clock-injection pattern is honoured and tests can use a fixed

@@ -46,6 +46,13 @@ export const listMyWeeksFn = createServerFn({ method: 'GET' })
   .validator(ListMyWeeksInput)
   .handler(({ data, context }) => svc.listMyWeeks(runtimeDeps(), ctxOf(context), data))
 
+export const listTeamWeeksFn = createServerFn({ method: 'GET' })
+  .middleware([authMw])
+  .validator(ListMyWeeksInput)
+  .handler(({ data, context }) => svc.listTeamWeeks(runtimeDeps(), ctxOf(context), data))
+
+export type { TeamMember, TeamWeekRow } from '~/server/services/approvals'
+
 export const weeksWithEntriesFn = createServerFn({ method: 'GET' })
   .middleware([authMw])
   .validator(z.object({ workerId: z.string().min(1), weekStarts: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)) }))

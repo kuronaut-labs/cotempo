@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { ids } from '~/server/fixtures/demo'
 import { weekDates } from '~/lib/week'
-import { getWeekForApproval, weeksWithEntries } from '~/server/services/approvals'
+import { getWeekForApproval, listTeamWeeks, weeksWithEntries } from '~/server/services/approvals'
 import { createInterval, updateInterval } from '~/server/services/intervals'
 import { asUser, at, deps, resetDb } from './helpers'
 
@@ -76,5 +76,21 @@ describe('rate column (C2)', () => {
     // Operators viewing their own week via the read-only ApproverView path get no rate key (#5).
     const opsView = await getWeekForApproval(deps(), asUser('operator'), week)
     expect(opsView.intervals.some((r) => 'rateCents' in r)).toBe(false)
+  })
+})
+
+describe('team view (C3)', () => {
+  beforeEach(() => resetDb())
+
+  it('team view lists supervisee weeks', async () => {
+    const team = await listTeamWeeks(deps(), asUser('operator'), { weeks: 4 })
+    expect(team.map((m) => m.workerName).sort()).toEqual(['Atlas', 'Beacon'])
+    expect(team[0]!.weeks).toHaveLength(4)
+    expect(team[0]!.weeks.every((w) => w.status === 'none')).toBe(true)
+    expect(team[0]!.weeks.every((w) => typeof w.flagCount === 'number')).toBe(true)
+  })
+
+  it('team view is empty for non-supervisors', async () => {
+    expect(await listTeamWeeks(deps(), asUser('billing'), { weeks: 4 })).toEqual([])
   })
 })

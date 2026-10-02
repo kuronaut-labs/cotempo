@@ -18,6 +18,7 @@ import { Route as AppApprovalsRouteImport } from './routes/_app/approvals'
 import { Route as AppInvoiceRouteImport } from './routes/_app/invoice'
 import { Route as AppLeaveRouteImport } from './routes/_app/leave'
 import { Route as AppReportsRouteImport } from './routes/_app/reports'
+import { Route as AppTeamRouteImport } from './routes/_app/team'
 import { Route as AppTodayRouteImport } from './routes/_app/today'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as DevComponentsRouteImport } from './routes/dev.components'
@@ -72,6 +73,11 @@ const AppLeaveRoute = AppLeaveRouteImport.update({
 const AppReportsRoute = AppReportsRouteImport.update({
   id: '/reports',
   path: '/reports',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppTeamRoute = AppTeamRouteImport.update({
+  id: '/team',
+  path: '/team',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppTodayRoute = AppTodayRouteImport.update({
@@ -139,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/invoice': typeof AppInvoiceRoute
   '/leave': typeof AppLeaveRoute
   '/reports': typeof AppReportsRoute
+  '/team': typeof AppTeamRoute
   '/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
   '/dev/components': typeof DevComponentsRoute
@@ -160,6 +167,7 @@ export interface FileRoutesByTo {
   '/invoice': typeof AppInvoiceRoute
   '/leave': typeof AppLeaveRoute
   '/reports': typeof AppReportsRoute
+  '/team': typeof AppTeamRoute
   '/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
   '/dev/components': typeof DevComponentsRoute
@@ -183,6 +191,7 @@ export interface FileRoutesById {
   '/_app/invoice': typeof AppInvoiceRoute
   '/_app/leave': typeof AppLeaveRoute
   '/_app/reports': typeof AppReportsRoute
+  '/_app/team': typeof AppTeamRoute
   '/_app/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
   '/dev/components': typeof DevComponentsRoute
@@ -206,6 +215,7 @@ export interface FileRouteTypes {
     | '/invoice'
     | '/leave'
     | '/reports'
+    | '/team'
     | '/today'
     | '/api/health'
     | '/dev/components'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/invoice'
     | '/leave'
     | '/reports'
+    | '/team'
     | '/today'
     | '/api/health'
     | '/dev/components'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/_app/invoice'
     | '/_app/leave'
     | '/_app/reports'
+    | '/_app/team'
     | '/_app/today'
     | '/api/health'
     | '/dev/components'
@@ -335,6 +347,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/team': {
+      id: '/_app/team'
+      path: '/team'
+      fullPath: '/team'
+      preLoaderRoute: typeof AppTeamRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/_app/today': {
@@ -447,6 +466,7 @@ interface AppRouteRouteChildren {
   AppInvoiceRoute: typeof AppInvoiceRoute
   AppLeaveRoute: typeof AppLeaveRoute
   AppReportsRoute: typeof AppReportsRoute
+  AppTeamRoute: typeof AppTeamRoute
   AppTodayRoute: typeof AppTodayRoute
 }
 
@@ -456,6 +476,7 @@ const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppInvoiceRoute: AppInvoiceRoute,
   AppLeaveRoute: AppLeaveRoute,
   AppReportsRoute: AppReportsRoute,
+  AppTeamRoute: AppTeamRoute,
   AppTodayRoute: AppTodayRoute,
 }
 
