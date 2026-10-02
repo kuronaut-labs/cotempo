@@ -11,7 +11,7 @@ import { Button } from '~/components/ui/button'
 import { STATUS_LABEL } from '~/components/weekStatus'
 import type { Role } from '~/server/context'
 import { approveWeekFn, rejectWeekFn, unlockWeekFn } from '~/server/fns/approvals'
-import type { WeekForApproval } from '~/server/services/approvals'
+import type { WeekForApproval, IntervalEventView } from '~/server/services/approvals'
 
 const EVENT_LABEL: Record<WeekForApproval['events'][number]['kind'], string> = {
   submit: 'Submitted',
@@ -19,6 +19,23 @@ const EVENT_LABEL: Record<WeekForApproval['events'][number]['kind'], string> = {
   reject: 'Sent back',
   unlock: 'Unlocked',
   edited_after_submit: 'Edited after submitting',
+}
+
+const INTERVAL_EVENT_LABEL: Record<IntervalEventView['kind'], string> = {
+  create: 'Entry created',
+  edit: 'Entry edited',
+  delete: 'Entry deleted',
+}
+
+function changesText(changes: Record<string, { from: unknown; to: unknown }>): string {
+  const short = (v: unknown) => {
+    if (v == null) return '(none)'
+    const s = String(v)
+    return s.length > 30 ? `${s.slice(0, 30)}…` : s === '' ? '(blank)' : s
+  }
+  return Object.entries(changes)
+    .map(([k, { from: f, to: t }]) => `${k}: ${short(f)} → ${short(t)}`)
+    .join('; ')
 }
 
 const ACTION_ICON = { primary: Check, destructive: X, secondary: Unlock } as const
@@ -162,20 +179,33 @@ export function ApproverView({
 
       <section className="card">
         <h2>Audit trail</h2>
-        {week.events.length === 0 ? (
-          <div className="lanebody-empty">No events yet.</div>
-        ) : (
-          <ol className="audit-trail">
-            {week.events.map((e) => (
-              <li key={e.id}>
-                <span className="audit-at">{localDateTimeOf(e.at.getTime(), tz)}</span>
-                <span className="audit-kind">{EVENT_LABEL[e.kind] ?? e.kind}</span>
-                <span className="audit-actor">{e.actorName}</span>
-                {e.reason ? <span className="audit-reason">— {e.reason}</span> : null}
-              </li>
-            ))}
-          </ol>
-        )}
+        {(() => {
+          // C1: approval events + interval events merged, newest first
+          // (stable sort keeps same-instant rows in approval-then-interval order).
+          const trail: { key: string; at: Date; kind: string; actor: string; detail: string | null }[] = [
+            ...week.events.map((e) => ({ key: e.id, at: e.at, kind: EVENT_LABEL[e.kind] ?? e.kind, actor: e.actorName, detail: e.reason ?? null })),
+            ...week.intervalEvents.map((e) => ({
+              key: e.id,
+              at: e.at,
+              kind: INTERVAL_EVENT_LABEL[e.kind],
+              actor: e.actorName,
+              detail: e.changes ? changesText(e.changes) : null,
+            })),
+          ].sort((a, b) => b.at.getTime() - a.at.getTime())
+          if (trail.length === 0) return <div className="lanebody-empty">No events yet.</div>
+          return (
+            <ol className="audit-trail">
+              {trail.map((t) => (
+                <li key={t.key}>
+                  <span className="audit-at">{localDateTimeOf(t.at.getTime(), tz)}</span>
+                  <span className="audit-kind">{t.kind}</span>
+                  <span className="audit-actor">{t.actor}</span>
+                  {t.detail ? <span className="audit-reason">— {t.detail}</span> : null}
+                </li>
+              ))}
+            </ol>
+          )
+        })()}
       </section>
     </div>
   )

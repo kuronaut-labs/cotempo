@@ -1,4 +1,4 @@
-import { and, eq, gt, inArray, isNull, lt } from 'drizzle-orm'
+import { and, asc, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm'
 import { explode, recon as piecesRecon, type Piece } from '~/lib/attribution'
 import { localDateOf, localDayBoundariesUtcMs } from '~/lib/dayMath'
 import { HttpError } from '~/lib/errors'
@@ -51,6 +51,15 @@ export type WeekForApproval = {
   intervals: WeekIntervalAudit[]
   flags: Flag[]
   events: (ApprovalEventRow & { actorName: string })[]
+  intervalEvents: IntervalEventView[]
+}
+
+export type IntervalEventView = {
+  id: string
+  kind: 'create' | 'edit' | 'delete'
+  at: Date
+  actorName: string
+  changes: Record<string, { from: unknown; to: unknown }> | null
 }
 
 export type PendingWeek = { workerId: string; workerName: string; weekStart: string; recon: TimeRecon & { cents?: number }; flagCount: number }
@@ -443,6 +452,29 @@ export async function getWeekForApproval(deps: Deps, ctx: SessionContext, input:
     }
   }
   const wname = (await workerNames(db, [input.workerId])).get(input.workerId) ?? '?'
+  // C1: merge interval events for this week's intervals into the audit data.
+  const intervalEventViews: IntervalEventView[] = []
+  if (intervals.length > 0) {
+    const idList = intervals.map((i) => i.id)
+    const rawIe = await db
+      .select()
+      .from(schema.intervalEvents)
+      .where(inArray(schema.intervalEvents.intervalId, idList))
+      .orderBy(asc(schema.intervalEvents.at), sql`rowid`) // rowid breaks same-instant ties (fixed clock)
+      .all()
+    if (rawIe.length > 0) {
+      const actors = await workerNames(db, rawIe.map((e) => e.actorWorkerId))
+      for (const e of rawIe) {
+        // #5: rateCents is money — strip the diff for non-money viewers.
+        let changes: IntervalEventView['changes'] = e.changes ? (JSON.parse(e.changes) as IntervalEventView['changes']) : null
+        if (changes && !keepCents) {
+          const { rateCents: _drop, ...rest } = changes
+          changes = rest as IntervalEventView['changes']
+        }
+        intervalEventViews.push({ id: e.id, kind: e.kind, at: e.at, actorName: actors.get(e.actorWorkerId) ?? '?', changes })
+      }
+    }
+  }
   return {
     workerId: input.workerId,
     workerName: wname,
@@ -452,6 +484,7 @@ export async function getWeekForApproval(deps: Deps, ctx: SessionContext, input:
     intervals: intervalsAudit,
     flags,
     events,
+    intervalEvents: intervalEventViews,
   }
 }
 
