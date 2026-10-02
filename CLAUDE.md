@@ -75,6 +75,9 @@ Do not: refactor code outside the task, add dependencies, change config files (`
 | Positions (rate override) | `src/lib/schemas/positions.ts`, `src/server/services/positions.ts`, `src/server/fns/positions.ts` |
 | Positions admin page | `src/routes/_app/admin/positions.tsx` |
 | Design system | `docs/DESIGN.md` (spec) → `src/styles/tokens.css` (values) |
+| Interval edit events | `drizzle/schema.ts` intervalEvents, emitted in `src/server/services/intervals.ts` |
+| Flag thresholds / trends / realization / budgets | `src/server/services/{settings,reports,structure}.ts` |
+| Team view | `src/routes/_app/team.tsx`, `listTeamWeeks` in `src/server/services/approvals.ts` |
 
 ## Comments
 
