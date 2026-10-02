@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { z } from 'zod'
+import { FileDownload } from 'reicon-react'
 import { ApprovalsQueue } from '~/components/approvalsQueue'
 import { ApproverView } from '~/components/approverView'
 import { WeekStatus } from '~/components/weekStatus'
@@ -8,9 +9,11 @@ import { Button } from '~/components/ui/button'
 import { serverErrorMessage } from '~/components/forms/applyServerError'
 import { canSeeMoney, hasRole, type SessionContext } from '~/server/context'
 import { formatWeekLabel } from '~/lib/dayMath'
+import { addDays, parseIsoDate, toIsoDate } from '~/lib/dateShift'
 import { getSessionCtxFn } from '~/server/fns/auth'
 import { approveWeeksBulkFn, getWeekForApprovalFn, listMyWeeksFn, listPendingWeeksFn, submitWeekFn, weeksWithEntriesFn } from '~/server/fns/approvals'
 import { getTodayFn } from '~/server/fns/intervals'
+import { exportCsvFn } from '~/server/fns/exports'
 import { listWorkersFn } from '~/server/fns/workers'
 import { submitWeek as submitWeekSvc } from '~/server/services/approvals'
 import { assertCanEditWorker } from '~/server/guards/worker'
@@ -39,7 +42,7 @@ export const Route = createFileRoute('/_app/approvals')({
       if (deps.worker && deps.week) {
         view = await getWeekForApprovalFn({ data: { workerId: deps.worker, weekStart: deps.week } })
       }
-      return { ctx, tz, mode: 'approver' as const, queue, view, selected: deps.worker && deps.week ? { workerId: deps.worker, weekStart: deps.week } : null }
+      return { ctx, tz, mode: 'approver' as const, queue, view, selected: deps.worker && deps.week ? { workerId: deps.worker, weekStart: deps.week } : null, today: today.date }
     }
     const weeks = await listMyWeeksFn({ data: { weeks: 8 } })
     const withEntries = await weeksWithEntriesFn({ data: { workerId: ctx.workerId, weekStarts: weeks.map((w) => w.weekStart) } })
@@ -60,7 +63,7 @@ function goSearch(navigate: ReturnType<typeof useNavigate>, next: { worker?: str
 function ApprovalsView() {
   const data = Route.useLoaderData() as
     | { ctx: null }
-    | { ctx: SessionContext; tz: string; mode: 'approver'; queue: PendingWeek[]; view: WeekForApproval | null; selected: { workerId: string; weekStart: string } | null }
+    | { ctx: SessionContext; tz: string; mode: 'approver'; queue: PendingWeek[]; view: WeekForApproval | null; selected: { workerId: string; weekStart: string } | null; today: string }
     | { ctx: SessionContext; tz: string; mode: 'operator'; weeks: MyWeek[]; withEntries: string[]; view: WeekForApproval | null; workers: { workerId: string; name: string; kind: 'human' | 'agent' }[]; selected: { workerId: string; weekStart: string } | null }
   const navigate = useNavigate()
   const router = (Route as unknown as { useRouter?: () => { invalidate: () => Promise<void> } }).useRouter?.()
@@ -84,6 +87,30 @@ function ApprovalsView() {
         <header className="approvals-head">
           <h1>Approvals queue</h1>
           <span className="approvals-count">{data.queue.length} submitted</span>
+          <span style={{ marginLeft: 'auto' }} />
+          <Button
+            variant="secondary"
+            size="sm"
+            type="button"
+            onClick={async () => {
+              const to = data.today
+              const from = toIsoDate(addDays(parseIsoDate(to), -90))
+              const res = await exportCsvFn({ data: { from, to, view: 'events' } })
+              const blob = await res.blob()
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              const disp = res.headers.get('content-disposition') ?? ''
+              const m2 = /filename="([^"]+)"/.exec(disp)
+              a.download = m2?.[1] ?? `timesheets-${from}_${to}-events.csv`
+              document.body.appendChild(a)
+              a.click()
+              a.remove()
+              URL.revokeObjectURL(url)
+            }}
+          >
+            <FileDownload size={13} /> Export audit log
+          </Button>
         </header>
         <div className="approvals-split">
           <aside className="approvals-queue-pane">
