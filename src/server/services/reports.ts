@@ -8,7 +8,8 @@ import {
   type Piece,
   type Recon,
 } from '~/lib/attribution'
-import { localDateOf, localDayBoundariesUtcMs } from '~/lib/dayMath'
+import { localDateOf, localDayBoundariesUtcMs, minutesBetween } from '~/lib/dayMath'
+import { moneyCents } from '~/lib/money'
 import { HttpError } from '~/lib/errors'
 import { WeeksInput, type KpiInput, type PeriodInput } from '~/lib/schemas/reports'
 import { canSeeMoney, hasRole, type SessionContext } from '~/server/context'
@@ -23,7 +24,9 @@ export type TimeRecon = Omit<Recon, 'cents'>
 export type RoleRecon = Recon | TimeRecon
 
 export type ClientRecon = { clientId: string; name: string } & RoleRecon
-export type ReconciliationReport = { clients: ClientRecon[]; total: RoleRecon }
+export type ReconciliationReport = { clients: ClientRecon[]; total: RoleRecon; realization?: Record<string, ClientRealization> }
+/** Same minutes valued at the CURRENT job rate (#positions makes them diverge from actuals). */
+export type ClientRealization = { standardCents: number; realizationPct: number | null }
 
 export type DailyReport = {
   days: string[]
@@ -159,11 +162,26 @@ function scopeFor(ctx: SessionContext): { workerIds?: string[] } {
 
 export async function reconciliation(deps: Deps, ctx: SessionContext, input: PeriodInput): Promise<ReconciliationReport> {
   const { db } = deps
+  const keepCents = canSeeMoney(ctx)
   const pieces = await loadPieces(deps, input, scopeFor(ctx))
   const byClient = groupBy(pieces, 'clientId')
   const names = await clientNameMap(db, [...byClient.keys()])
 
-  const keepCents = canSeeMoney(ctx)
+  // B2: standard value of the same minutes at current job rates. When a position
+  // overrides the job rate at write time (#positions) the two diverge.
+  const jobRates = new Map<string, number | null>()
+  if (keepCents) {
+    const jobIds = [...new Set(pieces.map((p) => p.jobId))]
+    if (jobIds.length > 0) {
+      const rows = await db
+        .select({ id: schema.jobs.id, billableRateCents: schema.jobs.billableRateCents })
+        .from(schema.jobs)
+        .where(inArray(schema.jobs.id, jobIds))
+        .all()
+      for (const j of rows) jobRates.set(j.id, j.billableRateCents)
+    }
+  }
+
   const clients: ClientRecon[] = [...byClient.keys()]
     .sort()
     .map((clientId) => {
@@ -172,7 +190,19 @@ export async function reconciliation(deps: Deps, ctx: SessionContext, input: Per
     })
 
   const totalR = recon(pieces)
-  return { clients, total: makeRecon(totalR, keepCents) }
+  const report: ReconciliationReport = { clients, total: makeRecon(totalR, keepCents) }
+  if (keepCents) {
+    const realization: Record<string, ClientRealization> = {}
+    for (const [clientId, clientPieces] of byClient) {
+      const standard = moneyCents(
+        clientPieces.map((p) => ({ minutes: minutesBetween(p.startMs, p.endMs), rateCents: jobRates.get(p.jobId) ?? null })),
+      )
+      const actual = recon(clientPieces).cents
+      realization[clientId] = { standardCents: standard, realizationPct: standard > 0 ? Math.round((actual / standard) * 100) : null }
+    }
+    report.realization = realization
+  }
+  return report
 }
 
 export async function daily(deps: Deps, ctx: SessionContext, input: PeriodInput): Promise<DailyReport> {

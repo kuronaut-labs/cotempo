@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { deps, asUser, resetDb } from './helpers'
+import { deps, asUser, resetDb, at } from './helpers'
 import { adminKpis } from '~/server/services/reports'
 import { updateOrgSettings } from '~/server/services/settings'
 import { db } from './helpers'
@@ -49,5 +49,28 @@ describe('weeklyTrends (B1)', () => {
     // Seeded week wall = 1440 min (op 780 + Atlas 480 + Beacon 180); 3 humans × 480 × 5 = 7200 → 0.2.
     expect(rows[7]!.utilization).toBeCloseTo(0.2, 5)
     await expect(weeklyTrends(deps(), asUser('operator'), { weeks: 8 })).rejects.toMatchObject({ status: 403 })
+  })
+})
+
+describe('realization (B2)', () => {
+  it('reconciliation realization reflects position overrides', async () => {
+    // opWorker holds posSenior ($120/h); j1 is $140/h → this interval snapshots 12_000 vs standard 14_000.
+    const { createInterval } = await import('~/server/services/intervals')
+    const { reconciliation } = await import('~/server/services/reports')
+    await createInterval(deps(), asUser('operator'), {
+      workerId: ids.opWorker, jobId: ids.j1,
+      startedAt: at(4, 9).toISOString(), endedAt: at(4, 11).toISOString(),
+    })
+    const period = { from: '2026-08-31', to: '2026-09-06' }
+    const report = await reconciliation(deps(), asUser('billing'), period)
+    const c1 = report.realization![ids.c1]!
+    expect(c1.realizationPct).not.toBeNull()
+    expect(c1.realizationPct!).toBeLessThan(100)
+    expect(c1.standardCents).toBeGreaterThan(0)
+    // Seeded-only client: snapshots equal current rates → exactly 100%.
+    expect(report.realization![ids.c2]!.realizationPct).toBe(100)
+
+    const ops = await reconciliation(deps(), asUser('operator'), period)
+    expect('realization' in ops).toBe(false)
   })
 })
