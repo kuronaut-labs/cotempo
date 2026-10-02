@@ -3,21 +3,28 @@ import { z } from 'zod'
 import { StructureTree } from '~/components/structureTree'
 import { listStructureFn } from '~/server/fns/structure'
 import { getTodayFn } from '~/server/fns/intervals'
+import { listAssignmentsFn } from '~/server/fns/assignments'
+import { listWorkersFn } from '~/server/fns/workers'
 
 const search = z.object({ showArchived: z.boolean().optional() })
 
 export const Route = createFileRoute('/_app/admin/projects')({
   validateSearch: search,
   loaderDeps: ({ search: { showArchived } }) => ({ showArchived: showArchived ?? false }),
-  loader: async ({ deps }) => ({
-    tree: await listStructureFn({ data: { includeArchived: deps.showArchived } }),
-    today: await getTodayFn(),
-  }),
+  loader: async ({ deps }) => {
+    const [tree, today, assignments, workers] = await Promise.all([
+      listStructureFn({ data: { includeArchived: deps.showArchived } }),
+      getTodayFn(),
+      listAssignmentsFn({ data: {} }),
+      listWorkersFn(),
+    ])
+    return { tree, today, assignments, workers }
+  },
   component: ProjectsPage,
 })
 
 function ProjectsPage() {
-  const { tree, today } = Route.useLoaderData()
+  const { tree, today, assignments, workers } = Route.useLoaderData()
   const search = Route.useSearch()
   const navigate = useNavigate()
   const router = useRouter()
@@ -37,7 +44,7 @@ function ProjectsPage() {
           Show archived
         </label>
       </header>
-      <StructureTree tree={tree} manage="project" showArchived={showArchived} today={today.date} onRefresh={() => router.invalidate()} />
+      <StructureTree tree={tree} manage="project" showArchived={showArchived} today={today.date} assignments={assignments} workers={workers} onRefresh={() => router.invalidate()} />
     </>
   )
 }

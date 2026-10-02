@@ -4,17 +4,24 @@ import { InviteForm } from '~/components/inviteForm'
 import { resendInviteFn } from '~/server/fns/invites'
 import { listWorkersFn } from '~/server/fns/workers'
 import { listPositionsFn } from '~/server/fns/positions'
+import { listAssignmentsFn } from '~/server/fns/assignments'
+import { listStructureFn } from '~/server/fns/structure'
 
 export const Route = createFileRoute('/_app/admin/workers')({
-  loader: async () => ({
-    workers: await listWorkersFn(),
-    positions: await listPositionsFn(),
-  }),
+  loader: async () => {
+    const [workers, positions, assignments, structure] = await Promise.all([
+      listWorkersFn(),
+      listPositionsFn(),
+      listAssignmentsFn({ data: {} }),
+      listStructureFn({ data: {} }),
+    ])
+    return { workers, positions, assignments, structure }
+  },
   component: WorkersPage,
 })
 
 function WorkersPage() {
-  const { workers, positions } = Route.useLoaderData()
+  const { workers, positions, assignments, structure } = Route.useLoaderData()
   const router = useRouter()
   const refresh = () => router.invalidate()
   const resend = async (workerId: string) => {
@@ -27,7 +34,7 @@ function WorkersPage() {
       <header className="admin-head">
         <h1>Workers &amp; invites</h1>
       </header>
-      <WorkerRoster workers={workers} positions={positions} onRefresh={refresh} onResend={resend} />
+      <WorkerRoster workers={workers} positions={positions} assignments={assignments} structure={structure} onRefresh={refresh} onResend={resend} />
       <section className="panel">
         <h2 className="today-section-title">Invite a person</h2>
         <InviteForm workers={workers} positions={positions} onRefresh={refresh} />

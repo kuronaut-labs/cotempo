@@ -355,6 +355,46 @@ input[type='radio']:disabled:checked::after {
   color: var(--color-faint);
 }
 
+/* ---------- assignment pills (assignments 2.2) ---------- */
+
+.assignpills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.assignpill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--color-tertiary);
+  background: var(--surface-card);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  font-size: 12px;
+}
+
+.assignpill-hours {
+  width: 56px;
+  padding: 2px 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.assignpill-x {
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--color-info);
+  padding: 0 2px;
+  font-size: 11px;
+}
+
+.assignpill-x:hover {
+  color: var(--color-tertiary);
+}
+
 /* ---------- date nav ---------- */
 
 .datenav {

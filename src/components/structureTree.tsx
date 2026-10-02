@@ -3,8 +3,10 @@ import { Archive as ArchiveIcon, Briefcase, Building, Folder } from 'reicon-reac
 import { formatCents } from '~/lib/money'
 import { dueStatus, jobDueAfterProject } from '~/lib/dueDates'
 import { StatusChip } from '~/components/ui/chip'
+import { AssignPills } from '~/components/assignPills'
 import { serverErrorMessage } from '~/components/forms/applyServerError'
 import { Button } from '~/components/ui/button'
+import type { AssignmentView } from '~/server/fns/assignments'
 import type { ClientNode, JobNode, ProjectNode } from '~/server/services/structure'
 import {
   archiveClientFn,
@@ -61,12 +63,16 @@ export function StructureTree({
   manage,
   showArchived,
   today,
+  assignments,
+  workers,
   onRefresh,
 }: {
   tree: ClientNode[]
   manage: ManageLevel
   showArchived: boolean
   today: string
+  assignments?: AssignmentView[]
+  workers?: { workerId: string; name: string; kind: 'human' | 'agent' }[]
   onRefresh: () => void
 }) {
   const [error, setError] = useState<string | null>(null)
@@ -86,6 +92,7 @@ export function StructureTree({
 
   const live = (n: { archivedAt: Date | null }) => !n.archivedAt
   const clients = showArchived ? tree : tree.filter(live)
+  const showAssign = Boolean(assignments && workers && manage !== 'client')
 
   return (
     <div className="tree">
@@ -110,12 +117,14 @@ export function StructureTree({
                    <span className="name"><Folder size={14} /> {p.name}</span>
                   {p.archivedAt && <span className="tag">archived</span>}
                   <DueChip dueOn={p.dueOn} today={todayIso} />
+                  {showAssign && <AssignPills targetKind="project" targetId={p.id} assignments={assignments!} workers={workers!} run={run} />}
                   {manage === 'project' && live(p) && <ProjectActions node={p} run={run} />}
                 </div>
                 <div className="tree-jobs">
-                  {(showArchived ? p.jobs : p.jobs.filter(live)).map((j) => (
-                    <JobRow key={j.id} node={j} manage={manage} run={run} today={todayIso} project={p} />
-                  ))}
+                    {(showArchived ? p.jobs : p.jobs.filter(live)).map((j) => (
+                      <JobRow key={j.id} node={j} manage={manage} run={run} today={todayIso} project={p}
+                        assignments={assignments} workers={workers} />
+                    ))}
                   {manage === 'job' && live(p) && <AddJobForm projectId={p.id} run={run} />}
                 </div>
               </div>
@@ -233,12 +242,16 @@ function JobRow({
   run,
   today,
   project,
+  assignments,
+  workers,
 }: {
   node: JobNode
   manage: ManageLevel
   run: RunFn
   today: string
   project: ProjectNode
+  assignments?: AssignmentView[]
+  workers?: { workerId: string; name: string; kind: 'human' | 'agent' }[]
 }) {
   const live = !node.archivedAt
   const [editing, setEditing] = useState(false)
@@ -309,6 +322,7 @@ function JobRow({
       {node.budgetCents != null && <span className="rate">{formatCents(node.budgetCents)} budget</span>}
       {node.archivedAt && <span className="tag">archived</span>}
       <DueChip dueOn={node.dueOn} today={today} />
+      {assignments && workers ? <AssignPills targetKind="job" targetId={node.id} assignments={assignments} workers={workers} run={run} /> : null}
       {jobDueAfterProject(node.dueOn, project.dueOn) && <span data-tip="Due after its project">!</span>}
       {manage === 'job' && live && (
         <span className="tree-actions">

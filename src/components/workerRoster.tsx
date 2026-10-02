@@ -5,6 +5,7 @@ import { applyServerError, serverErrorMessage } from '~/components/forms/applySe
 import { RoleEnum, type Role } from '~/lib/schemas/workers'
 import type { WorkerView } from '~/server/services/workers'
 import type { PositionView } from '~/server/services/positions'
+import { createAssignmentFn, archiveAssignmentFn, type AssignmentView } from '~/server/fns/assignments'
 import { setWorkerPositionFn } from '~/server/fns/positions'
 import {
   archiveWorkerFn,
@@ -14,6 +15,8 @@ import {
   updateAgentWorkerFn,
 } from '~/server/fns/workers'
 import { Button } from '~/components/ui/button'
+import { formatHmm } from '~/lib/money'
+import type { ClientNode } from '~/server/services/structure'
 
 type HumanView = Extract<WorkerView, { kind: 'human' }>
 type AgentView = Extract<WorkerView, { kind: 'agent' }>
@@ -45,16 +48,21 @@ export function humanOptions(workers: WorkerView[]): { value: string; label: str
 export function WorkerRoster({
   workers,
   positions,
+  assignments = [],
+  structure = [],
   onRefresh,
   onResend,
 }: {
   workers: WorkerView[]
   positions: PositionView[]
+  assignments?: AssignmentView[]
+  structure?: ClientNode[]
   onRefresh: () => void
   onResend: (workerId: string) => Promise<{ mailed: boolean }>
 }) {
   const humans = workers.filter((w): w is HumanView => w.kind === 'human')
   const agents = workers.filter((w): w is AgentView => w.kind === 'agent')
+  const showAssign = assignments.length > 0 || structure.length > 0
   const [rowError, setRowError] = useState<{ workerId: string; text: string } | null>(null)
   const [inviteMsg, setInviteMsg] = useState<{ workerId: string; text: string; ok: boolean } | null>(null)
 
@@ -83,7 +91,7 @@ export function WorkerRoster({
   const errAfter = (workerId: string) =>
     rowError?.workerId === workerId ? (
       <tr>
-        <td colSpan={7} className="field-error" role="alert">
+        <td colSpan={8} className="field-error" role="alert">
           {rowError.text}
         </td>
       </tr>
@@ -103,6 +111,7 @@ export function WorkerRoster({
                 <th>Roles</th>
                 <th>Position</th>
                 <th>Supervisor</th>
+                {showAssign ? <th>Assignments</th> : null}
                 <th>Invite</th>
                 <th></th>
               </tr>
@@ -169,6 +178,11 @@ export function WorkerRoster({
                           ))}
                       </select>
                     </td>
+                    {showAssign && (
+                      <td>
+                        <AssignmentCell workerId={w.workerId} assignments={assignments} structure={structure} run={run} />
+                      </td>
+                    )}
                     <td>
                       {w.inviteState === 'pending' ? (
                         <Fragment>
@@ -221,6 +235,7 @@ export function WorkerRoster({
                 <th>Framework</th>
                 <th>Status</th>
                 <th>Supervisor</th>
+                {showAssign ? <th>Assignments</th> : null}
                 <th></th>
               </tr>
             </thead>
@@ -252,6 +267,11 @@ export function WorkerRoster({
                         ))}
                       </select>
                     </td>
+                    {showAssign && (
+                      <td>
+                        <AssignmentCell workerId={w.workerId} assignments={assignments} structure={structure} run={run} />
+                      </td>
+                    )}
                     <td className="intervallist-actions">
                       <Button
                         type="button"
@@ -272,6 +292,78 @@ export function WorkerRoster({
           </table>
         )}
       </section>
+    </div>
+  )
+}
+
+/* ---------- roster assignments cell ---------- */
+
+function AssignmentCell({
+  workerId,
+  assignments,
+  structure,
+  run,
+}: {
+  workerId: string
+  assignments: AssignmentView[]
+  structure: ClientNode[]
+  run: (workerId: string, op: () => Promise<unknown>) => Promise<void>
+}) {
+  const mine = assignments.filter((a) => a.workerId === workerId)
+  const available = structure.filter((c) => !c.archivedAt)
+  return (
+    <div className="assignpills">
+      {mine.length === 0 ? (
+        <span className="lane-empty-note">Nothing assigned</span>
+      ) : (
+        mine.map((a) => (
+          <span key={a.id} className="assignpill">
+            {a.targetName}
+            <span className="tag" aria-label="Target kind">
+              {a.targetKind === 'project' ? 'Project' : 'Job'}
+            </span>
+            {a.allocatedMinutes != null && <span className="mono">{formatHmm(a.allocatedMinutes)}</span>}
+            <button
+              type="button"
+              className="assignpill-x"
+              aria-label="Unassign"
+              onClick={() => void run(workerId, () => archiveAssignmentFn({ data: { id: a.id } }))}
+            >
+              ✕
+            </button>
+          </span>
+        ))
+      )}
+      {available.length > 0 && (
+        <select
+          value=""
+          aria-label={`Assign worker ${workerId}`}
+          onChange={(e) => {
+            const [kind, id] = e.target.value.split(':')
+            if (id) void run(workerId, () => createAssignmentFn({ data: { workerId, targetKind: kind as 'project' | 'job', targetId: id } }))
+          }}
+        >
+          <option value="">Assign…</option>
+          <optgroup label="Projects">
+            {available.map((c) => c.projects.filter((p) => !p.archivedAt).map((p) => (
+              <option key={p.id} value={`project:${p.id}`}>
+                {c.name} / {p.name}
+              </option>
+            )))}
+          </optgroup>
+          <optgroup label="Jobs">
+            {available.flatMap((c) =>
+              c.projects.filter((p) => !p.archivedAt).flatMap((p) =>
+                p.jobs.filter((j) => !j.archivedAt).map((j) => (
+                  <option key={j.id} value={`job:${j.id}`}>
+                    {c.name} / {p.name} / {j.name}
+                  </option>
+                )),
+              ),
+            )}
+          </optgroup>
+        </select>
+      )}
     </div>
   )
 }
