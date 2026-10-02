@@ -4,6 +4,9 @@ import { localDateOf, localDayBoundariesUtcMs } from '~/lib/dayMath'
 import { HttpError } from '~/lib/errors'
 import { defaults as flagDefaults, redFlags, type Flag } from '~/lib/redFlags'
 import { isMonday } from '~/lib/week'
+import { effectiveJobIds } from '~/lib/allocation'
+import { listAssignments } from './assignments'
+import { listStructure } from './structure'
 import { getOrgSettings, type OrgSettingsView } from './settings'
 import { canSeeMoney, hasRole, isAdmin, type SessionContext } from '~/server/context'
 import { schema, type Db } from '~/server/db'
@@ -54,6 +57,8 @@ export type WeekForApproval = {
   flags: Flag[]
   events: (ApprovalEventRow & { actorName: string })[]
   intervalEvents: IntervalEventView[]
+  /** Ids of intervals whose job is outside the worker's effective assignment set. */
+  unassignedIntervalIds: string[]
 }
 
 export type IntervalEventView = {
@@ -464,6 +469,14 @@ export async function getWeekForApproval(deps: Deps, ctx: SessionContext, input:
     }
   }
   const supervisors = await workerSupervisors(db, [input.workerId])
+  const unassignedIntervalIds: string[] = []
+  if (intervals.length > 0) {
+    const assigned = await listAssignments(deps, ctx, { workerId: input.workerId })
+    if (assigned.length > 0) {
+      const jobIds = effectiveJobIds(assigned, await listStructure(deps, ctx, { includeArchived: true }))
+      for (const i of intervals) if (!jobIds.has(i.jobId)) unassignedIntervalIds.push(i.id)
+    }
+  }
   const flags = redFlags({
     weekStart: input.weekStart,
     tz,
@@ -513,6 +526,7 @@ export async function getWeekForApproval(deps: Deps, ctx: SessionContext, input:
     flags,
     events,
     intervalEvents: intervalEventViews,
+    unassignedIntervalIds,
   }
 }
 

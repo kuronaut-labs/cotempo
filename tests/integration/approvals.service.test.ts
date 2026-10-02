@@ -122,3 +122,16 @@ describe('bulk approve (C4)', () => {
     ).rejects.toMatchObject({ status: 403 })
   })
 })
+
+describe('unassigned-entry advisory (4.2)', () => {
+  beforeEach(() => resetDb())
+
+  it('week view lists intervals on unassigned jobs when the worker has assignments', async () => {
+    // opWorker is assigned to p1 (j1, j2); seeded iv06 (j3) and iv08 (j4) are outside it.
+    const week = await getWeekForApproval(deps(), asUser('billing'), { workerId: ids.opWorker, weekStart: '2026-08-31' })
+    expect(week.unassignedIntervalIds.sort()).toEqual(['demo-0000-iv-06', 'demo-0000-iv-08'])
+    // billingWorker has no assignments → nothing flagged
+    const bw = await getWeekForApproval(deps(), asUser('billing'), { workerId: ids.billingWorker, weekStart: '2026-08-31' })
+    expect(bw.unassignedIntervalIds).toEqual([])
+  })
+})

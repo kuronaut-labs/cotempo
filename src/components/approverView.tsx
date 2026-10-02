@@ -88,7 +88,13 @@ export function ApproverView({
         {week.intervals.length === 0 ? (
           <div className="lanebody-empty">No entries this week.</div>
         ) : (
-          <table className="intervalaudit">
+          <>
+            {week.unassignedIntervalIds.length > 0 ? (
+              <p className="status-msg">
+                {week.unassignedIntervalIds.length} entries on jobs this worker is not assigned to
+              </p>
+            ) : null}
+            <table className="intervalaudit">
             <thead>
               <tr>
                 <th>Time</th>
@@ -103,8 +109,14 @@ export function ApproverView({
             <tbody>
               {week.intervals.map((iv) => {
                 const isHover = Boolean(hover && iv.id === hover)
+                const isUnassigned = week.unassignedIntervalIds.includes(iv.id)
                 return (
-                  <tr key={iv.id} id={iv.id} tabIndex={0} className={isHover ? 'flag-hover' : undefined}>
+                  <tr
+                    key={iv.id}
+                    id={iv.id}
+                    tabIndex={0}
+                    className={`${isHover ? 'flag-hover ' : ''}${isUnassigned ? 'unassigned' : ''}`.trim() || undefined}
+                  >
                     <td>
                       {localHHMM(iv.startedAt.getTime(), tz)}–
                       {localHHMM(iv.endedAt.getTime(), tz)}
@@ -124,6 +136,7 @@ export function ApproverView({
               })}
             </tbody>
           </table>
+          </>
         )}
       </section>
 

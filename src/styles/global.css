@@ -825,6 +825,11 @@ input[type='radio']:disabled:checked::after {
   color: var(--color-info);
 }
 
+.intervalaudit tr.unassigned {
+  /* assignments 4.2: shadow unassigned entries — the tool doesn't fail on them. */
+  box-shadow: inset 3px 0 0 var(--color-warning);
+}
+
 /* ---------- reconciliation trio chip (5.2a) ---------- */
 
 .trio {
