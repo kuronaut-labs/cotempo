@@ -8,6 +8,7 @@ import { schema, type Db } from '~/server/db'
 import type { ExportCsvInput, InvoiceInput } from '~/lib/schemas/reports'
 import { groupBy } from '~/lib/attribution'
 import { loadPieces } from './reports'
+import { allocationReport } from './allocations'
 import { leaveExportRows } from './leave'
 import type { Deps } from './deps'
 
@@ -43,6 +44,19 @@ export const LEAVE_CSV_COLUMNS = [
 ] as const
 
 export const EVENTS_CSV_COLUMNS = ['at', 'kind', 'worker', 'subject', 'actor', 'detail'] as const
+
+export const ALLOCATIONS_CSV_COLUMNS = [
+  'worker',
+  'kind',
+  'target_kind',
+  'target',
+  'client',
+  'due_on',
+  'allocated_minutes',
+  'logged_minutes',
+  'remaining_minutes',
+  'pace',
+] as const
 
 export const DAILY_CSV_COLUMNS = [
   'day',
@@ -217,6 +231,28 @@ export async function exportCsv(
       )
     }
     return { filename, body: out.join('\n') + '\n' }
+  }
+
+  if (input.view === 'allocations') {
+    const rows = await allocationReport(deps, ctx, {})
+    const out: string[] = [csvRow(ALLOCATIONS_CSV_COLUMNS as unknown as string[])]
+    for (const r of rows) {
+      out.push(
+        csvRow([
+          r.workerName,
+          r.workerKind,
+          r.targetKind,
+          r.targetName,
+          r.clientName,
+          r.dueOn ?? '',
+          r.allocatedMinutes == null ? '' : String(r.allocatedMinutes),
+          String(r.loggedMinutes),
+          r.remainingMinutes == null ? '' : String(r.remainingMinutes),
+          r.pace,
+        ]),
+      )
+    }
+    return { filename: `timesheets-${input.from}_${input.to}-allocations.csv`, body: out.join('\n') + '\n' }
   }
 
   if (input.view === 'events') {

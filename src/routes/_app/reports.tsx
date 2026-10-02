@@ -31,6 +31,8 @@ import { exportCsvFn } from '~/server/fns/exports'
 import { leaveReportFn } from '~/server/fns/leave'
 import { listStructureFn } from '~/server/fns/structure'
 import { colorIndexFromStructure } from '~/lib/jobColors'
+import { StatusChip } from '~/components/ui/chip'
+import { allocationReportFn, type AllocationRow } from '~/server/fns/allocations'
 import { StructureTree, rateLabel } from '~/components/structureTree'
 import type { SessionContext } from '~/server/context'
 import type { AdminKpis } from '~/server/services/reports'
@@ -38,7 +40,7 @@ import type { ClientNode } from '~/server/services/structure'
 
 const searchSchema = z.object({
   tab: z.enum(['admin', 'billing', 'operator']).optional(),
-  sub: z.enum(['recon', 'daily', 'leave', 'trends']).optional(),
+  sub: z.enum(['recon', 'daily', 'leave', 'trends', 'allocations']).optional(),
   from: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD')
@@ -51,7 +53,7 @@ const searchSchema = z.object({
 
 type Search = z.infer<typeof searchSchema>
 type TabId = 'admin' | 'billing' | 'operator'
-type SubId = 'recon' | 'daily' | 'leave' | 'trends'
+type SubId = 'recon' | 'daily' | 'leave' | 'trends' | 'allocations'
 
 /* Default tab = highest role; default sub = 'recon' under billing. */
 function defaultTab(ctx: SessionContext | null): TabId {
@@ -85,11 +87,12 @@ export const Route = createFileRoute('/_app/reports')({
     const to = deps.to ?? week.to
 
     if (tab === 'admin' && ctx?.roles.includes('admin')) {
-      const [kpis, structure] = await Promise.all([
+      const [kpis, structure, allocations] = await Promise.all([
         adminKpisFn({ data: { date: to } }),
         listStructureFn({ data: { includeArchived: false } }),
+        allocationReportFn({ data: {} }),
       ])
-      return { today: today.date, tz, ctx, tab, sub, from, to, kpis, structure }
+      return { today: today.date, tz, ctx, tab, sub, from, to, kpis, structure, allocations }
     }
     if (tab === 'billing' && (ctx?.roles.includes('billing') || ctx?.roles.includes('admin'))) {
       const period = { from, to }
@@ -100,6 +103,10 @@ export const Route = createFileRoute('/_app/reports')({
       if (sub === 'leave') {
         const leave = await leaveReportFn({ data: period })
         return { today: today.date, tz, ctx, tab, sub, from, to, leave }
+      }
+      if (sub === 'allocations') {
+        const allocations = await allocationReportFn({ data: {} })
+        return { today: today.date, tz, ctx, tab, sub, from, to, allocations }
       }
       if (sub === 'trends') {
         const trends = await weeklyTrendsFn({ data: { weeks: 8 } })
@@ -115,7 +122,8 @@ export const Route = createFileRoute('/_app/reports')({
     }
     const lanes = await operatorLanesFn({ data: { from, to } })
     const structure = await listStructureFn({ data: { includeArchived: false } })
-    return { today: today.date, tz, ctx, tab, sub, from, to, lanes, structure }
+    const allocations = await allocationReportFn({ data: {} })
+    return { today: today.date, tz, ctx, tab, sub, from, to, lanes, structure, allocations }
   },
   component: ReportsView,
 })
@@ -142,6 +150,7 @@ function ReportsView() {
     leave?: import('~/server/fns/leave').LeaveReportView[]
     trends?: import('~/server/services/reports').WeekTrend[]
     prevRecon?: import('~/server/services/reports').ReconciliationReport
+    allocations?: AllocationRow[]
   }
   const navigate = useNavigate()
   const { today, tz, ctx, tab, sub, from, to } = data
@@ -175,6 +184,7 @@ function ReportsView() {
         <AdminPanel
           kpis={data.kpis}
           structure={data.structure}
+          allocations={data.allocations}
           today={data.today}
           to={to}
           onDateChange={(next) => goSearch(navigate, { to: next })}
@@ -193,6 +203,7 @@ function ReportsView() {
           leave={data.leave}
           trends={data.trends}
           jobs={data.jobs}
+          allocations={data.allocations}
           prevRecon={data.prevRecon}
           onPeriodChange={(p) => goSearch(navigate, { from: p.from, to: p.to })}
           onSubChange={(s) => goSearch(navigate, { sub: s })}
@@ -200,7 +211,7 @@ function ReportsView() {
       ) : null}
 
       {activeTab === 'operator' && data.lanes ? (
-        <OperatorPanel lanes={data.lanes} tz={tz} from={from} to={to} today={today} onPeriodChange={(p) => goSearch(navigate, { from: p.from, to: p.to })} jobColorIndex={colorIndexFromStructure(data.structure ?? [])} />
+        <OperatorPanel lanes={data.lanes} allocations={data.allocations} tz={tz} from={from} to={to} today={today} onPeriodChange={(p) => goSearch(navigate, { from: p.from, to: p.to })} jobColorIndex={colorIndexFromStructure(data.structure ?? [])} />
       ) : null}
     </main>
   )
@@ -209,12 +220,14 @@ function ReportsView() {
 function AdminPanel({
   kpis,
   structure,
+  allocations,
   today,
   to,
   onDateChange,
 }: {
   kpis: AdminKpis
   structure: ClientNode[]
+  allocations?: AllocationRow[]
   today: string
   to: string
   onDateChange: (next: string) => void
@@ -276,6 +289,8 @@ function AdminPanel({
         </ul>
       </section>
 
+      {allocations ? <CapacityCard allocations={allocations} /> : null}
+
       <section className="card">
         <h2>Today’s concurrent effort</h2>
         <EffortBars series={kpis.effortSeries} />
@@ -311,6 +326,7 @@ function BillingPanel({
   leave,
   trends,
   jobs,
+  allocations,
   prevRecon,
   onPeriodChange,
   onSubChange,
@@ -326,6 +342,7 @@ function BillingPanel({
   trends?: import('~/server/services/reports').WeekTrend[]
   prevRecon?: import('~/server/services/reports').ReconciliationReport
   jobs?: import('~/server/services/reports').JobRecon[]
+  allocations?: AllocationRow[]
   onPeriodChange: (next: { from: string; to: string }) => void
   onSubChange: (next: SubId) => void
 }) {
@@ -339,6 +356,7 @@ function BillingPanel({
           { id: 'daily', label: 'Daily' },
           { id: 'leave', label: 'Leave' },
           { id: 'trends', label: 'Trends' },
+          { id: 'allocations', label: 'Allocations' },
         ]}
         active={sub}
         onChange={(id) => onSubChange(id as SubId)}
@@ -347,9 +365,9 @@ function BillingPanel({
       <div className="period-exports">
         <Button variant="secondary" size="sm" type="button"
           onClick={async () => {
-            // Sub tab 'recon' maps to CSV view 'intervals'; 'daily' to 'daily'; 'leave' to 'leave'.
-            const view: 'intervals' | 'daily' | 'leave' =
-              sub === 'recon' || sub === 'trends' ? 'intervals' : sub === 'daily' ? 'daily' : 'leave'
+            // Sub tab 'recon' maps to CSV view 'intervals'; 'daily' to 'daily'; 'leave' to 'leave'; 'allocations' to 'allocations'.
+            const view: 'intervals' | 'daily' | 'leave' | 'allocations' =
+              sub === 'recon' || sub === 'trends' ? 'intervals' : sub === 'daily' ? 'daily' : sub === 'allocations' ? 'allocations' : 'leave'
             const res = await exportCsvFn({ data: { from, to, view } })
             const blob = await res.blob()
             const url = URL.createObjectURL(blob)
@@ -465,12 +483,104 @@ function BillingPanel({
           </table>
         </section>
       ) : null}
+      {sub === 'allocations' && allocations ? (
+        <section className="card">
+          <h2>Allocations</h2>
+          <AllocationTable rows={allocations} showClient />
+        </section>
+      ) : null}
     </div>
+  )
+}
+
+const PACE_KIND: Record<string, import('~/components/ui/chip').ChipKind> = {
+  ahead: 'success',
+  on_track: 'success',
+  behind: 'error',
+  over: 'error',
+  'n/a': 'muted',
+}
+
+const PACE_LABEL: Record<string, string> = {
+  ahead: 'Ahead',
+  on_track: 'On track',
+  behind: 'Behind',
+  over: 'Over',
+  'n/a': '—',
+}
+
+function PaceChip({ pace }: { pace: string }) {
+  return <StatusChip kind={PACE_KIND[pace] ?? 'muted'}>{PACE_LABEL[pace] ?? pace}</StatusChip>
+}
+
+function AllocationTable({ rows, showClient = true }: { rows: AllocationRow[]; showClient?: boolean }) {
+  return (
+    <table className="recontable">
+      <thead>
+        <tr>
+          <th className="nm">Worker</th>
+          <th className="nm">Target</th>
+          {showClient ? <th>Client</th> : null}
+          <th>Due</th>
+          <th>Allocated</th>
+          <th>Logged</th>
+          <th>Remaining</th>
+          <th>Pace</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <tr key={r.assignmentId}>
+            <td className="nm">{r.workerName}</td>
+            <td>{r.targetName}</td>
+            {showClient ? <td>{r.clientName}</td> : null}
+            <td className="mono">{r.dueOn ?? '—'}</td>
+            <td className="money">{r.allocatedMinutes != null ? formatHmm(r.allocatedMinutes) : '—'}</td>
+            <td className="money">{formatHmm(r.loggedMinutes)}</td>
+            <td className="money">{r.remainingMinutes != null ? formatHmm(r.remainingMinutes) : '—'}</td>
+            <td><PaceChip pace={r.pace} /></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+function CapacityCard({ allocations }: { allocations: AllocationRow[] }) {
+  // Per worker Σ allocated vs Σ logged across live assignments.
+  const per = new Map<string, { name: string; allocated: number; logged: number }>()
+  for (const r of allocations) {
+    const e = per.get(r.workerId) ?? { name: r.workerName, allocated: 0, logged: 0 }
+    e.allocated += r.allocatedMinutes ?? 0
+    e.logged += r.loggedMinutes
+    per.set(r.workerId, e)
+  }
+  const rows = [...per.values()].sort((a, b) => a.name.localeCompare(b.name))
+  return (
+    <section className="card">
+      <h2>Capacity</h2>
+      <ul className="util-list">
+        {rows.length === 0 ? <li className="lanebody-empty">No live assignments.</li> : null}
+        {rows.map((w) => {
+          const pct = w.allocated > 0 ? w.logged / w.allocated : 0
+          return (
+            <li key={w.name} className="util-row">
+              <span className="nm">{w.name}</span>
+              <span className="track">
+                <span className={`fill${pct > 1 ? ' high' : ''}`} style={{ width: `${Math.min(100, pct * 100)}%` }} />
+              </span>
+              <span className="val">{formatHmm(w.logged)} of {w.allocated > 0 ? formatHmm(w.allocated) : '—'}</span>
+            </li>
+          )
+        })}
+      </ul>
+    </section>
   )
 }
 
 function OperatorPanel({
   lanes,
+  allocations,
   tz,
   from,
   to,
@@ -479,6 +589,7 @@ function OperatorPanel({
   jobColorIndex,
 }: {
   lanes: import('~/server/services/reports').OperatorLane[]
+  allocations?: AllocationRow[]
   tz: string
   from: string
   to: string
@@ -492,6 +603,12 @@ function OperatorPanel({
         <h2>My time and my team's</h2>
       </header>
       <PeriodSelector from={from} to={to} today={today} tz={tz} onChange={onPeriodChange} />
+      {allocations && allocations.length > 0 ? (
+        <section className="card">
+          <h2>My assignments</h2>
+          <AllocationTable rows={allocations} showClient={false} />
+        </section>
+      ) : null}
       <OperatorLanes lanes={lanes} tz={tz} jobColorIndex={jobColorIndex} />
     </div>
   )

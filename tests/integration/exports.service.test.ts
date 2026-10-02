@@ -66,3 +66,22 @@ describe('audit CSV (C5)', () => {
     ).rejects.toMatchObject({ status: 403 })
   })
 })
+
+describe('allocations CSV (Task 3.2)', () => {
+  beforeEach(() => resetDb())
+
+  it('billing export of allocations has the header and three data rows', async () => {
+    const res = await exportCsv(deps(), asUser('billing'), { from: '2000-01-01', to: '2100-01-01', view: 'allocations' })
+    const lines = res.body.trimEnd().split('\n')
+    expect(lines[0]).toBe('worker,kind,target_kind,target,client,due_on,allocated_minutes,logged_minutes,remaining_minutes,pace')
+    expect(lines.length).toBe(4)
+    expect(lines.slice(1).some((l) => l.includes(',project,')))
+    expect(res.filename).toContain('-allocations.csv')
+  })
+
+  it('operators cannot export allocations', async () => {
+    await expect(
+      exportCsv(deps(), asUser('operator'), { from: '2000-01-01', to: '2100-01-01', view: 'allocations' }),
+    ).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' } satisfies Partial<HttpError>)
+  })
+})
