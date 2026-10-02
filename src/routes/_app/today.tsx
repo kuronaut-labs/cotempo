@@ -6,11 +6,14 @@ import { DateNav } from '~/components/dateNav'
 import { DayMathChip } from '~/components/dayMathChip'
 import { EntryForm, type Initial } from '~/components/entryForm'
 import { IntervalList } from '~/components/intervalList'
+import { AssignmentsStrip } from '~/components/assignmentsStrip'
 import { MiniStrip } from '~/components/miniStrip'
 import { localHHMM } from '~/lib/dayMath'
 import { colorIndexFromStructure } from '~/lib/jobColors'
 import { HowCounted } from '~/components/howCounted'
 import { parseHttpError } from '~/lib/errors'
+import { listAssignmentsFn } from '~/server/fns/assignments'
+import { allocationReportFn } from '~/server/fns/allocations'
 import { serverErrorMessage } from '~/components/forms/applyServerError'
 import type { CreateIntervalInput, UpdateIntervalInput } from '~/lib/schemas/intervals'
 import { getSessionCtxFn } from '~/server/fns/auth'
@@ -42,19 +45,21 @@ export const Route = createFileRoute('/_app/today')({
     const todayP = getTodayFn()
     const date = deps.date ?? (await todayP).date
     const ctxP = getSessionCtxFn()
-    const [ctx, day, structure, workers, today] = await Promise.all([
+    const [ctx, day, structure, workers, today, assignments, allocations] = await Promise.all([
       ctxP,
       listDayFn({ data: { date } }),
       listStructureFn({ data: { includeArchived: false } }),
       listWorkersFn(),
       todayP,
+      listAssignmentsFn({ data: {} }),
+      allocationReportFn({ data: {} }),
     ])
     // Recent jobs for the self-worker (the entry form's worker select defaults to self).
     // Scope to the operator's own work — supervisees see their own recent jobs too.
     const recentJobs = ctx && (ctx.workerId || ctx.superviseeWorkerIds[0])
       ? await getRecentJobsFn({ data: { workerId: ctx.workerId || ctx.superviseeWorkerIds[0]! } })
       : []
-    return { today: today.date, tz: today.tz, ctx, day, structure, workers, recentJobs }
+    return { today: today.date, tz: today.tz, ctx, day, structure, workers, recentJobs, assignments, allocations }
   },
   component: TodayView,
 })
@@ -62,7 +67,7 @@ export const Route = createFileRoute('/_app/today')({
 type WorkerRow = { workerId: string; kind: 'human' | 'agent'; name: string }
 
 function TodayView() {
-  const { today, tz, ctx, day, structure, workers, recentJobs } = Route.useLoaderData()
+  const { today, tz, ctx, day, structure, workers, recentJobs, assignments, allocations } = Route.useLoaderData()
   const search = Route.useSearch()
   const navigate = useNavigate()
   const router = useRouter()
@@ -139,6 +144,8 @@ function TodayView() {
         onChange={(next) => navigate({ to: '/today', search: next === today ? {} : { date: next } })}
       />
 
+      <AssignmentsStrip rows={allocations} workers={workers} />
+
       {ctx && (
         <section className="panel today-add" ref={addPanelRef}>
           <EntryForm
@@ -149,6 +156,7 @@ function TodayView() {
             workers={workers}
             structure={structure}
             recentJobs={recentJobs}
+            assignments={assignments}
             heading={
               prefill
                 ? `Add entry over ${localHHMM(Date.parse(prefill.startedAt ?? ''), tz)}–${localHHMM(Date.parse(prefill.endedAt ?? ''), tz)}`

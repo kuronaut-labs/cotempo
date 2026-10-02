@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { Check } from 'reicon-react'
 import { localDateOf, localHHMM } from '~/lib/dayMath'
 import { endFromDuration } from '~/lib/entryDefaults'
+import { effectiveJobIds } from '~/lib/allocation'
 import { CreateIntervalInput, UpdateIntervalInput } from '~/lib/schemas/intervals'
 import { applyServerError } from '~/components/forms/applyServerError'
 import { Button } from '~/components/ui/button'
@@ -40,6 +41,7 @@ export function EntryForm({
   workers,
   structure,
   recentJobs,
+  assignments,
   initial,
   compact = false,
   heading,
@@ -55,6 +57,8 @@ export function EntryForm({
   structure: ClientNode[]
   /** Jobs this worker has used recently, ordered most-recent first (P3.15). */
   recentJobs?: { jobId: string; jobName: string; projectName: string; clientName: string; clientId: string }[]
+  /** Live assignments, for the Assigned optgroup (AssignmentView projected to what we need). */
+  assignments?: { workerId: string; targetKind: 'project' | 'job'; targetId: string; dueOn?: string | null }[]
   initial?: Initial
   /** One-row layout (LD7) for the top-of-Today create form; edit keeps the full layout. */
   compact?: boolean
@@ -131,11 +135,34 @@ export function EntryForm({
 
   const jobField = (
     <form.Field name="jobId">
-      {(f) => (
+      {(f) => {
+        const selectedWorkerId = form.state.values.workerId
+        const assigned = assignments
+          ? effectiveJobIds(assignments.filter((a) => a.workerId === selectedWorkerId), structure)
+          : new Set<string>()
+        return (
         <label className="field">
           <span>Job</span>
           <select ref={jobRef} value={f.state.value} onChange={(e) => f.handleChange(e.target.value)} onBlur={f.handleBlur}>
             <option value="">— select —</option>
+            {assigned.size > 0 && (
+              <optgroup label="Assigned">
+                {structure.flatMap((c) =>
+                  c.projects
+                    .filter((p) => !p.archivedAt)
+                    .flatMap((p) =>
+                      p.jobs
+                        .filter((j) => !j.archivedAt && assigned.has(j.id))
+                        .map((j) => (
+                          <option key={j.id} value={j.id}>
+                            {j.name} · {p.name}
+                            {j.dueOn ?? p.dueOn ? ` · due ${j.dueOn ?? p.dueOn}` : ''}
+                          </option>
+                        )),
+                    ),
+                )}
+              </optgroup>
+            )}
             {recentJobs && recentJobs.length > 0 && (
               <optgroup label="Recent">
                 {recentJobs.map((j) => (
@@ -159,7 +186,8 @@ export function EntryForm({
           </select>
           <FieldError errors={f.state.meta.errors} />
         </label>
-      )}
+        )
+      }}
     </form.Field>
   )
 

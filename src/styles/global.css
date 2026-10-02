@@ -392,7 +392,24 @@ input[type='radio']:disabled:checked::after {
 }
 
 .assignpill-x:hover {
-  color: var(--color-tertiary);
+   color: var(--color-tertiary);
+}
+
+/* ---------- assignments strip (assignments 4.1) ---------- */
+
+.assignmentsstrip ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: 400 13px/1.6 var(--font-body);
+}
+
+.assignmentsstrip .dot {
+  color: var(--color-faint);
+  margin: 0 4px;
 }
 
 /* ---------- date nav ---------- */
