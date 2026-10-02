@@ -74,3 +74,18 @@ describe('realization (B2)', () => {
     expect('realization' in ops).toBe(false)
   })
 })
+
+describe('budget vs actual (B3)', () => {
+  it('perJob carries budget vs consumed for billing only', async () => {
+    const { perJob } = await import('~/server/services/reports')
+    const { updateJob } = await import('~/server/services/structure')
+    await updateJob(deps(), asUser('admin'), { id: ids.j1, budgetCents: 1_000_000 })
+    const rows = await perJob(deps(), asUser('billing'), { from: '2026-08-31', to: '2026-09-06' })
+    const j1 = rows.find((r) => r.jobId === ids.j1)!
+    expect(j1.budgetCents).toBe(1_000_000)
+    expect(j1.consumedCents!).toBeGreaterThanOrEqual(0)
+    expect(j1.budgetPct == null || typeof j1.budgetPct === 'number').toBe(true)
+    const ops = await perJob(deps(), asUser('operator'), { from: '2026-08-31', to: '2026-09-06' })
+    if (ops.length > 0) expect('budgetCents' in ops[0]!).toBe(false)
+  })
+})

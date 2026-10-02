@@ -8,6 +8,7 @@ import { OperatorLanes } from '~/components/operatorLanes'
 import { PeriodSelector, thisWeek } from '~/components/periodSelector'
 import { ReconBars } from '~/components/reconBars'
 import { ReconTable } from '~/components/reconTable'
+import { TrioChip } from '~/components/trioChip'
 import { DailyTable } from '~/components/dailyTable'
 import { SubTabs } from '~/components/subTabs'
 import { formatCents, formatHmm } from '~/lib/money'
@@ -180,6 +181,7 @@ function ReportsView() {
           daily={data.daily}
           leave={data.leave}
           trends={data.trends}
+          jobs={data.jobs}
           onPeriodChange={(p) => goSearch(navigate, { from: p.from, to: p.to })}
           onSubChange={(s) => goSearch(navigate, { sub: s })}
         />
@@ -294,6 +296,7 @@ function BillingPanel({
   daily,
   leave,
   trends,
+  jobs,
   onPeriodChange,
   onSubChange,
 }: {
@@ -306,6 +309,7 @@ function BillingPanel({
   daily?: import('~/server/services/reports').DailyReport
   leave?: import('~/server/fns/leave').LeaveReportView[]
   trends?: import('~/server/services/reports').WeekTrend[]
+  jobs?: import('~/server/services/reports').JobRecon[]
   onPeriodChange: (next: { from: string; to: string }) => void
   onSubChange: (next: SubId) => void
 }) {
@@ -373,6 +377,28 @@ function BillingPanel({
         <section className="card">
           <h2>Daily breakdown</h2>
           <DailyTable report={daily} />
+        </section>
+      ) : null}
+
+      {sub === 'daily' && jobs ? (
+        <section className="card">
+          <h2>By job</h2>
+          <table className="recontable">
+            <thead><tr><th className="nm">Job</th><th>Client</th><th>Figures</th><th>Budget</th><th>Consumed</th></tr></thead>
+            <tbody>
+              {jobs.map((j) => (
+                <tr key={j.jobId}>
+                  <td className="nm">{j.jobName}</td>
+                  <td>{j.projectName} · {j.clientName}</td>
+                  <td><TrioChip recon={j as import('~/lib/attribution').Recon} /></td>
+                  <td className="money">{'budgetCents' in j && j.budgetCents != null ? formatCents(j.budgetCents) : '—'}</td>
+                  <td className="money">
+                    {'consumedCents' in j ? `${formatCents(j.consumedCents!)}${j.budgetPct != null ? ` (${j.budgetPct}%)` : ''}` : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </section>
       ) : null}
 

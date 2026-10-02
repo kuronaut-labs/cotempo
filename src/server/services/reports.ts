@@ -57,7 +57,11 @@ export type AdminKpis = {
   weeklyTargetHours: number | null
 }
 
-export type JobRecon = { jobId: string; jobName: string; projectName: string; clientName: string } & RoleRecon
+export type JobRecon = { jobId: string; jobName: string; projectName: string; clientName: string } & RoleRecon & {
+  budgetCents?: number | null
+  consumedCents?: number
+  budgetPct?: number | null
+}
 
 /* Build a `RoleRecon` literal: with `cents` when the viewer may see money, without
    the key when not. Stripping the key, not setting it to null, is the contract (#5). */
@@ -78,7 +82,7 @@ async function loadIntervalsInRange(
   db: Db,
   startMs: number,
   endMs: number,
-  filter: { workerIds?: string[]; clientId?: string } = {},
+  filter: { workerIds?: string[]; clientId?: string; jobIds?: string[] } = {},
 ) {
   const conds = [
     isNull(schema.intervals.deletedAt),
@@ -86,6 +90,7 @@ async function loadIntervalsInRange(
     gt(schema.intervals.endedAt, new Date(startMs)),
   ]
   if (filter.workerIds && filter.workerIds.length > 0) conds.push(inArray(schema.intervals.workerId, filter.workerIds))
+  if (filter.jobIds && filter.jobIds.length > 0) conds.push(inArray(schema.intervals.jobId, filter.jobIds))
   if (filter.clientId) {
     // Archived jobs keep their historical time everywhere — archiving stops
     // *new* entries (guarded at interval create) but billing for past work
@@ -132,7 +137,7 @@ async function clientNameMap(db: Db, clientIds: string[]): Promise<Map<string, s
 export async function loadPieces(
   deps: Deps,
   period: PeriodInput,
-  filter: { workerIds?: string[]; clientId?: string } = {},
+  filter: { workerIds?: string[]; clientId?: string; jobIds?: string[] } = {},
 ): Promise<Piece[]> {
   const { db, tz } = deps
   const { startMs, endMs } = periodRange(period, tz)
@@ -455,6 +460,7 @@ export async function perJob(deps: Deps, ctx: SessionContext, input: PeriodInput
       name: schema.jobs.name,
       projectName: schema.projects.name,
       clientName: schema.clients.name,
+      budgetCents: schema.jobs.budgetCents,
     })
     .from(schema.jobs)
     .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
@@ -464,11 +470,25 @@ export async function perJob(deps: Deps, ctx: SessionContext, input: PeriodInput
   const jobMap = new Map(jobRows.map((j) => [j.id, j]))
 
   const keepCents = canSeeMoney(ctx)
+  // B3: all-time spend per job (wide window; demo scale fine) for budget vs consumed.
+  const allTimePieces: Piece[] = []
+  if (keepCents) {
+    const wide = await loadPieces(deps, { from: '2000-01-01', to: '2100-01-01' }, { jobIds })
+    allTimePieces.push(...wide)
+  }
   return jobIds
     .sort()
     .map((jobId) => {
       const j = jobMap.get(jobId)!
       const r = recon(byJob.get(jobId)!)
-      return { jobId, jobName: j.name, projectName: j.projectName, clientName: j.clientName, ...makeRecon(r, keepCents) }
+      const base: JobRecon = { jobId, jobName: j.name, projectName: j.projectName, clientName: j.clientName, ...makeRecon(r, keepCents) }
+      if (keepCents) {
+        const budget = j.budgetCents ?? null
+        const consumed = recon(allTimePieces.filter((p) => p.jobId === jobId)).cents
+        base.budgetCents = budget
+        base.consumedCents = consumed
+        base.budgetPct = budget != null && budget > 0 ? Math.round((consumed / budget) * 100) : null
+      }
+      return base
     })
 }
