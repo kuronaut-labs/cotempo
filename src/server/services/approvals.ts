@@ -59,7 +59,7 @@ export type IntervalEventView = {
   kind: 'create' | 'edit' | 'delete'
   at: Date
   actorName: string
-  changes: Record<string, { from: unknown; to: unknown }> | null
+  changes: Record<string, { from: string | number | null; to: string | number | null }> | null
 }
 
 export type PendingWeek = { workerId: string; workerName: string; weekStart: string; recon: TimeRecon & { cents?: number }; flagCount: number }

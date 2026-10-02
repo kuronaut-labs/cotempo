@@ -38,7 +38,7 @@ async function liveJob(db: Db, jobId: string) {
   return job
 }
 
-type IntervalChanges = Record<string, { from: unknown; to: unknown }>
+type IntervalChanges = Record<string, { from: string | number | null; to: string | number | null }>
 
 function intervalEventRow(
   intervalId: string,

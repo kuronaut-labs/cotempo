@@ -3,7 +3,7 @@ import { ids } from '~/server/fixtures/demo'
 import { weekDates } from '~/lib/week'
 import { getWeekForApproval, weeksWithEntries } from '~/server/services/approvals'
 import { createInterval, updateInterval } from '~/server/services/intervals'
-import { asUser, at, db, deps, resetDb } from './helpers'
+import { asUser, at, deps, resetDb } from './helpers'
 
 describe('weeksWithEntries', () => {
   beforeEach(() => resetDb())
