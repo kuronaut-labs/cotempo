@@ -59,3 +59,22 @@ describe('audit timeline (interval events) (C1)', () => {
     expect(billingView.intervalEvents.find((e) => e.kind === 'edit')!.changes).toHaveProperty('jobId')
   })
 })
+
+describe('rate column (C2)', () => {
+  beforeEach(() => resetDb())
+
+  it('interval audit rows carry the rate only for money viewers', async () => {
+    const iv = await createInterval(deps(), asUser('operator'), {
+      workerId: ids.opWorker, jobId: ids.j1,
+      startedAt: at(4, 8).toISOString(), endedAt: at(4, 9).toISOString(),
+    })
+    const week = { workerId: ids.opWorker, weekStart: '2026-08-31' }
+    const billingView = await getWeekForApproval(deps(), asUser('billing'), week)
+    const billingRow = billingView.intervals.find((r) => r.id === iv.id)!
+    expect(billingRow.rateCents).toBe(12_000) // position posSenior overrides j1's 14_000
+    expect(billingView.intervals.every((r) => 'rateCents' in r)).toBe(true) // seeded rows too
+    // Operators viewing their own week via the read-only ApproverView path get no rate key (#5).
+    const opsView = await getWeekForApproval(deps(), asUser('operator'), week)
+    expect(opsView.intervals.some((r) => 'rateCents' in r)).toBe(false)
+  })
+})

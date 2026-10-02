@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { Check, Unlock, X } from 'reicon-react'
 import { applyServerError } from '~/components/forms/applyServerError'
 import { formatWeekLabel, localDateTimeOf, localHHMM } from '~/lib/dayMath'
+import { formatCents } from '~/lib/money'
 import { RedFlagList } from '~/components/redFlagList'
 import { TrioChip } from '~/components/trioChip'
 import { StatusChip } from '~/components/ui/chip'
@@ -65,6 +66,8 @@ export function ApproverView({
   const [hover, setHover] = useState<string | undefined>(undefined)
   const isAdmin = role.includes('admin')
   const isBilling = role.includes('billing') || isAdmin
+  // C2: the rate column appears only when rows carry the (money-gated) key.
+  const showRate = week.intervals.some((iv) => 'rateCents' in iv)
   const target = { workerId: week.workerId, weekStart: week.weekStart }
 
   return (
@@ -94,6 +97,7 @@ export function ApproverView({
                 <th>Entered by</th>
                 <th>Created</th>
                 <th>Edits</th>
+                {showRate ? <th>Rate</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -112,6 +116,9 @@ export function ApproverView({
                     <td>{iv.createdByName}</td>
                     <td>{localDateTimeOf(iv.createdAt.getTime(), tz)}</td>
                     <td>{iv.editCount}</td>
+                    {showRate ? (
+                      <td className="mono">{iv.rateCents == null ? '—' : `${formatCents(iv.rateCents)}/h`}</td>
+                    ) : null}
                   </tr>
                 )
               })}

@@ -40,6 +40,7 @@ export type WeekIntervalAudit = {
   createdByName: string
   createdAt: Date
   editCount: number
+  rateCents?: number | null // C2: omit-key for non-money viewers, #5
 }
 
 export type WeekForApproval = {
@@ -432,6 +433,8 @@ export async function getWeekForApproval(deps: Deps, ctx: SessionContext, input:
         createdByName: creators.get(i.createdBy) ?? '?',
         createdAt: i.createdAt,
         editCount: i.editCount,
+        // #5: key present only for money viewers — never rateCents: undefined.
+        ...(keepCents ? { rateCents: i.rateCents } : {}),
       })
     }
   }
