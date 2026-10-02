@@ -15,8 +15,10 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as AppAdminRouteRouteImport } from './routes/_app/admin/route'
 import { Route as AppApprovalsRouteImport } from './routes/_app/approvals'
+import { Route as AppClientsRouteImport } from './routes/_app/clients'
 import { Route as AppInvoiceRouteImport } from './routes/_app/invoice'
 import { Route as AppLeaveRouteImport } from './routes/_app/leave'
+import { Route as AppProjectsRouteImport } from './routes/_app/projects'
 import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppTeamRouteImport } from './routes/_app/team'
 import { Route as AppTodayRouteImport } from './routes/_app/today'
@@ -29,6 +31,8 @@ import { Route as AppAdminPositionsRouteImport } from './routes/_app/admin/posit
 import { Route as AppAdminProjectsRouteImport } from './routes/_app/admin/projects'
 import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
 import { Route as AppAdminWorkersRouteImport } from './routes/_app/admin/workers'
+import { Route as AppClientsClientIdRouteImport } from './routes/_app/clients.$clientId'
+import { Route as AppProjectsProjectIdRouteImport } from './routes/_app/projects.$projectId'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth.$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -60,6 +64,11 @@ const AppApprovalsRoute = AppApprovalsRouteImport.update({
   path: '/approvals',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppClientsRoute = AppClientsRouteImport.update({
+  id: '/clients',
+  path: '/clients',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppInvoiceRoute = AppInvoiceRouteImport.update({
   id: '/invoice',
   path: '/invoice',
@@ -68,6 +77,11 @@ const AppInvoiceRoute = AppInvoiceRouteImport.update({
 const AppLeaveRoute = AppLeaveRouteImport.update({
   id: '/leave',
   path: '/leave',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppProjectsRoute = AppProjectsRouteImport.update({
+  id: '/projects',
+  path: '/projects',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppReportsRoute = AppReportsRouteImport.update({
@@ -130,6 +144,16 @@ const AppAdminWorkersRoute = AppAdminWorkersRouteImport.update({
   path: '/workers',
   getParentRoute: () => AppAdminRouteRoute,
 } as any)
+const AppClientsClientIdRoute = AppClientsClientIdRouteImport.update({
+  id: '/$clientId',
+  path: '/$clientId',
+  getParentRoute: () => AppClientsRoute,
+} as any)
+const AppProjectsProjectIdRoute = AppProjectsProjectIdRouteImport.update({
+  id: '/$projectId',
+  path: '/$projectId',
+  getParentRoute: () => AppProjectsRoute,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -142,8 +166,10 @@ export interface FileRoutesByFullPath {
   '/set-password': typeof SetPasswordRoute
   '/admin': typeof AppAdminRouteRouteWithChildren
   '/approvals': typeof AppApprovalsRoute
+  '/clients': typeof AppClientsRouteWithChildren
   '/invoice': typeof AppInvoiceRoute
   '/leave': typeof AppLeaveRoute
+  '/projects': typeof AppProjectsRouteWithChildren
   '/reports': typeof AppReportsRoute
   '/team': typeof AppTeamRoute
   '/today': typeof AppTodayRoute
@@ -156,6 +182,8 @@ export interface FileRoutesByFullPath {
   '/admin/projects': typeof AppAdminProjectsRoute
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/workers': typeof AppAdminWorkersRoute
+  '/clients/$clientId': typeof AppClientsClientIdRoute
+  '/projects/$projectId': typeof AppProjectsProjectIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesByTo {
@@ -164,8 +192,10 @@ export interface FileRoutesByTo {
   '/set-password': typeof SetPasswordRoute
   '/admin': typeof AppAdminRouteRouteWithChildren
   '/approvals': typeof AppApprovalsRoute
+  '/clients': typeof AppClientsRouteWithChildren
   '/invoice': typeof AppInvoiceRoute
   '/leave': typeof AppLeaveRoute
+  '/projects': typeof AppProjectsRouteWithChildren
   '/reports': typeof AppReportsRoute
   '/team': typeof AppTeamRoute
   '/today': typeof AppTodayRoute
@@ -178,6 +208,8 @@ export interface FileRoutesByTo {
   '/admin/projects': typeof AppAdminProjectsRoute
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/workers': typeof AppAdminWorkersRoute
+  '/clients/$clientId': typeof AppClientsClientIdRoute
+  '/projects/$projectId': typeof AppProjectsProjectIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRoutesById {
@@ -188,8 +220,10 @@ export interface FileRoutesById {
   '/set-password': typeof SetPasswordRoute
   '/_app/admin': typeof AppAdminRouteRouteWithChildren
   '/_app/approvals': typeof AppApprovalsRoute
+  '/_app/clients': typeof AppClientsRouteWithChildren
   '/_app/invoice': typeof AppInvoiceRoute
   '/_app/leave': typeof AppLeaveRoute
+  '/_app/projects': typeof AppProjectsRouteWithChildren
   '/_app/reports': typeof AppReportsRoute
   '/_app/team': typeof AppTeamRoute
   '/_app/today': typeof AppTodayRoute
@@ -202,6 +236,8 @@ export interface FileRoutesById {
   '/_app/admin/projects': typeof AppAdminProjectsRoute
   '/_app/admin/settings': typeof AppAdminSettingsRoute
   '/_app/admin/workers': typeof AppAdminWorkersRoute
+  '/_app/clients/$clientId': typeof AppClientsClientIdRoute
+  '/_app/projects/$projectId': typeof AppProjectsProjectIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
 }
 export interface FileRouteTypes {
@@ -212,8 +248,10 @@ export interface FileRouteTypes {
     | '/set-password'
     | '/admin'
     | '/approvals'
+    | '/clients'
     | '/invoice'
     | '/leave'
+    | '/projects'
     | '/reports'
     | '/team'
     | '/today'
@@ -226,6 +264,8 @@ export interface FileRouteTypes {
     | '/admin/projects'
     | '/admin/settings'
     | '/admin/workers'
+    | '/clients/$clientId'
+    | '/projects/$projectId'
     | '/api/auth/$'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -234,8 +274,10 @@ export interface FileRouteTypes {
     | '/set-password'
     | '/admin'
     | '/approvals'
+    | '/clients'
     | '/invoice'
     | '/leave'
+    | '/projects'
     | '/reports'
     | '/team'
     | '/today'
@@ -248,6 +290,8 @@ export interface FileRouteTypes {
     | '/admin/projects'
     | '/admin/settings'
     | '/admin/workers'
+    | '/clients/$clientId'
+    | '/projects/$projectId'
     | '/api/auth/$'
   id:
     | '__root__'
@@ -257,8 +301,10 @@ export interface FileRouteTypes {
     | '/set-password'
     | '/_app/admin'
     | '/_app/approvals'
+    | '/_app/clients'
     | '/_app/invoice'
     | '/_app/leave'
+    | '/_app/projects'
     | '/_app/reports'
     | '/_app/team'
     | '/_app/today'
@@ -271,6 +317,8 @@ export interface FileRouteTypes {
     | '/_app/admin/projects'
     | '/_app/admin/settings'
     | '/_app/admin/workers'
+    | '/_app/clients/$clientId'
+    | '/_app/projects/$projectId'
     | '/api/auth/$'
   fileRoutesById: FileRoutesById
 }
@@ -328,6 +376,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppApprovalsRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/_app/clients': {
+      id: '/_app/clients'
+      path: '/clients'
+      fullPath: '/clients'
+      preLoaderRoute: typeof AppClientsRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/_app/invoice': {
       id: '/_app/invoice'
       path: '/invoice'
@@ -340,6 +395,13 @@ declare module '@tanstack/react-router' {
       path: '/leave'
       fullPath: '/leave'
       preLoaderRoute: typeof AppLeaveRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/_app/projects': {
+      id: '/_app/projects'
+      path: '/projects'
+      fullPath: '/projects'
+      preLoaderRoute: typeof AppProjectsRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/_app/reports': {
@@ -426,6 +488,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminWorkersRouteImport
       parentRoute: typeof AppAdminRouteRoute
     }
+    '/_app/clients/$clientId': {
+      id: '/_app/clients/$clientId'
+      path: '/$clientId'
+      fullPath: '/clients/$clientId'
+      preLoaderRoute: typeof AppClientsClientIdRouteImport
+      parentRoute: typeof AppClientsRoute
+    }
+    '/_app/projects/$projectId': {
+      id: '/_app/projects/$projectId'
+      path: '/$projectId'
+      fullPath: '/projects/$projectId'
+      preLoaderRoute: typeof AppProjectsProjectIdRouteImport
+      parentRoute: typeof AppProjectsRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -460,11 +536,37 @@ const AppAdminRouteRouteWithChildren = AppAdminRouteRoute._addFileChildren(
   AppAdminRouteRouteChildren,
 )
 
+interface AppClientsRouteChildren {
+  AppClientsClientIdRoute: typeof AppClientsClientIdRoute
+}
+
+const AppClientsRouteChildren: AppClientsRouteChildren = {
+  AppClientsClientIdRoute: AppClientsClientIdRoute,
+}
+
+const AppClientsRouteWithChildren = AppClientsRoute._addFileChildren(
+  AppClientsRouteChildren,
+)
+
+interface AppProjectsRouteChildren {
+  AppProjectsProjectIdRoute: typeof AppProjectsProjectIdRoute
+}
+
+const AppProjectsRouteChildren: AppProjectsRouteChildren = {
+  AppProjectsProjectIdRoute: AppProjectsProjectIdRoute,
+}
+
+const AppProjectsRouteWithChildren = AppProjectsRoute._addFileChildren(
+  AppProjectsRouteChildren,
+)
+
 interface AppRouteRouteChildren {
   AppAdminRouteRoute: typeof AppAdminRouteRouteWithChildren
   AppApprovalsRoute: typeof AppApprovalsRoute
+  AppClientsRoute: typeof AppClientsRouteWithChildren
   AppInvoiceRoute: typeof AppInvoiceRoute
   AppLeaveRoute: typeof AppLeaveRoute
+  AppProjectsRoute: typeof AppProjectsRouteWithChildren
   AppReportsRoute: typeof AppReportsRoute
   AppTeamRoute: typeof AppTeamRoute
   AppTodayRoute: typeof AppTodayRoute
@@ -473,8 +575,10 @@ interface AppRouteRouteChildren {
 const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppAdminRouteRoute: AppAdminRouteRouteWithChildren,
   AppApprovalsRoute: AppApprovalsRoute,
+  AppClientsRoute: AppClientsRouteWithChildren,
   AppInvoiceRoute: AppInvoiceRoute,
   AppLeaveRoute: AppLeaveRoute,
+  AppProjectsRoute: AppProjectsRouteWithChildren,
   AppReportsRoute: AppReportsRoute,
   AppTeamRoute: AppTeamRoute,
   AppTodayRoute: AppTodayRoute,

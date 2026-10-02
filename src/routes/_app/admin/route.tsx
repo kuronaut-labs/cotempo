@@ -15,12 +15,6 @@ function AdminLayout() {
   return (
     <div className="admin">
       <nav className="admin-subnav" aria-label="Admin sections">
-        <Link to="/admin/clients" activeProps={{ className: 'active' }}>
-          Clients
-        </Link>
-        <Link to="/admin/projects" activeProps={{ className: 'active' }}>
-          Projects
-        </Link>
         <Link to="/admin/jobs" activeProps={{ className: 'active' }}>
           Jobs
         </Link>

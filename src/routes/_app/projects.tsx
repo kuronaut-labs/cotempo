@@ -8,7 +8,7 @@ import { listWorkersFn } from '~/server/fns/workers'
 
 const search = z.object({ showArchived: z.boolean().optional() })
 
-export const Route = createFileRoute('/_app/admin/projects')({
+export const Route = createFileRoute('/_app/projects')({
   validateSearch: search,
   loaderDeps: ({ search: { showArchived } }) => ({ showArchived: showArchived ?? false }),
   loader: async ({ deps }) => {
@@ -39,12 +39,20 @@ function ProjectsPage() {
           <input
             type="checkbox"
             checked={showArchived}
-            onChange={(e) => navigate({ to: '/admin/projects', search: { showArchived: e.target.checked } })}
+            onChange={(e) => navigate({ to: '/projects', search: { showArchived: e.target.checked } })}
           />
           Show archived
         </label>
       </header>
-      <StructureTree tree={tree} manage="project" showArchived={showArchived} today={today.date} assignments={assignments} workers={workers} onRefresh={() => router.invalidate()} />
+      <StructureTree
+        tree={tree}
+        manage="project"
+        showArchived={showArchived}
+        today={today.date}
+        assignments={assignments}
+        workers={workers}
+        onRefresh={() => router.invalidate()}
+      />
     </>
   )
 }
