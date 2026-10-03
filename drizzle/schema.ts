@@ -330,5 +330,6 @@ export const orgSettings = sqliteTable('org_settings', {
   flagGapMinWallMin: integer('flag_gap_min_wall_min'), // null = built-in default (src/lib/redFlags.ts)
   flagLateEntryDays: integer('flag_late_entry_days'),
   flagMultiEditOver: integer('flag_multi_edit_over'),
+  requireAssignment: integer('require_assignment', { mode: 'boolean' }).notNull().default(false),
   updatedAt: ts('updated_at').notNull(),
 })

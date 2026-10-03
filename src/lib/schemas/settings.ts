@@ -9,6 +9,7 @@ export const OrgSettingsInput = z.object({
   flagGapMinWallMin: z.number().int().min(0).max(1440).nullish(),
   flagLateEntryDays: z.number().int().min(0).max(90).nullish(),
   flagMultiEditOver: z.number().int().min(0).max(50).nullish(),
+  requireAssignment: z.boolean().optional(),
 })
 export type OrgSettingsInput = z.infer<typeof OrgSettingsInput>
 
@@ -19,4 +20,5 @@ export type OrgSettingsView = {
   flagGapMinWallMin: number | null
   flagLateEntryDays: number | null
   flagMultiEditOver: number | null
+  requireAssignment: boolean
 }

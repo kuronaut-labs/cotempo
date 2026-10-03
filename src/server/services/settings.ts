@@ -18,6 +18,7 @@ export async function getOrgSettings(deps: Deps, ctx: SessionContext): Promise<O
     flagGapMinWallMin: row?.flagGapMinWallMin ?? null,
     flagLateEntryDays: row?.flagLateEntryDays ?? null,
     flagMultiEditOver: row?.flagMultiEditOver ?? null,
+    requireAssignment: row?.requireAssignment ?? false,
   }
   if (canSeeMoney(ctx)) view.defaultBillableRateCents = row?.defaultBillableRateCents ?? null
   return view
@@ -32,11 +33,12 @@ export async function updateOrgSettings(deps: Deps, ctx: SessionContext, input: 
   if (input.flagGapMinWallMin !== undefined) patch.flagGapMinWallMin = input.flagGapMinWallMin
   if (input.flagLateEntryDays !== undefined) patch.flagLateEntryDays = input.flagLateEntryDays
   if (input.flagMultiEditOver !== undefined) patch.flagMultiEditOver = input.flagMultiEditOver
+  if (input.requireAssignment !== undefined) patch.requireAssignment = input.requireAssignment
   if (Object.keys(patch).length > 0) {
     patch.updatedAt = deps.now()
     await deps.db
       .insert(schema.orgSettings)
-      .values({ id: 'org', defaultBillableRateCents: null, defaultDayMinutes: FALLBACK_DAY_MINUTES, defaultWeeklyTargetHours: null, updatedAt: patch.updatedAt as Date, ...patch })
+      .values({ id: 'org', defaultBillableRateCents: null, defaultDayMinutes: FALLBACK_DAY_MINUTES, defaultWeeklyTargetHours: null, requireAssignment: false, updatedAt: patch.updatedAt as Date, ...patch })
       .onConflictDoUpdate({ target: schema.orgSettings.id, set: patch })
   }
   return getOrgSettings(deps, ctx)

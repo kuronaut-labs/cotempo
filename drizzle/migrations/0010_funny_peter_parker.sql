@@ -1,0 +1,1 @@
+ALTER TABLE `org_settings` ADD `require_assignment` integer DEFAULT false NOT NULL;

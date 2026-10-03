@@ -14,6 +14,7 @@ const FormInput = z.object({
   gapWallHours: z.string(), // '' = default, numeric text = hours
   lateEntryDays: z.string(),
   multiEditOver: z.string(),
+  requireAssignment: z.boolean(),
 })
 
 export const Route = createFileRoute('/_app/admin/settings')({
@@ -33,6 +34,7 @@ function SettingsPage() {
       gapWallHours: settings.flagGapMinWallMin != null ? String(settings.flagGapMinWallMin / 60) : '',
       lateEntryDays: settings.flagLateEntryDays != null ? String(settings.flagLateEntryDays) : '',
       multiEditOver: settings.flagMultiEditOver != null ? String(settings.flagMultiEditOver) : '',
+      requireAssignment: settings.requireAssignment,
     },
     validators: {
       onSubmit: FormInput.superRefine((v, ctx) => {
@@ -58,6 +60,7 @@ function SettingsPage() {
             flagGapMinWallMin: value.gapWallHours === '' ? null : Math.round(Number(value.gapWallHours) * 60),
             flagLateEntryDays: value.lateEntryDays === '' ? null : Number(value.lateEntryDays),
             flagMultiEditOver: value.multiEditOver === '' ? null : Number(value.multiEditOver),
+            requireAssignment: value.requireAssignment,
           },
         })
         await router.invalidate()
@@ -150,6 +153,22 @@ function SettingsPage() {
             </label>
           )}
         </form.Field>
+        <form.Field name="requireAssignment">
+          {(field) => (
+            <label className="checkline">
+              <input
+                type="checkbox"
+                checked={field.state.value}
+                onChange={(e) => field.handleChange(e.target.checked)}
+              />
+              Require an assignment to log time
+            </label>
+          )}
+        </form.Field>
+        <p className="status-msg">
+          When on, time can only be logged to jobs the worker is assigned to (directly or via the project). Admins are
+          exempt. Agents need an assignment too.
+        </p>
         <form.Subscribe>
           {(s) => (
             <Button type="submit" variant="primary" disabled={s.isSubmitting}>

@@ -86,3 +86,12 @@ describe('flag thresholds (A2)', () => {
     expect(after.flags.filter((f) => f.kind === 'gap')).toHaveLength(0)
   })
 })
+describe('requireAssignment setting (Task 5.1)', () => {
+  it('defaults false and round-trips true/false', async () => {
+    expect((await getOrgSettings(deps(), asUser('admin'))).requireAssignment).toBe(false)
+    await updateOrgSettings(deps(), asUser('admin'), { requireAssignment: true })
+    expect((await getOrgSettings(deps(), asUser('admin'))).requireAssignment).toBe(true)
+    await updateOrgSettings(deps(), asUser('admin'), { requireAssignment: false })
+    expect((await getOrgSettings(deps(), asUser('admin'))).requireAssignment).toBe(false)
+  })
+})
