@@ -79,8 +79,50 @@ export async function insertDemo(db: Db, opts: { anchorMs?: number } = {}) {
     db
       .insert(schema.clients)
       .values([
-        { id: ids.c1, name: 'Acme Aerospace', createdAt: now },
+        {
+          id: ids.c1,
+          name: 'Acme Aerospace',
+          email: 'hello@acme.example',
+          website: 'https://acme.example',
+          addressLine1: '12 Wray Ave',
+          city: 'Perth',
+          region: 'WA',
+          postcode: '6000',
+          country: 'Australia',
+          createdAt: now,
+        },
         { id: ids.c2, name: 'Nimbus Freight', createdAt: now },
+      ])
+      .onConflictDoNothing(),
+    db
+      .insert(schema.clientContacts)
+      .values([
+        {
+          id: 'demo-0000-contact-1',
+          clientId: ids.c1,
+          name: 'Jane Okafor',
+          role: 'Ops lead',
+          email: 'jane@acme.example',
+          isPrimary: true,
+          createdAt: now,
+        },
+        {
+          id: 'demo-0000-contact-2',
+          clientId: ids.c1,
+          name: 'Sam Reyes',
+          role: 'Finance',
+          email: 'sam@acme.example',
+          createdAt: now,
+        },
+        {
+          id: 'demo-0000-contact-3',
+          clientId: ids.c2,
+          name: 'Nadia Chen',
+          role: 'Dispatch',
+          email: 'nadia@nimbus.example',
+          isPrimary: true,
+          createdAt: now,
+        },
       ])
       .onConflictDoNothing(),
     db

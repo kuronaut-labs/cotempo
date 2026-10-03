@@ -25,6 +25,7 @@ export async function resetDb() {
     db.delete(schema.intervals),
     db.delete(schema.jobs),
     db.delete(schema.projects),
+    db.delete(schema.clientContacts),
     db.delete(schema.clients),
     db.delete(schema.agentWorkers),
     db.delete(schema.humanWorkers),

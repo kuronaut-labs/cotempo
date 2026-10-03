@@ -2,7 +2,14 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { asUser, at, deps, resetDb } from './helpers'
 import { ids } from '~/server/fixtures/demo'
-import { listClients } from '~/server/services/clients'
+import {
+  archiveContact,
+  createContact,
+  getClient,
+  listClients,
+  setPrimaryContact,
+  updateClientDetails,
+} from '~/server/services/clients'
 import { createInterval } from '~/server/services/intervals'
 import * as schema from '../../drizzle/schema'
 
@@ -73,5 +80,46 @@ describe('listClients', () => {
       status: 400,
       code: 'INVALID_CURSOR',
     })
+  })
+})
+
+describe('client contacts (Task 2.1)', () => {
+  it('admin sets address; primary switch is exclusive; contacts primary-first', async () => {
+    await updateClientDetails(deps(), asUser('admin'), {
+      id: ids.c1,
+      addressLine1: '12 Wray Ave',
+      city: 'Perth',
+      postcode: '6000',
+      country: 'Australia',
+    })
+    // seeded: demo-0000-contact-1 Jane Okafor (primary), demo-0000-contact-2 Sam Reyes
+    await setPrimaryContact(deps(), asUser('admin'), { id: 'demo-0000-contact-2', clientId: ids.c1 })
+    const detail = await getClient(deps(), asUser('operator'), { id: ids.c1 })
+    expect(detail.addressLine1).toBe('12 Wray Ave')
+    // Sam (now primary) sorts first despite name order
+    expect(detail.contacts.map((c) => c.name)).toEqual(['Sam Reyes', 'Jane Okafor'])
+    expect(detail.contacts.filter((c) => c.isPrimary)).toHaveLength(1)
+    expect(detail.contacts.find((c) => c.name === 'Sam Reyes')!.isPrimary).toBe(true)
+  })
+
+  it('archive hides a contact', async () => {
+    await archiveContact(deps(), asUser('admin'), { id: 'demo-0000-contact-2' })
+    const detail = await getClient(deps(), asUser('admin'), { id: ids.c1 })
+    expect(detail.contacts.map((c) => c.name)).toEqual(['Jane Okafor'])
+  })
+
+  it('operator can read contacts but gets 403 on write', async () => {
+    await expect(getClient(deps(), asUser('operator'), { id: ids.c1 })).resolves.toMatchObject({ id: ids.c1 })
+    await expect(
+      createContact(deps(), asUser('operator'), { clientId: ids.c1, name: 'N' }),
+    ).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' })
+  })
+
+  it('q finds a client by contact name and by contact email domain (LD8)', async () => {
+    await createContact(deps(), asUser('admin'), { clientId: ids.c2, name: 'Mara Voss', email: 'mara@nimbus.example' })
+    const byName = await listClients(deps(), asUser('billing'), { q: 'mara', sort: 'name', status: 'active', limit: 50 })
+    expect(byName.rows.map((r) => r.id)).toEqual([ids.c2])
+    const byDomain = await listClients(deps(), asUser('billing'), { q: 'acme.example', sort: 'name', status: 'active', limit: 50 })
+    expect(byDomain.rows.map((r) => r.id)).toEqual([ids.c1])
   })
 })

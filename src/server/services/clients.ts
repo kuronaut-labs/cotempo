@@ -1,9 +1,18 @@
 import { and, eq, gt, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
 import * as schema from '../../../drizzle/schema'
-import { canSeeMoney, hasRole, type SessionContext } from '~/server/context'
-import type { ListClientsInput } from '~/lib/schemas/clients'
+import { canSeeMoney, hasRole, isAdmin, type SessionContext } from '~/server/context'
+import type {
+  CreateContactInput,
+  ListClientsInput,
+  SetPrimaryContactInput,
+  UpdateClientDetailsInput,
+  UpdateContactInput,
+} from '~/lib/schemas/clients'
 import { likePattern, makeCursor, parseCursor } from '~/lib/search'
 import { localDayBoundariesUtcMs } from '~/lib/dayMath'
+import { HttpError } from '~/lib/errors'
+import type { ProjectListRow } from './projects'
+import { listProjects } from './projects'
 import type { Deps } from './deps'
 
 export type ClientListRow = {
@@ -67,7 +76,14 @@ export async function listClients(deps: Deps, ctx: SessionContext, input: ListCl
   if (input.status === 'active') eConds.push(isNull(schema.clients.archivedAt))
   if (input.status === 'archived') eConds.push(isNotNull(schema.clients.archivedAt))
   if (input.q) {
-    eConds.push(sql`lower(${schema.clients.name}) LIKE ${likePattern(input.q.toLowerCase())} ESCAPE '\\'`)
+    const pat = likePattern(input.q.toLowerCase())
+    eConds.push(
+      sql`(lower(${schema.clients.name}) LIKE ${pat} ESCAPE '\\' OR EXISTS (
+        SELECT 1 FROM ${schema.clientContacts} cc
+        WHERE cc.client_id = ${schema.clients.id} AND cc.archived_at IS NULL
+          AND (lower(cc.name) LIKE ${pat} ESCAPE '\\' OR lower(cc.email) LIKE ${pat} ESCAPE '\\')
+      ))`,
+    )
   }
 
   const ivConds = [isNull(schema.intervals.deletedAt)]
@@ -134,4 +150,156 @@ export async function listClients(deps: Deps, ctx: SessionContext, input: ListCl
 
   const filtered = input.activeSince ? merged.filter((r) => r.lastActivityMs != null) : merged
   return page(filtered, input)
+}
+
+// ---- Detail + contact writes (Wave 2) ----
+
+export type ContactView = {
+  id: string
+  clientId: string
+  name: string
+  role: string | null
+  email: string | null
+  phone: string | null
+  isPrimary: boolean
+  notes: string | null
+}
+
+export type ClientDetail = ClientListRow & {
+  email: string | null
+  phone: string | null
+  website: string | null
+  addressLine1: string | null
+  addressLine2: string | null
+  city: string | null
+  region: string | null
+  postcode: string | null
+  country: string | null
+  notes: string | null
+  contacts: ContactView[]
+  projects: ProjectListRow[]
+}
+
+export async function getClient(deps: Deps, ctx: SessionContext, input: { id: string }): Promise<ClientDetail> {
+  const list = await listClients(deps, ctx, { status: 'all', sort: 'name', limit: 200 })
+  const row = list.rows.find((r) => r.id === input.id)
+  if (!row) throw new HttpError(404, 'NOT_FOUND')
+  const [detail, contacts, projects] = await Promise.all([
+    deps.db.select().from(schema.clients).where(eq(schema.clients.id, input.id)).get(),
+    deps.db
+      .select({
+        id: schema.clientContacts.id,
+        clientId: schema.clientContacts.clientId,
+        name: schema.clientContacts.name,
+        role: schema.clientContacts.role,
+        email: schema.clientContacts.email,
+        phone: schema.clientContacts.phone,
+        isPrimary: schema.clientContacts.isPrimary,
+        notes: schema.clientContacts.notes,
+      })
+      .from(schema.clientContacts)
+      .where(and(eq(schema.clientContacts.clientId, input.id), isNull(schema.clientContacts.archivedAt)))
+      .all(),
+    listProjects(deps, ctx, { clientId: input.id, status: 'all', sort: 'name', limit: 200, due: 'any' }),
+  ])
+  if (!detail) throw new HttpError(404, 'NOT_FOUND')
+  contacts.sort((a, b) => (a.isPrimary === b.isPrimary ? a.name.localeCompare(b.name) : a.isPrimary ? -1 : 1))
+  return {
+    ...row,
+    email: detail.email,
+    phone: detail.phone,
+    website: detail.website,
+    addressLine1: detail.addressLine1,
+    addressLine2: detail.addressLine2,
+    city: detail.city,
+    region: detail.region,
+    postcode: detail.postcode,
+    country: detail.country,
+    notes: detail.notes,
+    contacts,
+    projects: projects.rows,
+  }
+}
+
+export async function updateClientDetails(
+  deps: Deps,
+  ctx: SessionContext,
+  input: UpdateClientDetailsInput,
+): Promise<ClientDetail> {
+  if (!isAdmin(ctx)) throw new HttpError(403, 'FORBIDDEN')
+  const { id, ...fields } = input
+  await deps.db.update(schema.clients).set(fields).where(eq(schema.clients.id, id))
+  return getClient(deps, ctx, { id })
+}
+
+function contactPatch(input: { name?: string; role?: string | null; email?: string | null; phone?: string | null; notes?: string | null }) {
+  return {
+    ...(input.name !== undefined ? { name: input.name } : {}),
+    ...(input.role !== undefined ? { role: input.role } : {}),
+    ...(input.email !== undefined ? { email: input.email } : {}),
+    ...(input.phone !== undefined ? { phone: input.phone } : {}),
+    ...(input.notes !== undefined ? { notes: input.notes } : {}),
+  }
+}
+
+export async function createContact(deps: Deps, ctx: SessionContext, input: CreateContactInput): Promise<ContactView> {
+  if (!isAdmin(ctx)) throw new HttpError(403, 'FORBIDDEN')
+  const client = await deps.db.select({ id: schema.clients.id }).from(schema.clients).where(eq(schema.clients.id, input.clientId)).get()
+  if (!client) throw new HttpError(404, 'NOT_FOUND')
+  const id = `cc-${crypto.randomUUID()}`
+  await deps.db.insert(schema.clientContacts).values({
+    id,
+    clientId: input.clientId,
+    name: input.name,
+    role: input.role ?? null,
+    email: input.email ?? null,
+    phone: input.phone ?? null,
+    notes: input.notes ?? null,
+    isPrimary: false,
+    createdAt: deps.now(),
+  })
+  return { id, clientId: input.clientId, name: input.name, role: input.role ?? null, email: input.email ?? null, phone: input.phone ?? null, isPrimary: false, notes: input.notes ?? null }
+}
+
+export async function updateContact(deps: Deps, ctx: SessionContext, input: UpdateContactInput): Promise<ContactView> {
+  if (!isAdmin(ctx)) throw new HttpError(403, 'FORBIDDEN')
+  await deps.db
+    .update(schema.clientContacts)
+    .set({ ...contactPatch(input), updatedAt: deps.now() })
+    .where(eq(schema.clientContacts.id, input.id))
+  const row = await deps.db.select().from(schema.clientContacts).where(eq(schema.clientContacts.id, input.id)).get()
+  if (!row) throw new HttpError(404, 'CONTACT_NOT_FOUND', 'id')
+  return {
+    id: row.id,
+    clientId: row.clientId,
+    name: row.name,
+    role: row.role,
+    email: row.email,
+    phone: row.phone,
+    isPrimary: row.isPrimary,
+    notes: row.notes,
+  }
+}
+
+export async function archiveContact(deps: Deps, ctx: SessionContext, input: { id: string }): Promise<void> {
+  if (!isAdmin(ctx)) throw new HttpError(403, 'FORBIDDEN')
+  await deps.db
+    .update(schema.clientContacts)
+    .set({ archivedAt: deps.now(), updatedAt: deps.now() })
+    .where(eq(schema.clientContacts.id, input.id))
+}
+
+export async function setPrimaryContact(deps: Deps, ctx: SessionContext, input: SetPrimaryContactInput): Promise<void> {
+  if (!isAdmin(ctx)) throw new HttpError(403, 'FORBIDDEN')
+  const now = deps.now()
+  deps.db.batch([
+    deps.db
+      .update(schema.clientContacts)
+      .set({ isPrimary: false, updatedAt: now })
+      .where(and(eq(schema.clientContacts.clientId, input.clientId), isNotNull(schema.clientContacts.isPrimary))),
+    deps.db
+      .update(schema.clientContacts)
+      .set({ isPrimary: true, updatedAt: now })
+      .where(eq(schema.clientContacts.id, input.id)),
+  ])
 }

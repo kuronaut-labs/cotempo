@@ -104,9 +104,39 @@ export const agentWorkers = sqliteTable('agent_workers', {
 export const clients = sqliteTable('clients', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
+  email: text('email'),
+  phone: text('phone'),
+  website: text('website'),
+  addressLine1: text('address_line1'),
+  addressLine2: text('address_line2'),
+  city: text('city'),
+  region: text('region'),
+  postcode: text('postcode'),
+  country: text('country'),
+  notes: text('notes'),
   createdAt: ts('created_at').notNull(),
   archivedAt: ts('archived_at'),
 })
+
+export const clientContacts = sqliteTable(
+  'client_contacts',
+  {
+    id: text('id').primaryKey(),
+    clientId: text('client_id')
+      .notNull()
+      .references(() => clients.id),
+    name: text('name').notNull(),
+    role: text('role'),
+    email: text('email'),
+    phone: text('phone'),
+    isPrimary: integer('is_primary', { mode: 'boolean' }).notNull().default(false),
+    notes: text('notes'),
+    createdAt: ts('created_at').notNull(),
+    updatedAt: ts('updated_at'),
+    archivedAt: ts('archived_at'),
+  },
+  (t) => [index('client_contacts_client_idx').on(t.clientId)],
+)
 
 export const projects = sqliteTable('projects', {
   id: text('id').primaryKey(),
