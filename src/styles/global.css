@@ -412,6 +412,22 @@ input[type='radio']:disabled:checked::after {
   margin: 0 4px;
 }
 
+/* ---------- entity list (clients/projects) ---------- */
+
+.entitylist-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-3);
+}
+
+.entitylist table { width: 100%; }
+.entitylist .loadmore {
+  display: block;
+  margin: var(--space-3) auto 0;
+}
+
 /* ---------- date nav ---------- */
 
 .datenav {

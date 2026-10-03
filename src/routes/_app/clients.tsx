@@ -1,58 +1,92 @@
-import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { z } from 'zod'
-import { StructureTree } from '~/components/structureTree'
-import { listStructureFn } from '~/server/fns/structure'
+import { EntityList, type EntityListRow } from '~/components/entityList'
+import { listClientsFn } from '~/server/fns/clients'
 import { getTodayFn } from '~/server/fns/intervals'
-import { listAssignmentsFn } from '~/server/fns/assignments'
-import { listWorkersFn } from '~/server/fns/workers'
 
-const search = z.object({ showArchived: z.boolean().optional() })
+const search = z.object({
+  q: z.string().max(100).optional(),
+  status: z.enum(['active', 'archived', 'all']).optional(),
+  activeSince: z.string().optional(),
+  sort: z.enum(['name', 'lastActivity', 'effort']).optional(),
+})
 
 export const Route = createFileRoute('/_app/clients')({
   validateSearch: search,
-  loaderDeps: ({ search: { showArchived } }) => ({ showArchived: showArchived ?? false }),
+  loaderDeps: ({ search: s }) => ({ q: s.q ?? '', status: s.status ?? 'active', activeSince: s.activeSince ?? '', sort: s.sort ?? 'name' }),
   loader: async ({ deps }) => {
-    const [tree, today, assignments, workers] = await Promise.all([
-      listStructureFn({ data: { includeArchived: deps.showArchived } }),
+    const [first, today] = await Promise.all([
+      listClientsFn({
+        data: {
+          q: deps.q || undefined,
+          status: deps.status,
+          activeSince: deps.activeSince || undefined,
+          sort: deps.sort,
+        },
+      }),
       getTodayFn(),
-      listAssignmentsFn({ data: {} }),
-      listWorkersFn(),
     ])
-    return { tree, today, assignments, workers }
+    return { first, today, q: deps.q, status: deps.status, sort: deps.sort }
   },
   component: ClientsPage,
 })
 
 function ClientsPage() {
-  const { tree, today, assignments, workers } = Route.useLoaderData()
-  const search = Route.useSearch()
+  const { first, today, q, status, sort } = Route.useLoaderData()
   const navigate = useNavigate()
-  const router = useRouter()
-  const showArchived = search.showArchived ?? false
+  const set = (patch: Record<string, string | undefined>) =>
+    navigate({ to: '/clients', search: (prev: Record<string, unknown>) => ({ ...prev, ...patch }) })
 
   return (
-    <>
+    <main className="today">
       <header className="admin-head">
         <h1>Clients</h1>
         <span className="spacer" />
-        <label className="checkline">
-          <input
-            type="checkbox"
-            checked={showArchived}
-            onChange={(e) => navigate({ to: '/clients', search: { showArchived: e.target.checked } })}
-          />
-          Show archived
-        </label>
       </header>
-      <StructureTree
-        tree={tree}
-        manage="client"
-        showArchived={showArchived}
-        today={today.date}
-        assignments={assignments}
-        workers={workers}
-        onRefresh={() => router.invalidate()}
+      <EntityList
+        rows={first.rows.map(
+          (r): EntityListRow => ({
+            id: r.id,
+            name: r.name,
+            archived: Boolean(r.archivedAt),
+            count: r.liveProjectCount + (r.archivedAt ? Math.max(0, r.projectCount - r.liveProjectCount) : 0),
+            countLabel: `project${r.projectCount === 1 ? '' : 's'}`,
+            href: `/clients/${r.id}`,
+            effortMin: r.effortMin,
+            lastActivityMs: r.lastActivityMs,
+            billableCents: 'billableCents' in r ? r.billableCents : undefined,
+          }),
+        )}
+        nextCursor={first.nextCursor}
+        loadMore={async (cursor) => {
+          const next = await listClientsFn({
+            data: { q: q || undefined, status, activeSince: undefined, sort, cursor },
+          })
+          return {
+            rows: next.rows.map((r) => ({
+              id: r.id,
+              name: r.name,
+              archived: Boolean(r.archivedAt),
+              count: r.liveProjectCount,
+              countLabel: `project${r.projectCount === 1 ? '' : 's'}`,
+              href: `/clients/${r.id}`,
+              effortMin: r.effortMin,
+              lastActivityMs: r.lastActivityMs,
+              billableCents: 'billableCents' in r ? r.billableCents : undefined,
+            })),
+            nextCursor: next.nextCursor,
+          }
+        }}
+        q={q}
+        onQuery={(next) => set({ q: next || undefined })}
+        status={status}
+        onStatus={(s) => set({ status: s === 'active' ? undefined : s })}
+        sort={sort}
+        onSort={(s) => set({ sort: s === 'name' ? undefined : s })}
+        tz={today.tz}
+        placeholder="Search clients"
+        emptyText="No clients match"
       />
-    </>
+    </main>
   )
 }
