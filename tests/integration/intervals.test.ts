@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { and, asc, eq, sql } from 'drizzle-orm'
 import { asUser, at, db, deps, iso, resetDb, setWeekStatus } from './helpers'
 import { ids } from '~/server/fixtures/demo'
+import { updateOrgSettings } from '~/server/services/settings'
 import {
   createInterval,
   deleteInterval,
@@ -11,7 +12,10 @@ import {
 } from '~/server/services/intervals'
 import * as schema from '../../drizzle/schema'
 
-beforeEach(resetDb)
+beforeEach(async () => {
+  await resetDb()
+  await db.delete(schema.orgSettings)
+})
 
 const op = asUser('operator')
 
@@ -345,5 +349,46 @@ describe('interval events', () => {
     await deleteInterval(deps(), asUser('billing'), { id: iv.id })
     const evs = await events(iv.id)
     expect(evs.map((e) => e.kind)).toEqual(['create', 'delete'])
+  })
+})
+
+describe('requireAssignment (#7 exception, default off)', () => {
+  const onJ3 = {
+    workerId: ids.opWorker,
+    jobId: ids.j3,
+    startedAt: iso(at(4, 9, 0)),
+    endedAt: iso(at(4, 10, 0)),
+  }
+  const flip = (on: boolean) => updateOrgSettings(deps(), asUser('admin'), { requireAssignment: on })
+
+  it('accepts unassigned time while the setting is off (default)', async () => {
+    const iv = await createInterval(deps(), op, onJ3)
+    expect(iv.jobId).toBe(ids.j3)
+  })
+
+  it('refuses unassigned time, accepts assigned jobs (j2), admins exempt (#7)', async () => {
+    await flip(true)
+    await expect(createInterval(deps(), op, onJ3)).rejects.toMatchObject({ status: 403, code: 'NOT_ASSIGNED', field: 'jobId' })
+    const j2 = await createInterval(deps(), op, { ...onJ3, jobId: ids.j2 })
+    expect(j2.jobId).toBe(ids.j2)
+    const admin = await createInterval(deps(), asUser('admin'), onJ3)
+    expect(admin.jobId).toBe(ids.j3)
+  })
+
+  it('judges the target worker, not the author (operator logging for supervised agent)', async () => {
+    await flip(true)
+    await expect(
+      createInterval(deps(), op, { ...onJ3, workerId: ids.agent1 }),
+    ).rejects.toMatchObject({ status: 403, code: 'NOT_ASSIGNED', field: 'jobId' })
+    const ok = await createInterval(deps(), op, { workerId: ids.agent1, jobId: ids.j1, startedAt: iso(at(4, 11, 0)), endedAt: iso(at(4, 12, 0)) })
+    expect(ok.workerId).toBe(ids.agent1)
+  })
+
+  it('checks update only when the job changes', async () => {
+    await flip(true)
+    const iv = await createInterval(deps(), op, { workerId: ids.opWorker, jobId: ids.j2, startedAt: iso(at(4, 13, 0)), endedAt: iso(at(4, 14, 0)) })
+    await expect(updateInterval(deps(), op, { id: iv.id, jobId: ids.j3 })).rejects.toMatchObject({ status: 403, code: 'NOT_ASSIGNED' })
+    const moved = await updateInterval(deps(), op, { id: iv.id, startedAt: iso(at(4, 15, 0)), endedAt: iso(at(4, 16, 0)) })
+    expect(moved.startedAt.getTime()).toBe(at(4, 15, 0).getTime())
   })
 })

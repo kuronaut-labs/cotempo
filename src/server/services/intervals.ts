@@ -7,7 +7,11 @@ import { assertCanEditWorker, assertCanViewWorker } from '~/server/guards/worker
 import { assertWeeksEditable, resetSubmittedWeeks } from '~/server/guards/week'
 import { weekKeysTouched } from '~/lib/week'
 import { computeTrio, localDayBoundariesUtcMs, type Range, type Trio } from '~/lib/dayMath'
-import { hasRole } from '~/server/context'
+import { hasRole, isAdmin } from '~/server/context'
+import { effectiveJobIds } from '~/lib/allocation'
+import { getOrgSettings } from './settings'
+import { listAssignments } from './assignments'
+import { listStructure } from './structure'
 import type { CreateIntervalInput, DayQuery, DeleteIntervalInput, ListIntervalsInput, UpdateIntervalInput } from '~/lib/schemas/intervals'
 import type { Deps } from './deps'
 
@@ -37,6 +41,18 @@ async function liveJob(db: Db, jobId: string) {
     .get()
   if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', 'jobId')
   return job
+}
+
+// Org-wide enforcement (#7, default off): target worker judged, admins exempt.
+async function assertAssigned(deps: Deps, ctx: SessionContext, workerId: string, jobId: string) {
+  const cfg = await getOrgSettings(deps, ctx)
+  if (!cfg.requireAssignment || isAdmin(ctx)) return
+  const [assignments, structure] = await Promise.all([
+    listAssignments(deps, ctx, { workerId }),
+    listStructure(deps, ctx, { includeArchived: true }),
+  ])
+  if (effectiveJobIds(assignments, structure).has(jobId)) return
+  throw new HttpError(403, 'NOT_ASSIGNED', 'jobId')
 }
 
 type IntervalChanges = Record<string, { from: string | number | null; to: string | number | null }>
@@ -111,6 +127,7 @@ export async function createInterval(
   const { db, tz } = deps
   assertCanEditWorker(ctx, input.workerId)
   const job = await liveJob(db, input.jobId)
+  await assertAssigned(deps, ctx, input.workerId, input.jobId)
   const range = { startMs: Date.parse(input.startedAt), endMs: Date.parse(input.endedAt) }
   await assertNoSameJobOverlap(db, input.workerId, input.jobId, range)
   const keys = weekKeysTouched(range, tz)
@@ -163,6 +180,7 @@ export async function updateInterval(
 
   const jobChanged = input.jobId !== undefined && input.jobId !== cur.jobId
   const job = jobChanged ? await liveJob(db, input.jobId!) : null
+  if (jobChanged) await assertAssigned(deps, ctx, cur.workerId, input.jobId!)
   const jobId = job?.id ?? cur.jobId
   await assertNoSameJobOverlap(db, cur.workerId, jobId, after, cur.id)
 
