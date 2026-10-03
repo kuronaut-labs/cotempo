@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { asUser, at, deps, resetDb } from './helpers'
 import { ids } from '~/server/fixtures/demo'
-import { listProjects } from '~/server/services/projects'
+import { listProjects, projectFigures } from '~/server/services/projects'
 import * as schema from '../../drizzle/schema'
+import { updateOrgSettings } from '~/server/services/settings'
 
 beforeEach(resetDb)
 
@@ -60,5 +61,51 @@ describe('listProjects', () => {
       status: 400,
       code: 'INVALID_CURSOR',
     })
+  })
+})
+
+describe('project figures (Task 3.2)', () => {
+  it('all time recon for p1: effort 1200 / wall 1140 / premium 60, byJob two rows', async () => {
+    const f = await projectFigures(deps(), asUser('billing'), { id: ids.p1 })
+    expect(f.allTime.effortMin).toBe(1200)
+    expect(f.allTime.wallClockMin).toBe(1140)
+    expect(f.allTime.premiumMin).toBe(60)
+    expect('cents' in f.allTime && f.allTime.cents).toBeGreaterThan(0)
+    expect(f.byJob).toHaveLength(2)
+    const j1 = f.byJob.find((j) => j.jobId === ids.j1)!
+    expect(j1.jobName).toBe('Pipeline Maintenance')
+    expect('billableRateCents' in j1).toBe(true)
+  })
+
+  it('period-scoped figures use period and overtime stays zero at 480 day default', async () => {
+    const f = await projectFigures(deps(), asUser('billing'), { id: ids.p1, from: '2026-09-01', to: '2026-09-02' })
+    // Fixture hours are UTC: iv03 9–17Z spills into Perth day 09-01 (60 min), so day1 = iv05 240 + spill 60; day2 = iv07 clipped 120.
+    expect(f.period.effortMin).toBe(420)
+    expect(f.overtimeMin).toBe(0)
+  })
+
+  it('lower defaultDayMinutes attributes overtime to p1', async () => {
+    const db = deps().db
+    await db.delete(schema.orgSettings)
+    await updateOrgSettings(deps(), asUser('admin'), { defaultDayMinutes: 360 })
+    const f = await projectFigures(deps(), asUser('billing'), { id: ids.p1 })
+    // iv03 9–17Z splits at 16Z: Perth day 08-31 gets only 420 wall → ot 60.
+    expect(f.overtimeMin).toBe(60)
+    const ag = f.byWorker.find((w) => w.workerId === ids.agent1)!
+    expect(ag.overtimeMin).toBe(60)
+  })
+
+  it('operator gets no cents or billableRateCents and stays scoped', async () => {
+    const f = await projectFigures(deps(), asUser('operator'), { id: ids.p1 })
+    expect(JSON.stringify(f).includes('cents')).toBe(false)
+    expect('billableRateCents' in f.byJob[0]!).toBe(false)
+  })
+
+  it('weeks and recent are populated for p1', async () => {
+    const f = await projectFigures(deps(), asUser('billing'), { id: ids.p1 })
+    expect(f.weeks.length).toBeGreaterThan(0)
+    expect(f.weeks[0]!.weekStart).toBe('2026-08-31')
+    expect(f.recent.length).toBeGreaterThan(0)
+    expect(f.budgetCents).toBeUndefined()
   })
 })
