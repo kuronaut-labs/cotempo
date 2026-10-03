@@ -105,6 +105,12 @@ export async function archiveClient(deps: Deps, ctx: SessionContext, input: Arch
     .where(and(eq(schema.clients.id, input.id), isNull(schema.clients.archivedAt)))
 }
 
+export async function unarchiveClient(deps: Deps, ctx: SessionContext, input: ArchiveInput): Promise<void> {
+  requireAdmin(ctx)
+  await assertExists(deps.db, schema.clients, input.id, 'id')
+  await deps.db.update(schema.clients).set({ archivedAt: null }).where(eq(schema.clients.id, input.id))
+}
+
 export async function createProject(deps: Deps, ctx: SessionContext, input: CreateProjectInput): Promise<{ id: string }> {
   requireAdmin(ctx)
   await assertExists(deps.db, schema.clients, input.clientId, 'clientId', true)
@@ -129,6 +135,12 @@ export async function archiveProject(deps: Deps, ctx: SessionContext, input: Arc
     .update(schema.projects)
     .set({ archivedAt: deps.now() })
     .where(and(eq(schema.projects.id, input.id), isNull(schema.projects.archivedAt)))
+}
+
+export async function unarchiveProject(deps: Deps, ctx: SessionContext, input: ArchiveInput): Promise<void> {
+  requireAdmin(ctx)
+  await assertExists(deps.db, schema.projects, input.id, 'id')
+  await deps.db.update(schema.projects).set({ archivedAt: null }).where(eq(schema.projects.id, input.id))
 }
 
 export async function createJob(deps: Deps, ctx: SessionContext, input: CreateJobInput): Promise<{ id: string }> {
@@ -173,4 +185,10 @@ export async function archiveJob(deps: Deps, ctx: SessionContext, input: Archive
     .update(schema.jobs)
     .set({ archivedAt: deps.now() })
     .where(and(eq(schema.jobs.id, input.id), isNull(schema.jobs.archivedAt)))
+}
+
+export async function unarchiveJob(deps: Deps, ctx: SessionContext, input: ArchiveInput): Promise<void> {
+  requireAdmin(ctx)
+  await assertExists(deps.db, schema.jobs, input.id, 'id')
+  await deps.db.update(schema.jobs).set({ archivedAt: null }).where(eq(schema.jobs.id, input.id))
 }

@@ -13,6 +13,8 @@ import { requireRole } from '~/server/middleware/roleGuard'
 import { runtimeDeps } from '~/server/runtimeDeps'
 import * as svc from '~/server/services/clients'
 
+export type { ClientDetail, ClientListRow, ContactView } from '~/server/services/clients'
+
 const adminOnly = [authMw, requireRole('admin')]
 
 export const listClientsFn = createServerFn({ method: 'GET' })

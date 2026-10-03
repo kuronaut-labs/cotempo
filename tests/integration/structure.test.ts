@@ -4,6 +4,7 @@ import { asUser, db, deps, resetDb } from './helpers'
 import { ids } from '~/server/fixtures/demo'
 import {
   archiveClient,
+  archiveJob,
   archiveProject,
   createClient,
   createJob,
@@ -12,6 +13,9 @@ import {
   updateClient,
   updateJob,
   updateProject,
+  unarchiveClient,
+  unarchiveJob,
+  unarchiveProject,
 } from '~/server/services/structure'
 import {
   archiveWorker,
@@ -394,5 +398,30 @@ describe('due dates (Task 1.1)', () => {
     expect(find(await listStructure(deps(), asUser('admin'), live)).j.dueOn).toBeNull()
     await updateProject(deps(), asUser('admin'), { id: pid, name: 'Dated' }) // undefined keeps
     expect(find(await listStructure(deps(), asUser('admin'), live)).p.dueOn).toBe('2026-10-30')
+  })
+})
+
+describe('unarchive (Task 2.2)', () => {
+  it('unarchiveClient clears archivedAt for admins only', async () => {
+    await expect(unarchiveClient(deps(), asUser('operator'), { id: ids.c1 })).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    await archiveClient(deps(), asUser('admin'), { id: ids.c2 })
+    const archived = await listStructure(deps(), asUser('admin'), { includeArchived: true })
+    expect(archived.find((c) => c.id === ids.c2)?.archivedAt).not.toBeNull()
+    await unarchiveClient(deps(), asUser('admin'), { id: ids.c2 })
+    const again = await listStructure(deps(), asUser('admin'), { includeArchived: true })
+    expect(again.find((c) => c.id === ids.c2)?.archivedAt).toBeNull()
+  })
+
+  it('unarchives projects and jobs', async () => {
+    const { id: pid } = await createProject(deps(), asUser('admin'), { clientId: ids.c1, name: 'Temp' })
+    const { id: jid } = await createJob(deps(), asUser('admin'), { projectId: pid, name: 'Temp job' })
+    await archiveProject(deps(), asUser('admin'), { id: pid })
+    await archiveJob(deps(), asUser('admin'), { id: jid })
+    await unarchiveProject(deps(), asUser('admin'), { id: pid })
+    await unarchiveJob(deps(), asUser('admin'), { id: jid })
+    const tree = await listStructure(deps(), asUser('admin'), { includeArchived: true })
+    const p = tree.flatMap((c) => c.projects).find((p) => p.id === pid)!
+    expect(p.archivedAt).toBeNull()
+    expect(p.jobs.find((j) => j.id === jid)?.archivedAt).toBeNull()
   })
 })

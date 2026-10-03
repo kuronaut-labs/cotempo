@@ -1,46 +1,40 @@
 import { createFileRoute, Link, notFound, useRouter } from '@tanstack/react-router'
-import { StructureTree } from '~/components/structureTree'
-import { listStructureFn } from '~/server/fns/structure'
-import { getTodayFn } from '~/server/fns/intervals'
-import { listAssignmentsFn } from '~/server/fns/assignments'
-import { listWorkersFn } from '~/server/fns/workers'
+import { ContactsCard } from '~/components/contactsCard'
+import { ManageCard } from '~/components/manageCard'
+import { StatusChip } from '~/components/ui/chip'
+import { getClientFn, type ClientDetail } from '~/server/fns/clients'
+import { getSessionCtxFn } from '~/server/fns/auth'
 
 export const Route = createFileRoute('/_app/clients/$clientId')({
   loader: async ({ params }) => {
-    const [tree, today, assignments, workers] = await Promise.all([
-      listStructureFn({ data: { includeArchived: true } }),
-      getTodayFn(),
-      listAssignmentsFn({ data: {} }),
-      listWorkersFn(),
-    ])
-    const client = tree.find((c) => c.id === params.clientId)
-    if (!client) throw notFound()
-    return { client, tree, today, assignments, workers }
+    const [detail, ctx] = await Promise.all([getClientFn({ data: { id: params.clientId } }), getSessionCtxFn()])
+    return { detail, isAdmin: ctx?.roles.includes('admin') ?? false }
+  },
+  onError: () => {
+    throw notFound()
   },
   component: ClientDetailPage,
 })
 
 function ClientDetailPage() {
   const router = useRouter()
-  const { client, today, assignments, workers } = Route.useLoaderData()
+  const { detail, isAdmin } = Route.useLoaderData()
+  const refresh = () => router.invalidate()
   return (
     <main className="detail">
       <nav className="crumbs">
-        <Link to="/clients">Clients</Link> / <span>{client.name}</span>
+        <Link to="/clients">Clients</Link> / <span>{detail.name}</span>
       </nav>
       <header className="admin-head">
-        <h1>{client.name}</h1>
+        <h1>{detail.name}</h1>
+        <StatusChip kind={detail.archivedAt ? 'error' : 'success'}>{detail.archivedAt ? 'Archived' : 'Live'}</StatusChip>
       </header>
-      <StructureTree
-        tree={[client]}
-        manage="client"
-        showArchived
-        today={today.date}
-        assignments={assignments}
-        workers={workers}
-        onRefresh={() => router.invalidate()}
-      />
-      {/* Contacts, figures and manager actions land in Waves 2–3. */}
+      {detail.archivedAt ? <p className="status-msg">Archived on {String(detail.archivedAt).slice(0, 10)}</p> : null}
+      <div className="detail-grid">
+        <ContactsCard detail={detail as ClientDetail} isAdmin={isAdmin} refresh={refresh} />
+        <section className="card client-figures">{/* Client figures land in Task 2.3. */}</section>
+      </div>
+      {isAdmin && <ManageCard kind="client" id={detail.id} name={detail.name} archivedAt={detail.archivedAt} refresh={refresh} />}
     </main>
   )
 }

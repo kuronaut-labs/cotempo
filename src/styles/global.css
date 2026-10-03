@@ -428,6 +428,101 @@ input[type='radio']:disabled:checked::after {
   margin: var(--space-3) auto 0;
 }
 
+/* ---------- entity detail: contacts + manage cards (Task 2.2) ---------- */
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.2fr) minmax(280px, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  border: 1px solid var(--color-tertiary);
+  background: var(--surface-card);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.card-head h2,
+.card-head h3 {
+  font-size: 14px;
+  margin: 0;
+}
+
+.contactlist {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.contactrow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--color-tertiary);
+  padding-bottom: var(--space-2);
+}
+
+.contact-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.contact-role {
+  color: var(--color-info);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.contact-notes {
+  color: var(--color-faint);
+  font-size: 13px;
+}
+
+.contactactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.contactform-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.contactdetails .addr {
+  margin: 0 0 var(--space-1);
+  font-size: 13px;
+}
+
+.manage-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
 /* ---------- date nav ---------- */
 
 .datenav {
