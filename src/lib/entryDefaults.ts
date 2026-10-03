@@ -11,6 +11,22 @@ function toHHMM(min: number): string {
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
 }
 
+/** Smart start default (LD8): continue from the last entry's end; else the
+    current time rounded down to 5 minutes when the date is today; else 09:00. */
+export function defaultStart({
+  lastEndHHMM,
+  isToday,
+  nowHHMM,
+}: {
+  lastEndHHMM?: string
+  isToday: boolean
+  nowHHMM: string
+}): string {
+  if (lastEndHHMM) return lastEndHHMM
+  if (isToday) return toHHMM(Math.floor(toMin(nowHHMM) / 5) * 5)
+  return '09:00'
+}
+
 /** A local end ≤ its start means the entry ends on the next day (LD9). */
 export function crossesMidnight(startHHMM: string, endHHMM: string): boolean {
   return toMin(endHHMM) <= toMin(startHHMM)

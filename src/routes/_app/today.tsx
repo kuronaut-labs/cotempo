@@ -136,6 +136,15 @@ function TodayView() {
     }
   }
 
+  // LD8: latest entry end per worker on the shown day becomes the smart start default.
+  const lastEndByWorker: Record<string, string> = {}
+  for (const i of day.intervals) {
+    const endHHMM = localHHMM(i.endedAt.getTime(), tz)
+    const prev = lastEndByWorker[i.workerId]
+    // Lexicographic works: both are zero-padded HH:MM.
+    if (!prev || endHHMM > prev) lastEndByWorker[i.workerId] = endHHMM
+  }
+
   return (
     <main className="today">
       <DateNav
@@ -169,6 +178,11 @@ function TodayView() {
             }
             compact={editing === null}
             autoFocusJob={Boolean(prefill)}
+            smart={{
+              lastEndByWorker,
+              isToday: date === today,
+              nowHHMM: date === today ? localHHMM(Date.now(), tz) : '09:00',
+            }}
             key={
               editing?.id ??
               (prefill ? `ov:${prefill.startedAt}:${prefill.endedAt}` : presetWorker ?? 'new')

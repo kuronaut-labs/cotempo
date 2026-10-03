@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { crossesMidnight, durationBetween, endFromDuration } from '../../src/lib/entryDefaults'
+import { crossesMidnight, defaultStart, durationBetween, endFromDuration } from '../../src/lib/entryDefaults'
 
 describe('durationBetween', () => {
   it('same-day span', () => {
@@ -26,5 +26,18 @@ describe('crossesMidnight', () => {
     expect(crossesMidnight('23:00', '01:00')).toBe(true)
     expect(crossesMidnight('09:00', '17:00')).toBe(false)
     expect(crossesMidnight('09:00', '09:00')).toBe(true) // zero span = next day by LD9
+  })
+})
+
+describe('defaultStart (Task 4.1)', () => {
+  it('continues from the last entry end', () => {
+    expect(defaultStart({ lastEndHHMM: '14:00', isToday: true, nowHHMM: '09:32' })).toBe('14:00')
+  })
+  it('rounds the current time down to 5 minutes when today and no last end', () => {
+    expect(defaultStart({ isToday: true, nowHHMM: '09:32' })).toBe('09:30')
+    expect(defaultStart({ isToday: true, nowHHMM: '09:35' })).toBe('09:35')
+  })
+  it('falls back to 09:00 on other days', () => {
+    expect(defaultStart({ isToday: false, nowHHMM: '09:32' })).toBe('09:00')
   })
 })

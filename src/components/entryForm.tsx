@@ -3,8 +3,8 @@ import { TZDate } from '@date-fns/tz'
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { Check } from 'reicon-react'
-import { localDateOf, localHHMM } from '~/lib/dayMath'
-import { endFromDuration } from '~/lib/entryDefaults'
+import { localHHMM } from '~/lib/dayMath'
+import { crossesMidnight, defaultStart, durationBetween, endFromDuration } from '~/lib/entryDefaults'
 import { effectiveJobIds } from '~/lib/allocation'
 import { CreateIntervalInput, UpdateIntervalInput } from '~/lib/schemas/intervals'
 import { applyServerError } from '~/components/forms/applyServerError'
@@ -46,6 +46,7 @@ export function EntryForm({
   compact = false,
   heading,
   autoFocusJob = false,
+  smart,
   onSubmit,
   onCancel,
 }: {
@@ -66,23 +67,32 @@ export function EntryForm({
   heading?: string
   /** Focus the job picker on mount (+ Overlap gesture lands here). */
   autoFocusJob?: boolean
+  /** LD8 smart defaults: last entry end per worker / "now" / is-today, from the route. */
+  smart?: { lastEndByWorker?: Record<string, string>; isToday: boolean; nowHHMM: string }
   onSubmit: (input: FormInput) => Promise<void>
   /** Shown in edit mode only. */
   onCancel?: () => void
 }) {
   const isEdit = Boolean(initial?.id)
+  const startDefault = initial?.startedAt
+    ? localHHMM(Date.parse(initial.startedAt), tz)
+    : defaultStart({
+        lastEndHHMM: smart?.lastEndByWorker?.[initial?.workerId ?? selfWorkerId],
+        isToday: smart?.isToday ?? false,
+        nowHHMM: smart?.nowHHMM ?? '09:00',
+      })
+  const endDefault = initial?.endedAt
+    ? localHHMM(Date.parse(initial.endedAt), tz)
+    : endFromDuration(startDefault, 60).end
 
   const form = useForm({
     defaultValues: {
       id: initial?.id,
       workerId: initial?.workerId ?? selfWorkerId,
       jobId: initial?.jobId ?? '',
-      startTime: initial?.startedAt ? localHHMM(Date.parse(initial.startedAt), tz) : '09:00',
-      endTime: initial?.endedAt ? localHHMM(Date.parse(initial.endedAt), tz) : '10:00',
       // Org-tz semantics (#19), not UTC bytes: a Perth morning session spans a UTC boundary.
-      crossesMidnight: initial?.startedAt && initial?.endedAt
-        ? localDateOf(Date.parse(initial.startedAt), tz) !== localDateOf(Date.parse(initial.endedAt), tz)
-        : false,
+      startTime: startDefault,
+      endTime: endDefault,
       note: initial?.note ?? '',
     } as {
       id?: string
@@ -90,7 +100,6 @@ export function EntryForm({
       jobId: string
       startTime: string
       endTime: string
-      crossesMidnight: boolean
       note: string
     },
     validators: {
@@ -103,9 +112,9 @@ export function EntryForm({
       },
     },
     onSubmit: async ({ value }) => {
-      // If "crosses midnight" is checked, the end time belongs to the next day
-      // in the org tz; otherwise both are on `date`. (#L1)
-      const endDate = value.crossesMidnight ? addDaysIso(date, 1) : date
+      // LD9: an end ≤ start wraps to the next day in the org tz. (#19)
+      const crossed = crossesMidnight(value.startTime, value.endTime)
+      const endDate = crossed ? addDaysIso(date, 1) : date
       const startedAt = combine(date, value.startTime, tz)
       const endedAt = combine(endDate, value.endTime, tz)
       const note = value.note.trim()
@@ -222,9 +231,21 @@ export function EntryForm({
             onBlur={f.handleBlur}
           />
           <form.Subscribe
-            selector={(s) => durationText(s.values.startTime as string, s.values.endTime as string, s.values.crossesMidnight as boolean)}
+            selector={(s) => {
+              const st = s.values.startTime as string
+              const en = s.values.endTime as string
+              return durationText(st, en) + (crossesMidnight(st, en) ? ' endsNextDay' : '')
+            }}
           >
-            {(duration) => (duration ? <span className="entryform-duration">= {duration}</span> : null)}
+            {(signal) => {
+              const duration = signal.startsWith(' ') ? '' : signal.replace(' endsNextDay', '')
+              return (
+                <>
+                  {duration ? <span className="entryform-duration">= {duration}</span> : null}
+                  {signal.endsWith('endsNextDay') ? <span className="field-error">Ends next day</span> : null}
+                </>
+              )
+            }}
           </form.Subscribe>
           <FieldError errors={f.state.meta.errors} />
         </label>
@@ -233,7 +254,7 @@ export function EntryForm({
   )
 
   const durationField = (
-    <form.Subscribe selector={(s) => durationText(s.values.startTime as string, s.values.endTime as string, s.values.crossesMidnight as boolean)}>
+    <form.Subscribe selector={(s) => durationText(s.values.startTime as string, s.values.endTime as string)}>
       {(duration) => (
         <label className="field">
           <span>Duration</span>
@@ -245,9 +266,7 @@ export function EntryForm({
               const min = parseDuration(e.target.value)
               if (min === null) return
               const v = form.state.values
-              const { end, crossesMidnight } = endFromDuration(v.startTime as string, min)
-              form.setFieldValue('endTime', end)
-              form.setFieldValue('crossesMidnight', crossesMidnight)
+              form.setFieldValue('endTime', endFromDuration(v.startTime as string, min).end)
             }}
           />
         </label>
@@ -302,22 +321,6 @@ export function EntryForm({
         </Button>
       )}
     </div>
-  )
-
-  const crossesCheckbox = (
-    <form.Field name="crossesMidnight">
-      {(f) => (
-        <label className="checkline">
-          <input
-            type="checkbox"
-            checked={f.state.value}
-            onChange={(e) => f.handleChange(e.target.checked)}
-            onBlur={f.handleBlur}
-          />
-          Crosses midnight (end time is on the next day)
-        </label>
-      )}
-    </form.Field>
   )
 
   return (
@@ -375,7 +378,6 @@ export function EntryForm({
             {startTimeField}
             {endTimeField}
           </div>
-          {crossesCheckbox}
           {noteField}
           {form.state.errorMap.onServer && (
             <p role="alert" className="form-error">
@@ -397,12 +399,10 @@ function submitButton(isEdit: boolean) {
   )
 }
 
-function durationText(startHHMM: string, endHHMM: string, crossesMidnight: boolean): string {
+function durationText(startHHMM: string, endHHMM: string): string {
   if (!startHHMM || !endHHMM) return ''
-  const [sh, sm] = startHHMM.split(':').map(Number) as [number, number]
-  const [eh, em] = endHHMM.split(':').map(Number) as [number, number]
-  let totalMin = eh * 60 + em - (sh * 60 + sm)
-  if (totalMin < 0 && crossesMidnight) totalMin += 24 * 60
+  // Wrapped spans are shown as their positive duration (LD9).
+  const totalMin = durationBetween(startHHMM, endHHMM)
   const hh = Math.floor(totalMin / 60)
   const mm = totalMin % 60
   return `${hh}:${String(mm).padStart(2, '0')}`
