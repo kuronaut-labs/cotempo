@@ -534,6 +534,59 @@ input[type='radio']:disabled:checked::after {
 }
 .datenav input { width: 130px; }
 
+/* ---------- job picker (entry-ux 4.2) ---------- */
+
+.jobpicker {
+  position: relative;
+}
+
+.jobpicker input {
+  width: 100%;
+}
+
+.jobpicker-list {
+  position: absolute;
+  z-index: 20;
+  left: 0;
+  right: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  margin-top: 2px;
+  background: var(--surface-card);
+  border: 1px solid var(--color-tertiary);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+}
+
+.jobpicker-list ul {
+  display: flex;
+  flex-direction: column;
+}
+
+.jobpicker-group {
+  padding: var(--space-1) var(--space-2);
+  font: 500 10px/1.4 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-info);
+}
+
+.jobpicker-group ul {
+  margin: 0;
+}
+
+.jobpicker-group li {
+  padding: var(--space-1) var(--space-2);
+  font: 400 13px/1.4 var(--font-body);
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--color-primary);
+}
+
+.jobpicker-group li.is-active {
+  background: var(--fill-hover);
+}
+
 /* ---------- mini-strip (day timeline bar) ---------- */
 
 .ministrip {

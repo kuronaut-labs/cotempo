@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from 'react'
 import { TZDate } from '@date-fns/tz'
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
@@ -8,6 +7,7 @@ import { crossesMidnight, defaultStart, durationBetween, endFromDuration } from 
 import { effectiveJobIds } from '~/lib/allocation'
 import { CreateIntervalInput, UpdateIntervalInput } from '~/lib/schemas/intervals'
 import { applyServerError } from '~/components/forms/applyServerError'
+import { JobPicker } from '~/components/jobPicker'
 import { Button } from '~/components/ui/button'
 import type { ClientNode } from '~/server/services/structure'
 import type { WorkerView } from '~/server/services/workers'
@@ -130,15 +130,6 @@ export function EntryForm({
     },
   })
 
-  const [selectedClient, setSelectedClient] = useState<string>(
-    initial?.jobId ? (findClientForJob(structure, initial.jobId) ?? '') : (structure[0]?.id ?? ''),
-  )
-
-  const jobRef = useRef<HTMLSelectElement>(null)
-  useEffect(() => {
-    if (autoFocusJob) jobRef.current?.focus()
-  }, [autoFocusJob])
-
   const workerOpts = workerGroups(selfWorkerId, superviseeWorkerIds, workers).flatMap((g) => g.options)
   const hideWorker = workerOpts.length <= 1
 
@@ -152,47 +143,14 @@ export function EntryForm({
         return (
         <label className="field">
           <span>Job</span>
-          <select ref={jobRef} value={f.state.value} onChange={(e) => f.handleChange(e.target.value)} onBlur={f.handleBlur}>
-            <option value="">— select —</option>
-            {assigned.size > 0 && (
-              <optgroup label="Assigned">
-                {structure.flatMap((c) =>
-                  c.projects
-                    .filter((p) => !p.archivedAt)
-                    .flatMap((p) =>
-                      p.jobs
-                        .filter((j) => !j.archivedAt && assigned.has(j.id))
-                        .map((j) => (
-                          <option key={j.id} value={j.id}>
-                            {j.name} · {p.name}
-                            {j.dueOn ?? p.dueOn ? ` · due ${j.dueOn ?? p.dueOn}` : ''}
-                          </option>
-                        )),
-                    ),
-                )}
-              </optgroup>
-            )}
-            {recentJobs && recentJobs.length > 0 && (
-              <optgroup label="Recent">
-                {recentJobs.map((j) => (
-                  <option key={j.jobId} value={j.jobId}>
-                    {j.clientName} / {j.projectName} / {j.jobName}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            {(structure.find((c) => c.id === selectedClient)?.projects ?? [])
-              .filter((p) => !p.archivedAt)
-              .flatMap((p) =>
-                p.jobs
-                  .filter((j) => !j.archivedAt)
-                  .map((j) => (
-                    <option key={j.id} value={j.id}>
-                      {p.name} / {j.name}
-                    </option>
-                  )),
-              )}
-          </select>
+          <JobPicker
+            structure={structure}
+            recentJobs={recentJobs}
+            assigned={assigned.size > 0 ? assigned : undefined}
+            value={f.state.value}
+            onChange={(jobId) => f.handleChange(jobId)}
+            autoFocus={autoFocusJob}
+          />
           <FieldError errors={f.state.meta.errors} />
         </label>
         )
@@ -355,24 +313,6 @@ export function EntryForm({
       ) : (
         <>
           {workerField}
-          <label className="field">
-            <span>Client</span>
-            <select
-              value={selectedClient}
-              onChange={(e) => {
-                setSelectedClient(e.target.value)
-                form.setFieldValue('jobId', '')
-              }}
-            >
-              {structure
-                .filter((c) => !c.archivedAt)
-                .map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-            </select>
-          </label>
           {jobField}
           <div className="entryform-row">
             {startTimeField}
@@ -445,11 +385,6 @@ function workerGroups(selfId: string, superviseeIds: string[], workers: WorkerVi
     { label: 'People', options: humans.map((h) => ({ value: h.workerId, label: tag(h) })) },
     { label: 'AI assistants', options: agents.map((a) => ({ value: a.workerId, label: a.name })) },
   ]
-}
-
-function findClientForJob(structure: ClientNode[], jobId: string): string | null {
-  for (const c of structure) for (const p of c.projects) for (const j of p.jobs) if (j.id === jobId) return c.id
-  return null
 }
 
 function combine(date: string, hhmm: string, tz: string): string {
