@@ -10,8 +10,10 @@ const pad = (n: number) => String(n).padStart(2, '0')
 const toIso = (utcMs: number) => new Date(utcMs).toISOString().slice(0, 10)
 const parse = (iso: string) => iso.split('-').map(Number) as [number, number, number]
 
-export type Preset = 'thisWeek' | 'lastWeek' | 'thisMonth' | 'custom'
+export type Preset = 'thisWeek' | 'lastWeek' | 'thisMonth' | 'allTime' | 'custom'
 export type Period = { from: string; to: string }
+
+const ALL_TIME: Period = { from: '2000-01-01', to: '2100-01-01' }
 
 export function thisWeek(today: string, tz: string): Period {
   const todayMs = localDayBoundariesUtcMs(today, tz).startMs
@@ -40,6 +42,7 @@ export function thisMonth(today: string, _tz: string): Period {
 }
 
 export function activePreset(period: Period, today: string, tz: string): Preset {
+  if (period.from === ALL_TIME.from && period.to === ALL_TIME.to) return 'allTime'
   for (const [id, compute] of [
     ['thisWeek', thisWeek],
     ['lastWeek', lastWeek],
@@ -88,6 +91,7 @@ export function PeriodSelector({
     { id: 'thisWeek', label: 'This week', range: thisWeek(today, tz) },
     { id: 'lastWeek', label: 'Last week', range: lastWeek(today, tz) },
     { id: 'thisMonth', label: 'This month', range: thisMonth(today, tz) },
+    { id: 'allTime', label: 'All time', range: ALL_TIME },
   ]
   return (
     <div className="period" role="group" aria-label="Period">

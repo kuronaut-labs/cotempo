@@ -4,12 +4,14 @@ import { asUser, at, deps, resetDb } from './helpers'
 import { ids } from '~/server/fixtures/demo'
 import {
   archiveContact,
+  clientFigures,
   createContact,
   getClient,
   listClients,
   setPrimaryContact,
   updateClientDetails,
 } from '~/server/services/clients'
+import { archiveProject } from '~/server/services/structure'
 import { createInterval } from '~/server/services/intervals'
 import * as schema from '../../drizzle/schema'
 
@@ -121,5 +123,43 @@ describe('client contacts (Task 2.1)', () => {
     expect(byName.rows.map((r) => r.id)).toEqual([ids.c2])
     const byDomain = await listClients(deps(), asUser('billing'), { q: 'acme.example', sort: 'name', status: 'active', limit: 50 })
     expect(byDomain.rows.map((r) => r.id)).toEqual([ids.c1])
+  })
+})
+
+describe('client figures (Task 2.3)', () => {
+  it('all-time trio and project breakdown', async () => {
+    const f = await clientFigures(deps(), asUser('billing'), { id: ids.c1 })
+    expect(f.allTime.effortMin).toBe(1200)
+    expect(f.allTime.wallClockMin).toBe(1140)
+    expect(f.allTime.premiumMin).toBe(60)
+    expect(f.byProject.map((p) => p.id)).toEqual([ids.p1])
+    expect(f.byProject[0]!.period.effortMin).toBe(1200)
+    expect(f.byWorker.length).toBe(2)
+    expect(f.byWorker.map((w) => w.workerId)).toEqual(
+      expect.arrayContaining([ids.opWorker, ids.agent1]),
+    )
+    expect(f.weeks.length).toBeGreaterThan(0)
+    expect(f.recent.length).toBeLessThanOrEqual(20)
+  })
+
+  it('period filter narrows the period recon', async () => {
+    const f = await clientFigures(deps(), asUser('billing'), { id: ids.c1, from: '2026-08-31', to: '2026-09-06' })
+    const weeksTotal = f.weeks.reduce((n, w) => n + w.recon.effortMin, 0)
+    expect(weeksTotal).toBe(1200)
+    expect(f.period.effortMin).toBe(1200)
+  })
+
+  it('operator gets no cents key and stays scoped', async () => {
+    const f = await clientFigures(deps(), asUser('operator'), { id: ids.c1 })
+    expect(JSON.stringify(f).includes('cents')).toBe(false)
+    const money = await clientFigures(deps(), asUser('billing'), { id: ids.c1 })
+    expect('cents' in money.allTime && money.allTime.cents).toBeGreaterThan(0)
+  })
+
+  it('archived project still appears in byProject', async () => {
+    await archiveProject(deps(), asUser('admin'), { id: ids.p1 })
+    const f = await clientFigures(deps(), asUser('billing'), { id: ids.c1 })
+    expect(f.byProject.map((p) => p.id)).toContain(ids.p1)
+    expect(f.byProject[0]!.archivedAt).not.toBeNull()
   })
 })

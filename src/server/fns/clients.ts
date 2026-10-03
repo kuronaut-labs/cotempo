@@ -13,9 +13,14 @@ import { requireRole } from '~/server/middleware/roleGuard'
 import { runtimeDeps } from '~/server/runtimeDeps'
 import * as svc from '~/server/services/clients'
 
-export type { ClientDetail, ClientListRow, ContactView } from '~/server/services/clients'
+export type { ClientDetail, ClientListRow, ContactView, ClientFigures } from '~/server/services/clients'
 
 const adminOnly = [authMw, requireRole('admin')]
+
+export const getClientFiguresFn = createServerFn({ method: 'GET' })
+  .middleware([authMw])
+  .validator(z.object({ id: z.string().min(1), from: z.string().optional(), to: z.string().optional() }))
+  .handler(({ data, context }) => svc.clientFigures(runtimeDeps(), ctxOf(context), data))
 
 export const listClientsFn = createServerFn({ method: 'GET' })
   .middleware([authMw])

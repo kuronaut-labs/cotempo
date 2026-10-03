@@ -1,4 +1,4 @@
-import { and, eq, gt, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
+import { and, desc, eq, gt, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
 import * as schema from '../../../drizzle/schema'
 import { canSeeMoney, hasRole, isAdmin, type SessionContext } from '~/server/context'
 import type {
@@ -11,6 +11,9 @@ import type {
 import { likePattern, makeCursor, parseCursor } from '~/lib/search'
 import { localDayBoundariesUtcMs } from '~/lib/dayMath'
 import { HttpError } from '~/lib/errors'
+import { isoWeekStart, weekDates } from '~/lib/week'
+import { recon as piecesRecon, type Piece } from '~/lib/attribution'
+import { loadPieces, type RoleRecon, type TimeRecon } from './reports'
 import type { ProjectListRow } from './projects'
 import { listProjects } from './projects'
 import type { Deps } from './deps'
@@ -302,4 +305,139 @@ export async function setPrimaryContact(deps: Deps, ctx: SessionContext, input: 
       .set({ isPrimary: true, updatedAt: now })
       .where(eq(schema.clientContacts.id, input.id)),
   ])
+}
+
+export type ClientFigures = {
+  period: RoleRecon
+  allTime: RoleRecon
+  byProject: (ProjectListRow & { period: RoleRecon })[]
+  byWorker: { workerId: string; name: string; kind: 'human' | 'agent'; period: TimeRecon & { cents?: number } }[]
+  weeks: { weekStart: string; recon: RoleRecon }[]
+  recent: { id: string; workerName: string; jobName: string; startedAt: Date; endedAt: Date }[]
+}
+
+function reconLiteral(r: ReturnType<typeof piecesRecon>, keepCents: boolean): RoleRecon {
+  if (keepCents) return r
+  const { cents: _drop, ...rest } = r
+  return rest as TimeRecon
+}
+
+function workerReconLiteral(r: ReturnType<typeof piecesRecon>, keepCents: boolean): TimeRecon & { cents?: number } {
+  if (keepCents) return r
+  const { cents: _d, ...rest } = r
+  return rest
+}
+
+/** KPI block for the client detail page; `from`/`to` omitted = all time. */
+export async function clientFigures(
+  deps: Deps,
+  ctx: SessionContext,
+  input: { id: string; from?: string; to?: string },
+): Promise<ClientFigures> {
+  const keepCents = canSeeMoney(ctx)
+  const scope = hasRole(ctx, 'billing') ? {} : { workerIds: [ctx.workerId, ...ctx.superviseeWorkerIds] }
+  const ALL = { from: '2000-01-01', to: '2100-01-01' }
+  const period = { from: input.from ?? ALL.from, to: input.to ?? ALL.to }
+  const filteredPeriod = input.from !== undefined || input.to !== undefined
+
+  const [pieces, allPieces, projectRows] = await Promise.all([
+    loadPieces(deps, filteredPeriod ? period : ALL, { clientId: input.id, ...scope }),
+    filteredPeriod ? loadPieces(deps, ALL, { clientId: input.id, ...scope }) : Promise.resolve(null),
+    listProjects(deps, ctx, { clientId: input.id, status: 'all', sort: 'name', limit: 200, due: 'any' }),
+  ])
+
+  // Map pieces to their project via job→project.
+  const projectIds = projectRows.rows.map((p) => p.id)
+  const jobProject = new Map<string, string>()
+  if (projectIds.length > 0) {
+    const jobs = await deps.db
+      .select({ id: schema.jobs.id, projectId: schema.jobs.projectId })
+      .from(schema.jobs)
+      .where(inArray(schema.jobs.projectId, projectIds))
+      .all()
+    for (const j of jobs) jobProject.set(j.id, j.projectId)
+  }
+  const piecesByProject = new Map<string, Piece[]>()
+  for (const x of pieces) {
+    const pid = jobProject.get(x.jobId)
+    if (!pid) continue
+    const list = piecesByProject.get(pid)
+    if (list) list.push(x)
+    else piecesByProject.set(pid, [x])
+  }
+  const byProject = projectRows.rows.map((p) => ({ ...p, period: reconLiteral(piecesRecon(piecesByProject.get(p.id) ?? []), keepCents) }))
+
+  const workers = await workerNames(deps)
+  const byWorker = [...new Set(pieces.map((p) => p.workerId))]
+    .sort()
+    .map((workerId) => {
+      const w = workers.get(workerId)
+      return {
+        workerId,
+        name: w?.name ?? '?',
+        kind: w?.kind ?? ('human' as const),
+        period: workerReconLiteral(piecesRecon(pieces.filter((x) => x.workerId === workerId)), keepCents),
+      }
+    })
+
+  // Mondays covering the period, oldest first.
+  const endMs = localDayBoundariesUtcMs(period.to, deps.tz).endMs
+  let weekStart = isoWeekStart(localDayBoundariesUtcMs(period.from, deps.tz).startMs, deps.tz)
+  const weeks: { weekStart: string; recon: RoleRecon }[] = []
+  for (;;) {
+    const dates = weekDates(weekStart)
+    weeks.push({ weekStart, recon: reconLiteral(piecesRecon(pieces.filter((x) => dates.includes(x.day))), keepCents) })
+    if (localDayBoundariesUtcMs(dates[6]!, deps.tz).endMs >= endMs) break
+    const [y, m, d] = dates[6]!.split('-').map(Number) as [number, number, number]
+    weekStart = new Date(Date.UTC(y, m - 1, d + 7)).toISOString().slice(0, 10)
+  }
+
+  // Last 20 entries for this client (scope-filtered like everything else).
+  const recentConds = [isNull(schema.intervals.deletedAt), eq(schema.projects.clientId, input.id)]
+  if (scope.workerIds) recentConds.push(inArray(schema.intervals.workerId, scope.workerIds))
+  const recentRows = await deps.db
+    .select({
+      id: schema.intervals.id,
+      workerId: schema.intervals.workerId,
+      jobName: schema.jobs.name,
+      startedAt: schema.intervals.startedAt,
+      endedAt: schema.intervals.endedAt,
+    })
+    .from(schema.intervals)
+    .innerJoin(schema.jobs, eq(schema.jobs.id, schema.intervals.jobId))
+    .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
+    .where(and(...recentConds))
+    .orderBy(desc(schema.intervals.startedAt), desc(schema.intervals.id))
+    .limit(20)
+    .all()
+
+  return {
+    period: reconLiteral(piecesRecon(pieces), keepCents),
+    allTime: reconLiteral(piecesRecon(allPieces ?? pieces), keepCents),
+    byProject,
+    byWorker,
+    weeks,
+    recent: recentRows.map((r) => ({
+      id: r.id,
+      workerName: workers.get(r.workerId)?.name ?? '?',
+      jobName: r.jobName,
+      startedAt: r.startedAt,
+      endedAt: r.endedAt,
+    })),
+  }
+}
+
+async function workerNames(deps: Deps): Promise<Map<string, { name: string; kind: 'human' | 'agent' }>> {
+  const rows = await deps.db
+    .select({
+      id: schema.workers.id,
+      kind: schema.workers.kind,
+      workerName: schema.workers.name,
+      userName: schema.user.name,
+    })
+    .from(schema.workers)
+    .leftJoin(schema.humanWorkers, eq(schema.humanWorkers.workerId, schema.workers.id))
+    .leftJoin(schema.user, eq(schema.user.id, schema.humanWorkers.userId))
+    .all()
+  return new Map(rows.map((r) => [r.id, { name: r.userName ?? r.workerName ?? '?', kind: r.kind }]))
 }
