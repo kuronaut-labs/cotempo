@@ -108,7 +108,7 @@ function LeavePage() {
         {balances.map((b) => (
           <div key={b.type.id} className="leave-balance">
             <div className="k">{b.type.name}</div>
-            <div className="v">{formatHmm(b.availableMinutes)} available</div>
+            <div className="v">{b.type.paid ? `${formatHmm(b.availableMinutes)} available` : 'No balance'}</div>
             <div className="hint">{formatHmm(b.pendingMinutes)} pending</div>
           </div>
         ))}

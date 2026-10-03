@@ -23,9 +23,8 @@ export function ReconTable({ report, prev }: { report: ReconciliationReport; pre
           {showDeltas ? <th className="money">Premium Δ</th> : null}
           {showMoney && showDeltas ? <th className="money">$ Δ</th> : null}
           {showRealization ? <th className="money">Realization</th> : null}
-          {showMoney ? <th className="money">$</th> : null}
         </tr>
-      </thead>
+        </thead>
       <tbody>
         {report.clients.map((c) => (
           <tr key={c.clientId}>
@@ -61,7 +60,6 @@ export function ReconTable({ report, prev }: { report: ReconciliationReport; pre
                   : `${report.realization![c.clientId]!.realizationPct}%`}
               </td>
             ) : null}
-            {showMoney && 'cents' in c ? <td className="money">{formatCents(c.cents)}</td> : null}
           </tr>
         ))}
       </tbody>
@@ -75,9 +73,6 @@ export function ReconTable({ report, prev }: { report: ReconciliationReport; pre
           {showDeltas ? <td className="money" /> : null}
           {showMoney && showDeltas ? <td className="money" /> : null}
           {showRealization ? <td className="money" /> : null}
-          {showMoney && 'cents' in report.total ? (
-            <td className="money">{formatCents(report.total.cents)}</td>
-          ) : null}
         </tr>
       </tfoot>
     </table>

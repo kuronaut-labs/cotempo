@@ -182,12 +182,16 @@ normal-case links, ink underline on active, mono 12px user).
   icon — exception: pure glyph buttons (`‹ › ×`) where `aria-label` carries
   the meaning.
 - Current placement map:
-  - Nav: Clock (Today), ChartBar (Reports), ShieldCheck (Approvals),
-    Gear (Admin), Logout (Sign out)
+  - Nav: Clock (Today), ChartBar (Reports), Buildings (Clients),
+    Folder (Projects), Users (Team), ShieldCheck (Approvals), CalendarDays
+    (Leave), Gear (Admin), Logout (Sign out)
   - Structure levels: **Building → client, Folder → project,
     Briefcase → job** (the hierarchy read)
   - Row actions: Pen (Edit), Trash2 (Delete), ArchiveIcon (Archive),
-    Send (Resend / Send invite)
+    Send (Resend / Send invite), Layers (+ Overlap), Plus (Add — collapsed
+    lane / picker trigger)
+  - Pure glyph/popover: the how-counted `?` popover icon (details/summary,
+    decorative, aria-hidden)
   - Commits/actions: Check (Save/Add/Approve), X (dismiss/Reject),
     Unlock (Unlock), Printer (Print), FileDownload (Export CSV),
     ChevronLeft/ChevronRight (date nav)
@@ -206,8 +210,27 @@ normal-case links, ink underline on active, mono 12px user).
   var(--premium-fill) 0 4px, transparent 4px 8px)` + 1px premium-fill left
   border; overlap hatch on strips is `rgba(55,53,47,.45)` on 3px/5px.
 - Day-crossing markers `‹`/`›` stay as glyphs in mono cells (data, not buttons).
-- Mini-strip: 28px track on `--fill-hover`, job-colored blocks with mono
-  9px `--j-ink` labels.
+- Day strip (mini-strip on Today): a working window (06–22 default,
+  auto-expands to whole hours covering entries, clamped to the day) instead
+  of 24h; `rows × 24px` stacked rows (row 22px + 2px gap, min 56px) so
+  overlapping entries sit on separate rows; 2-hourly hairline ticks with mono
+  10px labels; full-height 45° hatch columns behind overlap regions (`×N`
+  count chip floats above in `.ministrip-tags`); square job-colored blocks
+  (radius 0), job-name labels when block ≥ 8% width; row ↔ table hover
+  linkage via a shared hoverId (2px ink outline on the block, row fill).
+  Faint dashed rectangle while dragging a new range (phone floor: labels off
+  below 480px).
+- Job picker (`.jobpicker`): one combobox — text input + absolute listbox
+  (max-height 320px) — replacing the client-then-job double select on every
+  entry surface. Groups top-down: Assigned (when assignments exist), Recent,
+  then Client › Project; filter matches job/project/client names;
+  selected shows as Client / Project / Job.
+- Collapsed lane (`.today-lane.collapsed`): empty others' lanes fold to a
+  48px head row (name + 'nothing logged') with a ghost Add; expands on
+  click. Your own lane never collapses.
+- How-counted popover (`.howcounted`): `?` details/summary next to the
+  DayMathChip on Today explaining wall-clock vs effort vs overlap in
+  vocabulary copy.
 
 ## Do / Don't
 

@@ -83,6 +83,8 @@ Do not: refactor code outside the task, add dependencies, change config files (`
 | Client/project list services | `src/lib/search.ts`, `src/lib/schemas/{clients,projects}.ts`, `src/server/services/{clients,projects}.ts` |
 | Overtime math | `src/lib/overtime.ts` |
 | Entity routes | `src/routes/_app/clients.tsx`, `clients.$clientId.tsx`, `projects.tsx`, `projects.$projectId.tsx` |
+| Entry defaults / strip layout | `src/lib/{entryDefaults,stripLayout,jobColors}.ts` |
+| Job picker | `src/components/jobPicker.tsx` |
 
 ## Comments
 
