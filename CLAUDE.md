@@ -31,7 +31,7 @@ Red means fix the task, not move on. Never mark a step done with a failing gate.
 
 1. **Runtime boundary (#20):** `src/lib/**` imports nothing from `cloudflare:workers` or `~/server/*`. Lint enforces it. Bindings are read only through `getEnv()` in `src/server/env.ts`; no env, DB, or auth access at module scope anywhere.
 2. **Service shape (#10, #20):** business logic lives in `src/server/services/*.ts` as exported `(deps, ctx, input)` functions. `src/server/fns/*.ts` are thin `createServerFn` wrappers: `.middleware([...]).validator(Schema).handler(({ data, context }) => svc.fn(deps(), ctxOf(context), data))`. Tests call the service directly with `deps()` and `asUser(role)` from `tests/integration/helpers.ts`.
-3. **Guard order in every interval mutation (#17, #7, #26):** `assertCanEditWorker` → live job lookup (snapshot `rateCents`) → same-job overlap → `assertWeeksEditable(before ∪ after week keys)` → write → `resetSubmittedWeeks`.
+3. **Guard order in every interval mutation (#17, #7, #26):** `assertCanEditWorker` → live job lookup (snapshot `rateCents`) → `assertAssigned` (no-op unless `requireAssignment` is on; judged against the target worker) → same-job overlap → `assertWeeksEditable(before ∪ after week keys)` → write → `resetSubmittedWeeks`.
 4. **Role checks twice:** middleware (`authMw`, `requireRole`) at the fn, and again inside the service (`hasRole`, `assertCanEditWorker`, `assertCanViewWorker`). Services throw `HttpError(403, 'FORBIDDEN')` themselves; the contract tests call services without middleware.
 5. **Money (#5, #18):** operators never receive a `cents`, `rateCents`, or `billableRateCents` key. Build the object without the key; do not set it to `null` or `0`. Any displayed amount is `moneyCents(rows)` over the whole grouping, rounded once. Minutes never round.
 6. **Time (#19, #22, #23):** all instants are integer ms, minute-aligned, stored via `integer(..., { mode: 'timestamp_ms' })` and app-supplied `new Date()`. Day and week boundaries come from `src/lib/dayMath.ts` and `src/lib/week.ts` with `deps.tz`. Never use `Date` local-time methods; never hardcode a zone.
@@ -80,6 +80,9 @@ Do not: refactor code outside the task, add dependencies, change config files (`
 | Flag thresholds / trends / realization / budgets | `src/server/services/{settings,reports,structure}.ts` |
 | Team view | `src/routes/_app/team.tsx`, `listTeamWeeks` in `src/server/services/approvals.ts` |
 | Assignments | `src/lib/schemas/assignments.ts`, `src/server/services/assignments.ts`, `src/server/fns/assignments.ts` |
+| Due dates | `src/lib/dueDates.ts` |
+| Allocation math + report | `src/lib/allocation.ts`, `src/server/services/allocations.ts` |
+| Assignment UI | `src/components/assignPills.tsx`, `src/components/assignmentsStrip.tsx` |
 | Client/project list services | `src/lib/search.ts`, `src/lib/schemas/{clients,projects}.ts`, `src/server/services/{clients,projects}.ts` |
 | Overtime math | `src/lib/overtime.ts` |
 | Entity routes | `src/routes/_app/clients.tsx`, `clients.$clientId.tsx`, `projects.tsx`, `projects.$projectId.tsx` |

@@ -24,11 +24,9 @@ import { Route as AppTeamRouteImport } from './routes/_app/team'
 import { Route as AppTodayRouteImport } from './routes/_app/today'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as DevComponentsRouteImport } from './routes/dev.components'
-import { Route as AppAdminClientsRouteImport } from './routes/_app/admin/clients'
 import { Route as AppAdminJobsRouteImport } from './routes/_app/admin/jobs'
 import { Route as AppAdminLeaveRouteImport } from './routes/_app/admin/leave'
 import { Route as AppAdminPositionsRouteImport } from './routes/_app/admin/positions'
-import { Route as AppAdminProjectsRouteImport } from './routes/_app/admin/projects'
 import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
 import { Route as AppAdminWorkersRouteImport } from './routes/_app/admin/workers'
 import { Route as AppClientsClientIdRouteImport } from './routes/_app/clients.$clientId'
@@ -109,11 +107,6 @@ const DevComponentsRoute = DevComponentsRouteImport.update({
   path: '/dev/components',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppAdminClientsRoute = AppAdminClientsRouteImport.update({
-  id: '/clients',
-  path: '/clients',
-  getParentRoute: () => AppAdminRouteRoute,
-} as any)
 const AppAdminJobsRoute = AppAdminJobsRouteImport.update({
   id: '/jobs',
   path: '/jobs',
@@ -127,11 +120,6 @@ const AppAdminLeaveRoute = AppAdminLeaveRouteImport.update({
 const AppAdminPositionsRoute = AppAdminPositionsRouteImport.update({
   id: '/positions',
   path: '/positions',
-  getParentRoute: () => AppAdminRouteRoute,
-} as any)
-const AppAdminProjectsRoute = AppAdminProjectsRouteImport.update({
-  id: '/projects',
-  path: '/projects',
   getParentRoute: () => AppAdminRouteRoute,
 } as any)
 const AppAdminSettingsRoute = AppAdminSettingsRouteImport.update({
@@ -175,11 +163,9 @@ export interface FileRoutesByFullPath {
   '/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
   '/dev/components': typeof DevComponentsRoute
-  '/admin/clients': typeof AppAdminClientsRoute
   '/admin/jobs': typeof AppAdminJobsRoute
   '/admin/leave': typeof AppAdminLeaveRoute
   '/admin/positions': typeof AppAdminPositionsRoute
-  '/admin/projects': typeof AppAdminProjectsRoute
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/workers': typeof AppAdminWorkersRoute
   '/clients/$clientId': typeof AppClientsClientIdRoute
@@ -201,11 +187,9 @@ export interface FileRoutesByTo {
   '/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
   '/dev/components': typeof DevComponentsRoute
-  '/admin/clients': typeof AppAdminClientsRoute
   '/admin/jobs': typeof AppAdminJobsRoute
   '/admin/leave': typeof AppAdminLeaveRoute
   '/admin/positions': typeof AppAdminPositionsRoute
-  '/admin/projects': typeof AppAdminProjectsRoute
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/workers': typeof AppAdminWorkersRoute
   '/clients/$clientId': typeof AppClientsClientIdRoute
@@ -229,11 +213,9 @@ export interface FileRoutesById {
   '/_app/today': typeof AppTodayRoute
   '/api/health': typeof ApiHealthRoute
   '/dev/components': typeof DevComponentsRoute
-  '/_app/admin/clients': typeof AppAdminClientsRoute
   '/_app/admin/jobs': typeof AppAdminJobsRoute
   '/_app/admin/leave': typeof AppAdminLeaveRoute
   '/_app/admin/positions': typeof AppAdminPositionsRoute
-  '/_app/admin/projects': typeof AppAdminProjectsRoute
   '/_app/admin/settings': typeof AppAdminSettingsRoute
   '/_app/admin/workers': typeof AppAdminWorkersRoute
   '/_app/clients/$clientId': typeof AppClientsClientIdRoute
@@ -257,11 +239,9 @@ export interface FileRouteTypes {
     | '/today'
     | '/api/health'
     | '/dev/components'
-    | '/admin/clients'
     | '/admin/jobs'
     | '/admin/leave'
     | '/admin/positions'
-    | '/admin/projects'
     | '/admin/settings'
     | '/admin/workers'
     | '/clients/$clientId'
@@ -283,11 +263,9 @@ export interface FileRouteTypes {
     | '/today'
     | '/api/health'
     | '/dev/components'
-    | '/admin/clients'
     | '/admin/jobs'
     | '/admin/leave'
     | '/admin/positions'
-    | '/admin/projects'
     | '/admin/settings'
     | '/admin/workers'
     | '/clients/$clientId'
@@ -310,11 +288,9 @@ export interface FileRouteTypes {
     | '/_app/today'
     | '/api/health'
     | '/dev/components'
-    | '/_app/admin/clients'
     | '/_app/admin/jobs'
     | '/_app/admin/leave'
     | '/_app/admin/positions'
-    | '/_app/admin/projects'
     | '/_app/admin/settings'
     | '/_app/admin/workers'
     | '/_app/clients/$clientId'
@@ -439,13 +415,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DevComponentsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/admin/clients': {
-      id: '/_app/admin/clients'
-      path: '/clients'
-      fullPath: '/admin/clients'
-      preLoaderRoute: typeof AppAdminClientsRouteImport
-      parentRoute: typeof AppAdminRouteRoute
-    }
     '/_app/admin/jobs': {
       id: '/_app/admin/jobs'
       path: '/jobs'
@@ -465,13 +434,6 @@ declare module '@tanstack/react-router' {
       path: '/positions'
       fullPath: '/admin/positions'
       preLoaderRoute: typeof AppAdminPositionsRouteImport
-      parentRoute: typeof AppAdminRouteRoute
-    }
-    '/_app/admin/projects': {
-      id: '/_app/admin/projects'
-      path: '/projects'
-      fullPath: '/admin/projects'
-      preLoaderRoute: typeof AppAdminProjectsRouteImport
       parentRoute: typeof AppAdminRouteRoute
     }
     '/_app/admin/settings': {
@@ -513,21 +475,17 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppAdminRouteRouteChildren {
-  AppAdminClientsRoute: typeof AppAdminClientsRoute
   AppAdminJobsRoute: typeof AppAdminJobsRoute
   AppAdminLeaveRoute: typeof AppAdminLeaveRoute
   AppAdminPositionsRoute: typeof AppAdminPositionsRoute
-  AppAdminProjectsRoute: typeof AppAdminProjectsRoute
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
   AppAdminWorkersRoute: typeof AppAdminWorkersRoute
 }
 
 const AppAdminRouteRouteChildren: AppAdminRouteRouteChildren = {
-  AppAdminClientsRoute: AppAdminClientsRoute,
   AppAdminJobsRoute: AppAdminJobsRoute,
   AppAdminLeaveRoute: AppAdminLeaveRoute,
   AppAdminPositionsRoute: AppAdminPositionsRoute,
-  AppAdminProjectsRoute: AppAdminProjectsRoute,
   AppAdminSettingsRoute: AppAdminSettingsRoute,
   AppAdminWorkersRoute: AppAdminWorkersRoute,
 }
