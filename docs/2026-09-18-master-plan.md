@@ -117,7 +117,7 @@ Then: the plan's Done Criteria all hold, the wrap-up commit exists, and the plan
 - [x] Stage 2 · Audit & reporting
 - [x] Stage 3 · Assignments Waves 1–4
 - [x] Stage 4 · Clients & projects pages
-- [ ] Stage 5 · Entry UX Waves 4–5
+- [x] Stage 5 · Entry UX Waves 4–5
 - [ ] Stage 6 · Enforcement + wrap-up
 
 ## Why this order, and what can slip
