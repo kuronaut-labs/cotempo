@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
 import { z } from 'zod'
 import { FileDownload } from 'reicon-react'
 import { KpiTile } from '~/components/kpiTile'
@@ -422,7 +422,7 @@ function BillingPanel({
             <tbody>
               {jobs.map((j) => (
                 <tr key={j.jobId}>
-                  <td className="nm">{j.jobName}</td>
+                  <td className="nm"><Link to="/projects/$projectId" params={{ projectId: j.projectId }}>{j.jobName}</Link></td>
                   <td>{j.projectName} · {j.clientName}</td>
                   <td><TrioChip recon={j as import('~/lib/attribution').Recon} /></td>
                   <td className="money">{'budgetCents' in j && j.budgetCents != null ? formatCents(j.budgetCents) : '—'}</td>

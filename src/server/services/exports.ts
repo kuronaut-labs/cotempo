@@ -1,4 +1,4 @@
-import { and, eq, gt, gte, inArray, isNull, lt } from 'drizzle-orm'
+import { and, eq, gt, gte, inArray, isNull, lt, type SQL } from 'drizzle-orm'
 import { clipPieces, explode, recon as piecesRecon, type Piece, type Recon } from '~/lib/attribution'
 import { localDateOf, localDateTimeOf, localDayBoundariesUtcMs } from '~/lib/dayMath'
 import { moneyCents, formatDecimalHours } from '~/lib/money'
@@ -99,8 +99,22 @@ type IntervalRow = {
   editCount: number
 }
 
-async function loadIntervalRowsForCsv(db: Db, workerIds: string[], startMs: number, endMs: number): Promise<IntervalRow[]> {
+async function loadIntervalRowsForCsv(
+  db: Db,
+  workerIds: string[],
+  startMs: number,
+  endMs: number,
+  entity?: { clientId?: string | null; projectId?: string | null },
+): Promise<IntervalRow[]> {
   if (workerIds.length === 0) return []
+  const conds: SQL[] = [
+    isNull(schema.intervals.deletedAt),
+    inArray(schema.intervals.workerId, workerIds),
+    lt(schema.intervals.startedAt, new Date(endMs)),
+    gt(schema.intervals.endedAt, new Date(startMs)),
+  ]
+  if (entity?.clientId) conds.push(eq(schema.projects.clientId, entity.clientId))
+  if (entity?.projectId) conds.push(eq(schema.jobs.projectId, entity.projectId))
   return db
     .select({
       id: schema.intervals.id,
@@ -124,14 +138,7 @@ async function loadIntervalRowsForCsv(db: Db, workerIds: string[], startMs: numb
     .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
     .innerJoin(schema.clients, eq(schema.clients.id, schema.projects.clientId))
     .innerJoin(schema.workers, eq(schema.workers.id, schema.intervals.workerId))
-    .where(
-      and(
-        isNull(schema.intervals.deletedAt),
-        inArray(schema.intervals.workerId, workerIds),
-        lt(schema.intervals.startedAt, new Date(endMs)),
-        gt(schema.intervals.endedAt, new Date(startMs)),
-      ),
-    )
+    .where(and(...conds))
     .all()
 }
 
@@ -173,7 +180,10 @@ export async function exportCsv(
   // policy as the invoice/client views after #H5 (archiving stops *new*
   // entries, not billing for past work). (#M10)
   const allWorkerIds = (await db.select({ id: schema.workers.id }).from(schema.workers).all()).map((w) => w.id)
-  const rows = await loadIntervalRowsForCsv(db, allWorkerIds, start, end)
+  const rows = await loadIntervalRowsForCsv(db, allWorkerIds, start, end, {
+    clientId: input.clientId,
+    projectId: input.projectId,
+  })
   const wnames = await workerNamesForBilling(db)
   const filename = `timesheets-${input.from}_${input.to}-${input.view}.csv`
 
@@ -363,7 +373,10 @@ export async function exportCsv(
   }
 
   // view === 'daily'
-  const pieces = await loadPieces(deps, { from: input.from, to: input.to })
+  const pieces = await loadPieces(deps, { from: input.from, to: input.to }, {
+    clientId: input.clientId ?? undefined,
+    projectId: input.projectId ?? undefined,
+  })
   const byDay = groupBy(pieces, 'day')
   const byClient = groupBy(pieces, 'clientId')
   const clientNames = await db

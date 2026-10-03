@@ -57,7 +57,7 @@ export type AdminKpis = {
   weeklyTargetHours: number | null
 }
 
-export type JobRecon = { jobId: string; jobName: string; projectName: string; clientName: string } & RoleRecon & {
+export type JobRecon = { jobId: string; projectId: string; jobName: string; projectName: string; clientName: string } & RoleRecon & {
   budgetCents?: number | null
   consumedCents?: number
   budgetPct?: number | null
@@ -459,6 +459,7 @@ export async function perJob(deps: Deps, ctx: SessionContext, input: PeriodInput
     .select({
       id: schema.jobs.id,
       name: schema.jobs.name,
+      projectId: schema.jobs.projectId,
       projectName: schema.projects.name,
       clientName: schema.clients.name,
       budgetCents: schema.jobs.budgetCents,
@@ -482,7 +483,7 @@ export async function perJob(deps: Deps, ctx: SessionContext, input: PeriodInput
     .map((jobId) => {
       const j = jobMap.get(jobId)!
       const r = recon(byJob.get(jobId)!)
-      const base: JobRecon = { jobId, jobName: j.name, projectName: j.projectName, clientName: j.clientName, ...makeRecon(r, keepCents) }
+      const base: JobRecon = { jobId, projectId: j.projectId, jobName: j.name, projectName: j.projectName, clientName: j.clientName, ...makeRecon(r, keepCents) }
       if (keepCents) {
         const budget = j.budgetCents ?? null
         const consumed = recon(allTimePieces.filter((p) => p.jobId === jobId)).cents

@@ -1,11 +1,14 @@
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 import { useRouter } from '@tanstack/react-router'
 import { z } from 'zod'
+import { FileDownload } from 'reicon-react'
 import { KpiTile } from '~/components/kpiTile'
 import { ManageCard } from '~/components/manageCard'
 import { PeriodSelector } from '~/components/periodSelector'
 import { StatusChip } from '~/components/ui/chip'
 import { TrioChip } from '~/components/trioChip'
+import { Button } from '~/components/ui/button'
+import { exportCsvFn } from '~/server/fns/exports'
 import { formatCents, formatHmm } from '~/lib/money'
 import { formatWeekLabel } from '~/lib/dayMath'
 import { getTodayFn } from '~/server/fns/intervals'
@@ -26,7 +29,15 @@ export const Route = createFileRoute('/_app/projects/$projectId')({
       getTodayFn(),
       getSessionCtxFn(),
     ])
-    return { detail, figures, today, from: deps.from, to: deps.to, isAdmin: ctx?.roles.includes('admin') ?? false }
+    return {
+      detail,
+      figures,
+      today,
+      from: deps.from,
+      to: deps.to,
+      isAdmin: ctx?.roles.includes('admin') ?? false,
+      canExport: Boolean(ctx && (ctx.roles.includes('admin') || ctx.roles.includes('billing'))),
+    }
   },
   onError: () => {
     throw notFound()
@@ -37,7 +48,7 @@ export const Route = createFileRoute('/_app/projects/$projectId')({
 function ProjectDetailPage() {
   const router = useRouter()
   const navigate = Route.useNavigate()
-  const { detail, figures, today, from, to, isAdmin } = Route.useLoaderData()
+  const { detail, figures, today, from, to, isAdmin, canExport } = Route.useLoaderData()
   const period = { from: from ?? '2000-01-01', to: to ?? '2100-01-01' }
   const allTime = figures.allTime
   const showMoney = 'cents' in allTime
@@ -83,7 +94,29 @@ function ProjectDetailPage() {
       </div>
       <div className="detail-grid">
         <section className="card">
-          <div className="card-head"><h2>Trio</h2></div>
+          <div className="card-head">
+            <h2>Trio</h2>
+            {canExport && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={async () => {
+                  const res = await exportCsvFn({ data: { from: period.from, to: period.to, view: 'intervals', projectId: detail.id } })
+                  const blob = await res.blob()
+                  const url = URL.createObjectURL(blob)
+                  const a = document.createElement('a')
+                  a.href = url
+                  a.download = `timesheets-${period.from}_${period.to}-${detail.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.csv`
+                  document.body.appendChild(a)
+                  a.click()
+                  a.remove()
+                  URL.revokeObjectURL(url)
+                }}
+              >
+                <FileDownload size={13} /> Export CSV
+              </Button>
+            )}
+          </div>
           <TrioChip recon={allTime} size="lg" />
         </section>
         <section className="card">

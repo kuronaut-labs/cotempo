@@ -108,7 +108,7 @@ function InvoicePage({ invoice }: { invoice: Invoice }) {
       <header className="invoice-head">
         <div>
           <h1>Invoice</h1>
-          <div className="invoice-client">{invoice.client.name}</div>
+          <div className="invoice-client"><Link to="/clients/$clientId" params={{ clientId: invoice.client.id }}>{invoice.client.name}</Link></div>
         </div>
         <div className="invoice-meta">
           <div>

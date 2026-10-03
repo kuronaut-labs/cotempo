@@ -85,3 +85,28 @@ describe('allocations CSV (Task 3.2)', () => {
     ).rejects.toMatchObject({ status: 403, code: 'FORBIDDEN' } satisfies Partial<HttpError>)
   })
 })
+
+describe('entity-scoped exports (Task 4.1)', () => {
+  beforeEach(() => resetDb())
+
+  afterAll(async () => {
+    await resetDb()
+  })
+
+  it('intervals view with clientId c2 has only j3/j4 rows', async () => {
+    const res = await exportCsv(deps(), asUser('billing'), { ...period, view: 'intervals', clientId: ids.c2 })
+    const lines = res.body.trim().split('\n')
+    expect(lines.length).toBeGreaterThan(1)
+    const jobs = lines.slice(1).map((l) => l.split(',')[4])
+    expect(jobs.every((j) => j === 'Route Model Tuning' || j === 'Internal Data Cleansing')).toBe(true)
+    expect(jobs.includes('Internal Data Cleansing')).toBe(true)
+  })
+
+  it('intervals view with projectId p1 has only j1/j2 rows', async () => {
+    const res = await exportCsv(deps(), asUser('billing'), { ...period, view: 'intervals', projectId: ids.p1 })
+    const lines = res.body.trim().split('\n')
+    expect(lines.length).toBeGreaterThan(1)
+    const jobs = lines.slice(1).map((l) => l.split(',')[4])
+    expect(jobs.every((j) => j === 'Pipeline Maintenance' || j === 'Eval Harness Runs')).toBe(true)
+  })
+})

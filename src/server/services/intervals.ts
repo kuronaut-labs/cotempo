@@ -17,6 +17,7 @@ export type DayIntervalRow = {
   id: string
   workerId: string
   jobId: string
+  projectId: string
   jobName: string
   clientName: string
   startedAt: Date
@@ -248,6 +249,7 @@ export async function listDay(deps: Deps, ctx: SessionContext, input: z.infer<ty
       id: schema.intervals.id,
       workerId: schema.intervals.workerId,
       jobId: schema.intervals.jobId,
+      projectId: schema.jobs.projectId,
       jobName: schema.jobs.name,
       clientName: schema.clients.name,
       startedAt: schema.intervals.startedAt,

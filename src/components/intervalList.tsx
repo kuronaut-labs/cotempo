@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { Layers, Pen, Trash2 } from 'reicon-react'
 import { Button } from '~/components/ui/button'
 import { localHHMM } from '~/lib/dayMath'
@@ -69,7 +70,7 @@ export function IntervalList({
             >
               <td>
                 {n ? <span aria-hidden className={`swatch${swatch}`} /> : null}
-                {r.jobName}
+                <Link to="/projects/$projectId" params={{ projectId: r.projectId }}>{r.jobName}</Link>
               </td>
               <td>{r.clientName}</td>
               <td className="mono">{localHHMM(startMs, tz)}{crossesDay && startMs < dayStartMs ? '‹' : ''}</td>

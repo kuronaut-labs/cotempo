@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from '@tanstack/react-router'
 import { Archive as ArchiveIcon, Briefcase, Building, Folder } from 'reicon-react'
 import { formatCents } from '~/lib/money'
 import { dueStatus, jobDueAfterProject } from '~/lib/dueDates'
@@ -106,7 +107,7 @@ export function StructureTree({
       {clients.map((c) => (
         <div key={c.id} className={`tree-client${c.archivedAt ? ' archived' : ''}`}>
           <div className="tree-row">
-            <span className="name"><Building size={14} /> {c.name}</span>
+            <span className="name"><Building size={14} /> <Link to="/clients/$clientId" params={{ clientId: c.id }}>{c.name}</Link></span>
             {c.archivedAt && <span className="tag">archived</span>}
             {manage === 'client' && live(c) && <ClientActions node={c} run={run} />}
           </div>
@@ -114,7 +115,7 @@ export function StructureTree({
             {(showArchived ? c.projects : c.projects.filter(live)).map((p) => (
               <div key={p.id} className={`tree-project${p.archivedAt ? ' archived' : ''}`}>
                 <div className="tree-row">
-                   <span className="name"><Folder size={14} /> {p.name}</span>
+                   <span className="name"><Folder size={14} /> <Link to="/projects/$projectId" params={{ projectId: p.id }}>{p.name}</Link></span>
                   {p.archivedAt && <span className="tag">archived</span>}
                   <DueChip dueOn={p.dueOn} today={todayIso} />
                   {showAssign && <AssignPills targetKind="project" targetId={p.id} assignments={assignments!} workers={workers!} run={run} />}

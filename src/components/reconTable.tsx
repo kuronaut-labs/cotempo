@@ -1,4 +1,5 @@
 import { formatCents, formatHmm } from '~/lib/money'
+import { Link } from '@tanstack/react-router'
 import { TrioChip } from '~/components/trioChip'
 import type { ClientRecon, ReconciliationReport } from '~/server/services/reports'
 
@@ -28,7 +29,7 @@ export function ReconTable({ report, prev }: { report: ReconciliationReport; pre
       <tbody>
         {report.clients.map((c) => (
           <tr key={c.clientId}>
-            <td className="nm">{c.name}</td>
+            <td className="nm"><Link to="/clients/$clientId" params={{ clientId: c.clientId }}>{c.name}</Link></td>
             <td>
               <TrioChip recon={c} />
             </td>
