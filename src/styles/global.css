@@ -2016,3 +2016,92 @@ input[type='radio']:disabled:checked::after {
 .leavequeue-actions { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; }
 .leavequeue-reject { display: flex; gap: var(--space-2); }
 .leavequeue-reject input { width: 220px; }
+
+/* ---------- phone-width layout floor (entry-ux 5.1) ---------- */
+
+.client-inline { display: none; }
+
+@media (max-width: 720px) {
+  .nav-user,
+  .app-nav > .nav-signout {
+    display: none;
+  }
+
+  .nav-menu {
+    position: relative;
+  }
+  .nav-menu > summary {
+    cursor: pointer;
+    list-style: none;
+    font: 500 14px/1 var(--font-body);
+    color: var(--color-muted);
+    padding: 10px 6px;
+  }
+  .nav-menu > summary::-webkit-details-marker {
+    display: none;
+  }
+  .nav-menu[open] {
+    position: absolute;
+    right: var(--space-4);
+    top: 68px;
+    z-index: 30;
+    background: var(--surface-card);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-2);
+    padding: var(--space-2);
+    min-width: 160px;
+  }
+
+  .app-nav {
+    gap: 0;
+    padding: 0 var(--space-2);
+  }
+  .app-nav a {
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-bottom-width: 3px;
+    font-size: 0; /* icon-only; keep accessible via the link text element below */
+  }
+  .app-nav a > svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .daymath .dm .k {
+    display: none;
+  }
+  .daymath .dm {
+    font-size: 11px;
+  }
+
+  .approvals-split,
+  .reports-panel {
+    display: block;
+  }
+
+  .entryform.compact .entryform-main {
+    flex-wrap: wrap;
+  }
+  .entryform.compact .entryform-main > .field,
+  .entryform.compact .entryform-main > .entryform-actions {
+    flex: 1 1 45%;
+  }
+
+  .intervallist .col-client {
+    display: none;
+  }
+  .intervallist .client-inline {
+    display: block;
+    color: var(--color-muted);
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ministrip-tick-label {
+    display: none;
+  }
+}

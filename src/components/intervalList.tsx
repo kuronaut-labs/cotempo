@@ -35,7 +35,7 @@ export function IntervalList({
       <thead>
         <tr>
           <th>Job</th>
-          <th>Client</th>
+          <th className="col-client">Client</th>
           <th>Start</th>
           <th>End</th>
           <th>Min</th>
@@ -71,8 +71,9 @@ export function IntervalList({
               <td>
                 {n ? <span aria-hidden className={`swatch${swatch}`} /> : null}
                 <Link to="/projects/$projectId" params={{ projectId: r.projectId }}>{r.jobName}</Link>
+                <span className="client-inline">{r.clientName}</span>
               </td>
-              <td>{r.clientName}</td>
+              <td className="col-client">{r.clientName}</td>
               <td className="mono">{localHHMM(startMs, tz)}{crossesDay && startMs < dayStartMs ? '‹' : ''}</td>
               <td className="mono">{localHHMM(endMs, tz)}{crossesDay && endMs > dayEndMs ? '›' : ''}</td>
               <td className="mono">

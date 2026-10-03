@@ -47,7 +47,21 @@ function AppLayout() {
         )}
         <span className="nav-spacer" />
         <span className="nav-user">{session.name}</span>
+        <details className="nav-menu">
+          <summary aria-label="Account menu">{session.name}</summary>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={async () => {
+              await authClient.signOut()
+              navigate({ to: '/login' })
+            }}
+          >
+            <Logout size={14} /> Sign out
+          </Button>
+        </details>
         <Button
+          className="nav-signout"
           variant="ghost"
           size="sm"
           onClick={async () => {
