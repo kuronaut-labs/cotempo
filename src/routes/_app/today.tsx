@@ -261,6 +261,20 @@ function TodayView() {
                 jobNames={Object.fromEntries(intervals.map((i) => [i.jobId, i.jobName]))}
                 highlightId={hoverId}
                 onHover={setHoverId}
+                onRangeSelect={
+                  canEditRow(w.workerId)
+                    ? (range) => {
+                        setEditing(null)
+                        setPresetWorker(null)
+                        setPrefill({
+                          workerId: w.workerId,
+                          startedAt: new Date(range.startMs).toISOString(),
+                          endedAt: new Date(range.endMs).toISOString(),
+                        })
+                        addPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                      }
+                    : undefined
+                }
               />
               <IntervalList
                 rows={intervals}

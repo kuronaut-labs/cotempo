@@ -649,8 +649,16 @@ input[type='radio']:disabled:checked::after {
   color: var(--color-info);
 }
 
-.ministrip-overlap {
+.ministrip-select {
   position: absolute;
+  top: 0;
+  bottom: 16px;
+  background: var(--fill-hover);
+  border: 1px dashed var(--color-primary);
+  pointer-events: none;
+}
+
+.ministrip-overlap {  position: absolute;
   top: 0;
   bottom: 16px;
   background: repeating-linear-gradient(45deg, var(--premium-fill) 0 4px, transparent 4px 8px);

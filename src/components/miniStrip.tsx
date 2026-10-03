@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { localHHMM, type Range } from '~/lib/dayMath'
 import { assignRows, hourTicks, stripWindow } from '~/lib/stripLayout'
 
@@ -106,6 +107,7 @@ export function MiniStrip({
   jobNames,
   highlightId,
   onHover,
+  onRangeSelect,
 }: {
   day: Range
   tz: string
@@ -117,12 +119,46 @@ export function MiniStrip({
   /** When set, that block gets a `.is-hover` outline (row↔block hover linkage). */
   highlightId?: string | null
   onHover?: (id: string | null) => void
+  /** Optional drag-to-prefill (LD13): fires with the snapped range on release. */
+  onRangeSelect?: (range: Range) => void
 }) {
   const window = stripWindow(day, intervals, tz)
   const { blocks, overlaps } = stripBlocks(window, intervals)
   const rows = assignRows(blocks)
   const ticks = hourTicks(window, tz)
   const trackHeight = Math.max(56, rows.size ? (Math.max(...rows.values()) + 1) * 24 + 8 : 32)
+  const [selection, setSelection] = useState<{ startMs: number; endMs: number } | null>(null)
+
+  const msAt = (track: HTMLElement, clientX: number): number => {
+    const rect = track.getBoundingClientRect()
+    const frac = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
+    const ms = window.startMs + frac * (window.endMs - window.startMs)
+    return window.startMs + Math.round((ms - window.startMs) / 300_000) * 300_000
+  }
+
+  const drag = (e: React.PointerEvent<HTMLDivElement>) => {
+    const track = e.currentTarget
+    const start = msAt(track, e.clientX)
+    setSelection({ startMs: start, endMs: start })
+    track.setPointerCapture(e.pointerId)
+    const move = (ev: PointerEvent) => setSelection({ startMs: start, endMs: msAt(track, ev.clientX) })
+    const up = (ev: PointerEvent) => {
+      track.removeEventListener('pointermove', move)
+      track.removeEventListener('pointerup', up)
+      const end = msAt(track, ev.clientX)
+      setSelection(null)
+      if (end !== start) onRangeSelect?.(end > start ? { startMs: start, endMs: end } : { startMs: end, endMs: start })
+    }
+    track.addEventListener('pointermove', move)
+    track.addEventListener('pointerup', up)
+  }
+
+  const selectionStyle = selection
+    ? {
+        left: `${((Math.min(selection.startMs, selection.endMs) - window.startMs) / (window.endMs - window.startMs)) * 100}%`,
+        width: `${(Math.abs(selection.endMs - selection.startMs) / (window.endMs - window.startMs)) * 100}%`,
+      }
+    : undefined
 
   const tip = (b: StripBlock) => {
     const name = jobNames?.[b.jobId]
@@ -139,7 +175,12 @@ export function MiniStrip({
           </span>
         ))}
       </div>
-      <div className="ministrip-track" style={{ height: trackHeight }}>
+      <div
+        className="ministrip-track"
+        style={{ height: trackHeight }}
+        onPointerDown={onRangeSelect ? drag : undefined}
+      >
+        {selection && onRangeSelect ? <div className="ministrip-select" style={selectionStyle} /> : null}
         {ticks.map((t, i) => (
           <div key={i} className="ministrip-tick" style={{ left: `${t.leftPct}%` }}>
             {t.label ? <span className="ministrip-tick-label">{t.label}</span> : null}
