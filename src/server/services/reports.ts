@@ -82,7 +82,7 @@ async function loadIntervalsInRange(
   db: Db,
   startMs: number,
   endMs: number,
-  filter: { workerIds?: string[]; clientId?: string; jobIds?: string[] } = {},
+  filter: { workerIds?: string[]; clientId?: string; jobIds?: string[]; projectId?: string } = {},
 ) {
   const conds = [
     isNull(schema.intervals.deletedAt),
@@ -91,6 +91,7 @@ async function loadIntervalsInRange(
   ]
   if (filter.workerIds && filter.workerIds.length > 0) conds.push(inArray(schema.intervals.workerId, filter.workerIds))
   if (filter.jobIds && filter.jobIds.length > 0) conds.push(inArray(schema.intervals.jobId, filter.jobIds))
+  if (filter.projectId) conds.push(eq(schema.jobs.projectId, filter.projectId))
   if (filter.clientId) {
     // Archived jobs keep their historical time everywhere — archiving stops
     // *new* entries (guarded at interval create) but billing for past work
@@ -137,7 +138,7 @@ async function clientNameMap(db: Db, clientIds: string[]): Promise<Map<string, s
 export async function loadPieces(
   deps: Deps,
   period: PeriodInput,
-  filter: { workerIds?: string[]; clientId?: string; jobIds?: string[] } = {},
+  filter: { workerIds?: string[]; clientId?: string; jobIds?: string[]; projectId?: string } = {},
 ): Promise<Piece[]> {
   const { db, tz } = deps
   const { startMs, endMs } = periodRange(period, tz)
