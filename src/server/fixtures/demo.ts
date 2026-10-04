@@ -18,6 +18,16 @@ export const ids = {
   j2: 'demo-0000-job-2',
   j3: 'demo-0000-job-3',
   j4: 'demo-0000-job-4',
+  // history cohort (opt-in via insertDemo {history:true})
+  op2: 'demo-hist-operator-worker',
+  c3: 'demo-hist-client-3',
+  c4: 'demo-hist-client-4',
+  p3: 'demo-hist-project-3',
+  p4: 'demo-hist-project-4',
+  j5: 'demo-hist-job-5',
+  j6: 'demo-hist-job-6',
+  j7: 'demo-hist-job-7',
+  agent3: 'demo-hist-agent-3',
   // positions — rate override demo (#positions-plan)
   posSenior: 'pos-senior-dev',
   posDesigner: 'pos-designer',
@@ -33,7 +43,7 @@ export const demoHumans: readonly DemoHuman[] = [
 /** Monday 2026-08-31 00:00 UTC. Tests anchor here; the seed passes the current week. */
 export const DEMO_ANCHOR_MS = Date.UTC(2026, 7, 31)
 
-export async function insertDemo(db: Db, opts: { anchorMs?: number } = {}) {
+export async function insertDemo(db: Db, opts: { anchorMs?: number; history?: boolean } = {}) {
   const now = new Date()
   const anchor = opts.anchorMs ?? DEMO_ANCHOR_MS
   const at = (dayOffset: number, h: number, m = 0) => new Date(anchor + dayOffset * 86_400_000 + (h * 60 + m) * 60_000)
@@ -147,6 +157,18 @@ export async function insertDemo(db: Db, opts: { anchorMs?: number } = {}) {
       { id: 'asg-demo-2', workerId: ids.agent1, targetKind: 'job', targetId: ids.j1, allocatedMinutes: 1200, createdBy: ids.adminWorker, createdAt: at(-7, 0), updatedAt: at(-7, 0) },
       { id: 'asg-demo-3', workerId: ids.agent2, targetKind: 'job', targetId: ids.j3, allocatedMinutes: null, createdBy: ids.adminWorker, createdAt: at(-7, 0), updatedAt: at(-7, 0) },
     ]).onConflictDoNothing(),
+    // History cohort (insertDemo {history:true} only): agents supervised by billing.
+    ...opts.history
+      ? [
+          db
+            .insert(schema.workers)
+            .values([
+              { id: ids.agent3, kind: 'agent', name: 'Comet', supervisorId: ids.adminWorker, createdAt: at(-90, 0) },
+            ])
+            .onConflictDoNothing(),
+          db.insert(schema.agentWorkers).values({ workerId: ids.agent3, model: 'claude-haiku-5', framework: 'langgraph' }).onConflictDoNothing(),
+        ]
+      : [],
     db.insert(schema.leaveTypes).values(leaveTypeRows).onConflictDoNothing(),
     db.insert(schema.positions).values([
       { id: ids.posSenior, name: 'Senior developer', rateCents: 12_000, createdAt: now },
@@ -178,6 +200,90 @@ export async function insertDemo(db: Db, opts: { anchorMs?: number } = {}) {
       iv('08', ids.opWorker, ids.j4, null, 3, 9, 11), // non-billable
     ])
     .onConflictDoNothing()
+
+  /* History cohort (#demo-history): ~3 months (91 days) of entries across two extra
+     clients/projects, a second operator, and weekly approval rows so Reports/Team
+     views have depth. Opt-in ({ history: true }) so the unit/demo fixture
+     (which asserts 8 intervals / 5 workers) stays untouched. */
+  if (opts.history) {
+    await db.insert(schema.clients).values([
+      { id: ids.c3, name: 'Harbour Analytics', email: 'ops@harbour.example', website: 'https://harbour.example', addressLine1: '90 Esplanade', city: 'Fremantle', region: 'WA', postcode: '6160', country: 'Australia', createdAt: at(-120, 9) },
+      { id: ids.c4, name: 'Meridian Health', createdAt: at(-100, 10) },
+    ]).onConflictDoNothing()
+    await db.insert(schema.clientContacts).values([
+      { id: 'demo-hist-contact-4', clientId: ids.c3, name: 'Priya Nair', role: 'Data lead', email: 'priya@harbour.example', isPrimary: true, createdAt: at(-120, 9) },
+      { id: 'demo-hist-contact-5', clientId: ids.c4, name: 'Tom Alder', role: 'Clinical ops', email: 'tom@meridian.example', isPrimary: true, createdAt: at(-100, 10) },
+    ]).onConflictDoNothing()
+    await db.insert(schema.projects).values([
+      { id: ids.p3, clientId: ids.c3, name: 'Tide Gauge Telemetry', dueOn: '2026-11-20', createdAt: at(-120, 9) },
+      { id: ids.p4, clientId: ids.c4, name: 'Patient Portal', createdAt: at(-100, 10) },
+    ]).onConflictDoNothing()
+    await db.insert(schema.jobs).values([
+      { id: ids.j5, projectId: ids.p3, name: 'Sensor Pipeline', billableRateCents: 15000, dueOn: '2026-10-12', createdAt: at(-120, 9) },
+      { id: ids.j6, projectId: ids.p3, name: 'Dashboards', billableRateCents: 11000, createdAt: at(-120, 9) },
+      { id: ids.j7, projectId: ids.p4, name: 'Intake Triage Bot', billableRateCents: 16000, createdAt: at(-100, 10) },
+    ]).onConflictDoNothing()
+    await db.insert(schema.workers).values({ id: ids.op2, kind: 'human', createdAt: at(-95, 9) }).onConflictDoNothing()
+    await db.insert(schema.assignments).values([
+      { id: 'asg-demo-4', workerId: ids.opWorker, targetKind: 'project', targetId: ids.p3, allocatedMinutes: 4800, createdBy: ids.adminWorker, createdAt: at(-100, 9), updatedAt: at(-100, 9) },
+      { id: 'asg-demo-5', workerId: ids.op2, targetKind: 'project', targetId: ids.p3, allocatedMinutes: 7200, createdBy: ids.adminWorker, createdAt: at(-95, 9), updatedAt: at(-95, 9) },
+      { id: 'asg-demo-6', workerId: ids.agent3, targetKind: 'job', targetId: ids.j5, allocatedMinutes: 3600, createdBy: ids.adminWorker, createdAt: at(-90, 9), updatedAt: at(-90, 9) },
+      { id: 'asg-demo-7', workerId: ids.agent3, targetKind: 'job', targetId: ids.j7, allocatedMinutes: 2400, createdBy: ids.adminWorker, createdAt: at(-80, 9), updatedAt: at(-80, 9) },
+      { id: 'asg-demo-8', workerId: ids.billingWorker, targetKind: 'project', targetId: ids.p4, allocatedMinutes: null, createdBy: ids.adminWorker, createdAt: at(-95, 10), updatedAt: at(-95, 10) },
+    ]).onConflictDoNothing()
+
+    // Deterministic pseudo-random generator: same anchor → same data, every time.
+    let rngState = 123456789
+    const rnd = (n: number) => {
+      rngState = (1103515245 * rngState + 12345) % 2147483648
+      return rngState % n
+    }
+
+    // One "day plan" per weekday rotation: who works what that day.
+    type Shift = [string, string, number | null, number, number]
+    const dayPlan = (d: number): Shift[] => {
+      const dow = ((d % 7) + 7) % 7 // 0 = Mon (anchor is a Monday) .. 6 = Sun
+      if (dow === 5 || dow === 6) return [] // weekend off
+      if (d % 5 === 3) return [[ids.op2, ids.j4, null, 9, 12]] // internal-only day for op2
+      const shifts: Shift[] = [
+        [ids.opWorker, ids.j1, 14000, 9, 12],
+        [ids.opWorker, ids.j2, 9000, 13, 15 + rnd(2)], // 0 or 1 hour overtime occasionally
+        [ids.agent1, ids.j1, 14000, 9, 16],
+        [ids.agent3, ids.j5, 15000, 10 + rnd(2), 16],
+        [ids.op2, ids.j5, 15000, 9, 14],
+        [ids.op2, ids.j6, 11000, 14, 17],
+      ]
+      if (d % 3 === 0) shifts.push([ids.agent2, ids.j3, 12000, 13, 16])
+      if (d % 4 === 1) shifts.push([ids.billingWorker, ids.j7, 16000, 11, 15])
+      return shifts
+    }
+
+    const intervalRows: (typeof schema.intervals.$inferInsert)[] = []
+    const approvalRows: (typeof schema.approvals.$inferInsert)[] = []
+    const eventRows: (typeof schema.intervalEvents.$inferInsert)[] = []
+    for (let d = -91; d <= 0; d++) {
+      for (const [w, job, rateCents, h1, h2] of dayPlan(d)) {
+        const ivId = `demo-hist-iv-${String(1000 - d).padStart(4, '0')}-${w}`
+        intervalRows.push({ id: ivId, workerId: w, jobId: job, rateCents, startedAt: at(d, h1), endedAt: at(d, h2), createdBy: ids.opWorker, createdAt: at(d, 0), updatedAt: now, editCount: 0 })
+        // Approvals: weeks older than 14 days approved, previous weeks submitted, current week draft.
+        const mondayMs = anchor + d * 86_400_000 - (((d % 7) + 7) % 7) * 86_400_000
+        const weekStart = new Date(mondayMs).toISOString().slice(0, 10)
+        const kind = mondayMs < anchor - 14 * 86_400_000 ? 'approved' : mondayMs < anchor ? 'submitted' : 'draft'
+        approvalRows.push({ id: `demo-hist-ap-${w}-${weekStart}`, workerId: w, weekStart, status: kind, approvedAt: kind === 'approved' ? new Date(mondayMs + 6 * 86_400_000 + 17 * 3600_000) : null, approvedBy: kind === 'approved' ? ids.adminWorker : null, approvedComment: kind === 'approved' ? 'Seeded history' : null, createdAt: new Date(mondayMs), updatedAt: now })
+        eventRows.push({ id: `demo-hist-ev-${ivId}`, intervalId: ivId, kind: 'create', actorWorkerId: ids.opWorker, at: at(d, 0), changes: null })
+      }
+    }
+    // D1 caps SQL variables (internally ~100): chunk wide bulk inserts.
+    const chunk = <T>(rows: T[], size: number): T[][] => {
+      const out: T[][] = []
+      for (let i = 0; i < rows.length; i += size) out.push(rows.slice(i, i + size))
+      return out
+    }
+    // 9 columns × 10 rows = 90 variables, under the cap.
+    for (const batchRows of chunk(intervalRows, 10)) await db.insert(schema.intervals).values(batchRows).onConflictDoNothing()
+    for (const batchRows of chunk(approvalRows, 10)) await db.insert(schema.approvals).values(batchRows).onConflictDoNothing()
+    for (const batchRows of chunk(eventRows, 10)) await db.insert(schema.intervalEvents).values(batchRows).onConflictDoNothing()
+  }
 
   await db.batch([
     db

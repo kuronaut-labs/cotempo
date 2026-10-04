@@ -24,7 +24,7 @@ today.setUTCHours(0, 0, 0, 0)
 const dow = today.getUTCDay()
 const monday = today.getTime() - (dow === 0 ? 6 : dow - 1) * 86_400_000
 
-await insertDemo(db, { anchorMs: monday })
+await insertDemo(db, { anchorMs: monday, history: true })
 await seedAuthUsers(db, auth, [
   {
     workerId: ids.adminWorker,
