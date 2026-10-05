@@ -5,8 +5,10 @@ import { KpiTile } from '~/components/kpiTile'
 import { Button, buttonClass } from '~/components/ui/button'
 import { EffortBars } from '~/components/effortBars'
 import { OperatorLanes } from '~/components/operatorLanes'
+import { MyWeekChart } from '~/components/myWeekChart'
 import { PeriodSelector, thisWeek } from '~/components/periodSelector'
 import { ReconBars } from '~/components/reconBars'
+import { TrendsChart } from '~/components/trendsChart'
 import { ReconTable } from '~/components/reconTable'
 import { TrioChip } from '~/components/trioChip'
 import { DailyTable } from '~/components/dailyTable'
@@ -211,7 +213,7 @@ function ReportsView() {
       ) : null}
 
       {activeTab === 'operator' && data.lanes ? (
-        <OperatorPanel lanes={data.lanes} allocations={data.allocations} tz={tz} from={from} to={to} today={today} onPeriodChange={(p) => goSearch(navigate, { from: p.from, to: p.to })} jobColorIndex={colorIndexFromStructure(data.structure ?? [])} />
+        <OperatorPanel lanes={data.lanes} allocations={data.allocations} tz={tz} from={from} to={to} today={today} selfWorkerId={ctx?.workerId} onPeriodChange={(p) => goSearch(navigate, { from: p.from, to: p.to })} jobColorIndex={colorIndexFromStructure(data.structure ?? [])} />
       ) : null}
     </main>
   )
@@ -299,7 +301,7 @@ function AdminPanel({
       <section className="card">
         <h2>Structure &amp; rates</h2>
         <StructureTree tree={structure} manage="job" showArchived={false} today={today} onRefresh={() => {}} />
-        <div className="legend" style={{ marginTop: 8 }}>
+        <div className="legend">
           <span>
             <span className="sw" style={{ background: 'var(--color-success)' }} />billable
           </span>
@@ -467,6 +469,7 @@ function BillingPanel({
       {sub === 'trends' && trends ? (
         <section className="card">
           <h2>Weekly trends</h2>
+          <TrendsChart trends={trends} />
           <table className="recontable">
             <thead><tr><th className="nm">Week</th><th>Wall clock</th><th>Effort</th><th>Overlap</th><th>Utilization</th></tr></thead>
             <tbody>
@@ -513,12 +516,16 @@ function PaceChip({ pace }: { pace: string }) {
   return <StatusChip kind={PACE_KIND[pace] ?? 'muted'}>{PACE_LABEL[pace] ?? pace}</StatusChip>
 }
 
-function AllocationTable({ rows, showClient = true }: { rows: AllocationRow[]; showClient?: boolean }) {
+function AllocationTable({ rows, showClient = true, showWorker = true }: {
+  rows: AllocationRow[]
+  showClient?: boolean
+  showWorker?: boolean
+}) {
   return (
     <table className="recontable">
       <thead>
         <tr>
-          <th className="nm">Worker</th>
+          {showWorker ? <th className="nm">Worker</th> : null}
           <th className="nm">Target</th>
           {showClient ? <th>Client</th> : null}
           <th>Due</th>
@@ -531,8 +538,8 @@ function AllocationTable({ rows, showClient = true }: { rows: AllocationRow[]; s
       <tbody>
         {rows.map((r) => (
           <tr key={r.assignmentId}>
-            <td className="nm">{r.workerName}</td>
-            <td>{r.targetName}</td>
+            {showWorker ? <td className="nm">{r.workerName}</td> : null}
+            <td className="nm">{r.targetName}</td>
             {showClient ? <td>{r.clientName}</td> : null}
             <td className="mono">{r.dueOn ?? '—'}</td>
             <td className="money">{r.allocatedMinutes != null ? formatHmm(r.allocatedMinutes) : '—'}</td>
@@ -585,6 +592,7 @@ function OperatorPanel({
   from,
   to,
   today,
+  selfWorkerId,
   onPeriodChange,
   jobColorIndex,
 }: {
@@ -594,22 +602,30 @@ function OperatorPanel({
   from: string
   to: string
   today: string
+  selfWorkerId?: string
   jobColorIndex: Record<string, number>
   onPeriodChange: (next: { from: string; to: string }) => void
 }) {
+  const selfLane = lanes.find((l) => l.workerId === selfWorkerId)
   return (
     <div className="reports-panel">
       <header className="reports-subhead">
         <h2>My time and my team's</h2>
       </header>
       <PeriodSelector from={from} to={to} today={today} tz={tz} onChange={onPeriodChange} />
+      {selfLane ? (
+        <section className="card">
+          <h2>My week</h2>
+          <MyWeekChart days={selfLane.days} from={from} to={to} />
+        </section>
+      ) : null}
       {allocations && allocations.length > 0 ? (
         <section className="card">
           <h2>My assignments</h2>
-          <AllocationTable rows={allocations} showClient={false} />
+          <AllocationTable rows={allocations} showClient={false} showWorker={false} />
         </section>
       ) : null}
-      <OperatorLanes lanes={lanes} tz={tz} jobColorIndex={jobColorIndex} />
+      <OperatorLanes lanes={lanes} tz={tz} jobColorIndex={jobColorIndex} selfWorkerId={selfWorkerId} />
     </div>
   )
 }

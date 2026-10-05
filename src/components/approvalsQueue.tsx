@@ -33,7 +33,6 @@ export function ApprovalsQueue({
                 checked={checked?.[`${w.workerId}-${w.weekStart}`] ?? false}
                 aria-label={`Select ${w.workerName} week ${w.weekStart}`}
                 onChange={() => onToggle({ workerId: w.workerId, weekStart: w.weekStart })}
-                style={{ flex: '0 0 auto' }}
               />
             ) : null}
             <button type="button" onClick={() => onSelect({ workerId: w.workerId, weekStart: w.weekStart })}>

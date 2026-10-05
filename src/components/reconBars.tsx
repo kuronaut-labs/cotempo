@@ -1,65 +1,54 @@
-import { formatCents, formatHmm } from '~/lib/money'
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { ChartTip, PremiumHatch, chartAxisLine, chartTick } from '~/components/chartTheme'
 import type { ReconciliationReport } from '~/server/services/reports'
 
-/* Bar widths as percent of the largest effort across clients. Pure: same report → same widths. */
-export function barPercents(report: ReconciliationReport): Map<string, { wallPct: number; premiumPct: number }> {
-  const out = new Map<string, { wallPct: number; premiumPct: number }>()
-  const maxEffort = report.clients.reduce((m, c) => Math.max(m, c.effortMin), 0)
-  if (maxEffort === 0) return out
-  for (const c of report.clients) {
-    const wallPct = (c.wallClockMin / maxEffort) * 100
-    const premiumPct = (c.premiumMin / maxEffort) * 100
-    out.set(c.clientId, { wallPct, premiumPct })
-  }
-  return out
+function truncate(name: string): string {
+  return name.length > 18 ? `${name.slice(0, 17)}…` : name
 }
 
-/* Per-client horizontal bars: wall-clock solid, premium hatched extension. The total
-   width of the bar (wall + premium) equals effort; the scale is the largest effort. */
+/* Per-client horizontal bars: wall-clock solid ink, overlap hatched. Minutes only — money lives in ReconTable (#5). */
 export function ReconBars({ report }: { report: ReconciliationReport }) {
-  const showMoney = 'cents' in report.total
-  const pcts = barPercents(report)
   if (report.clients.length === 0) {
     return <div className="reconbars-empty">No time logged in this period.</div>
   }
+  const data = report.clients.map((c) => ({
+    label: c.name,
+    wallClockMin: c.wallClockMin,
+    premiumMin: c.premiumMin,
+  }))
   return (
     <div className="reconbars">
       <div className="legend">
         <span>
-          <span className="sw" style={{ background: 'var(--color-primary)' }} />{' '}
-          On the clock
+          <span className="sw honest" /> On the clock
         </span>
         <span>
-          <span
-            className="sw"
-            style={{ background: 'var(--premium-fill)' }}
-          />
-          Overlap
+          <span className="sw premium" /> Overlap
         </span>
       </div>
-      {report.clients.map((c) => {
-        const p = pcts.get(c.clientId)!
-        return (
-          <div className="recon" key={c.clientId}>
-            <div className="nm">{c.name}</div>
-            <div className="barwrap">
-              <div className="bar honest" style={{ left: 0, width: `${p.wallPct}%` }}>
-                <span className="lbl">{formatHmm(c.wallClockMin)}</span>
-              </div>
-              <div className="bar premium" style={{ left: `${p.wallPct}%`, width: `${p.premiumPct}%` }} />
-            </div>
-            <div className="nums">
-              {showMoney && 'cents' in c ? <b>{formatCents(c.cents)}</b> : <b>{formatHmm(c.effortMin)}</b>}
-              {c.premiumMin > 0 ? (
-                <>
-                  {' · '}
-                  <span className="premium-tag">+{formatHmm(c.premiumMin)} premium</span>
-                </>
-              ) : null}
-            </div>
-          </div>
-        )
-      })}
+      <div className="chart">
+        <ResponsiveContainer width="100%" height={data.length * 28 + 8}>
+          <BarChart data={data} layout="vertical" margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+            <defs>
+              <PremiumHatch />
+            </defs>
+            <CartesianGrid horizontal={false} stroke="var(--color-tertiary)" />
+            <XAxis type="number" hide />
+            <YAxis
+              type="category"
+              dataKey="label"
+              width={140}
+              tick={chartTick}
+              tickLine={false}
+              axisLine={chartAxisLine}
+              tickFormatter={truncate}
+            />
+            <Tooltip content={<ChartTip />} cursor={{ fill: 'var(--fill-hover)' }} />
+            <Bar dataKey="wallClockMin" stackId="client" fill="var(--color-primary)" isAnimationActive={false} />
+            <Bar dataKey="premiumMin" stackId="client" fill="url(#premium-hatch)" isAnimationActive={false} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }

@@ -102,7 +102,7 @@ export function JobPicker({
             <li className="jobpicker-group">No jobs match</li>
           ) : (
             filtered.map((g) => (
-              <li key={g.key} className={`jobpicker-group ${g.kind === 'named' ? 'jobpicker-group-named' : ''}`}>
+              <li key={g.key} className="jobpicker-group">
                 {g.key !== 'Assigned' && g.key !== 'Recent' ? <span>{g.kind === 'named' ? g.label : ''}</span> : <span>{g.label}</span>}
                 <ul>
                   {g.jobs.map((j) => {

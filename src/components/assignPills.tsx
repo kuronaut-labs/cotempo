@@ -57,7 +57,7 @@ export function AssignPills({
           <button
             type="button"
             className="assignpill-x"
-            title="Unassign"
+            data-tip="Unassign"
             aria-label={`Unassign ${a.workerName}`}
             onClick={() => void run(() => archiveAssignmentFn({ data: { id: a.id } }))}
           >
@@ -68,7 +68,6 @@ export function AssignPills({
       {hoursError && <span className="field-error">{hoursError}</span>}
       {options.length > 0 && (
         <select
-          title="Assign"
           aria-label="Assign a worker"
           value=""
           onChange={(e) => {

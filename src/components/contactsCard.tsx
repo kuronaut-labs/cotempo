@@ -98,6 +98,7 @@ function ContactForm({ clientId, contact, onDone }: { clientId: string; contact?
   })
   return (
     <form
+      className="contactform"
       onSubmit={(e) => {
         e.preventDefault()
         form.handleSubmit()
@@ -181,6 +182,7 @@ function DetailsForm({ detail, onDone }: { detail: ClientDetail; onDone: () => v
   })
   return (
     <form
+      className="contactform"
       onSubmit={(e) => {
         e.preventDefault()
         e.stopPropagation()

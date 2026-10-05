@@ -20,22 +20,28 @@ function toStripIntervals(pieces: OperatorLaneData['days'][number]['pieces']): S
 /* Per-worker, per-day view: read-only mini-timeline (from 4.4b's stripBlocks) plus a
    trio chip. Operators see time only; the service never sends `cents` for this shape
    so the trio's `$` segment never appears. */
-export function OperatorLanes({ lanes, tz, jobColorIndex }: { lanes: OperatorLaneData[]; tz: string; jobColorIndex: Record<string, number> }) {
+export function OperatorLanes({ lanes, tz, jobColorIndex, selfWorkerId }: {
+  lanes: OperatorLaneData[]
+  tz: string
+  jobColorIndex: Record<string, number>
+  selfWorkerId?: string
+}) {
   if (lanes.length === 0) {
     return <div className="lanebody-empty">No time logged in this period.</div>
   }
   return (
     <div className="operatorlanes">
       {lanes.map((lane) => {
+        // open prop re-applies only for the self lane; supervisee toggles persist across period re-renders.
         return (
-          <div className="lane" key={lane.workerId}>
-            <div className="lanehead">
+          <details className="lane" key={lane.workerId} open={lane.workerId === selfWorkerId || undefined}>
+            <summary className="lanehead">
               <div className="nm">
                 {lane.name}
                 <span className={`wtag ${lane.kind}`}>{lane.kind}</span>
               </div>
               <DayMathChip trio={asTrio(lane.total)} />
-            </div>
+            </summary>
             <div className="lanebody">
               {lane.days.length === 0 ? (
                 <div className="lanebody-empty">No time logged.</div>
@@ -54,7 +60,7 @@ export function OperatorLanes({ lanes, tz, jobColorIndex }: { lanes: OperatorLan
                 })
               )}
             </div>
-          </div>
+          </details>
         )
       })}
     </div>

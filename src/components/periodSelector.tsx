@@ -1,6 +1,6 @@
 import { localDayBoundariesUtcMs } from '~/lib/dayMath'
 import { isoWeekStart } from '~/lib/week'
-import { filterChipClass } from '~/components/ui/chip'
+import { FilterChip } from '~/components/ui/chip'
 
 /* Period presets are computed from a `today` prop, never the browser clock (#23).
    `tz` is required: the boundary of a week or month is local. */
@@ -97,15 +97,13 @@ export function PeriodSelector({
     <div className="period" role="group" aria-label="Period">
       <span className="lbl">Period</span>
       {presets.map((p) => (
-        <button
+        <FilterChip
           key={p.id}
-          type="button"
-          aria-selected={active === p.id}
-          className={filterChipClass(active === p.id)}
+          selected={active === p.id}
           onClick={() => onChange(p.range)}
         >
           {p.label}
-        </button>
+        </FilterChip>
       ))}
       <span className="range">{rangeLabel({ from, to }, today)}</span>
       <span className="spacer" />

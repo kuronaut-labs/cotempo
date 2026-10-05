@@ -87,7 +87,7 @@ function ApprovalsView() {
         <header className="approvals-head">
           <h1>Approvals queue</h1>
           <span className="approvals-count">{data.queue.length} submitted</span>
-          <span style={{ marginLeft: 'auto' }} />
+          <span className="spacer" />
           <Button
             variant="secondary"
             size="sm"
@@ -114,7 +114,7 @@ function ApprovalsView() {
         </header>
         <div className="approvals-split">
           <aside className="approvals-queue-pane">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', marginBottom: 'var(--space-2)' }}>
+            <div className="approvalsqueue-toolbar">
               <label className="checkline">
                 <input type="checkbox" checked={flaggedOnly} onChange={(e) => setFlaggedOnly(e.target.checked)} />
                 Only weeks with flags

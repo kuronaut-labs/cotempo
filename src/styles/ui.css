@@ -74,6 +74,7 @@
   background: transparent;
   color: var(--color-muted);
   border-color: var(--border-card);
+  cursor: pointer;
 }
 .chip--filter:hover {
   background: var(--fill-hover);
@@ -111,7 +112,7 @@
 [data-tip]::after {
   content: attr(data-tip);
   position: absolute;
-  bottom: calc(100% + 8px);
+  bottom: calc(100% + 6px);
   left: 50%;
   transform: translateX(-50%);
   background: var(--surface-inverse);

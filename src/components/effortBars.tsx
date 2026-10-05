@@ -1,44 +1,35 @@
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis } from 'recharts'
+import { ChartTip, PremiumHatch, chartAxisLine, chartTick } from '~/components/chartTheme'
 import type { AdminKpis } from '~/server/services/reports'
-
-/* Hourly effort bar: width scales to the largest effort in the series. The bar is split
-   into solid wall-clock + hatched premium = effort; the hatched region is the concurrency
-   surplus, matching the per-day trio elsewhere. */
-export function effortBarPercents(series: AdminKpis['effortSeries']): { hour: number; wallPct: number; premiumPct: number; effortMin: number; wallMin: number }[] {
-  const max = series.reduce((m, p) => Math.max(m, p.effortMin), 0)
-  if (max === 0) return []
-  return series.map((p) => ({
-    hour: p.hour,
-    wallMin: p.wallClockMin,
-    effortMin: p.effortMin,
-    wallPct: (p.wallClockMin / max) * 100,
-    premiumPct: ((p.effortMin - p.wallClockMin) / max) * 100,
-  }))
-}
 
 function formatHour(h: number): string {
   return `${String(h).padStart(2, '0')}:00`
 }
 
+/* Hourly effort stacked: wall-clock solid, overlap hatched (#11/#13). */
 export function EffortBars({ series }: { series: AdminKpis['effortSeries'] }) {
-  const rows = effortBarPercents(series)
-  if (rows.length === 0) {
+  const data = series.map((p) => ({
+    label: formatHour(p.hour),
+    wallClockMin: p.wallClockMin,
+    premiumMin: p.effortMin - p.wallClockMin,
+  }))
+  if (data.length === 0 || data.every((d) => d.wallClockMin === 0 && d.premiumMin === 0)) {
     return <div className="effortbars-empty">No time logged this day.</div>
   }
   return (
-    <div className="effortbars">
-      {rows.map((r) => (
-        <div className="row" key={r.hour}>
-          <div className="hr">{formatHour(r.hour)}</div>
-          <div className="barwrap">
-            <div className="bar wall" style={{ left: 0, width: `${r.wallPct}%` }} />
-            <div className="bar premium" style={{ left: `${r.wallPct}%`, width: `${r.premiumPct}%` }} />
-          </div>
-          <div className="nums">
-            {r.wallMin}m on the clock
-            {r.effortMin - r.wallMin > 0 ? <> · <span className="p">+{r.effortMin - r.wallMin}m overlap</span></> : null}
-          </div>
-        </div>
-      ))}
+    <div className="chart">
+      <ResponsiveContainer width="100%" height={120}>
+        <BarChart data={data} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
+          <defs>
+            <PremiumHatch />
+          </defs>
+          <CartesianGrid vertical={false} stroke="var(--color-tertiary)" />
+          <XAxis dataKey="label" tick={chartTick} tickLine={false} axisLine={chartAxisLine} interval="preserveStartEnd" />
+          <Tooltip content={<ChartTip />} cursor={{ fill: 'var(--fill-hover)' }} />
+          <Bar dataKey="wallClockMin" stackId="effort" fill="var(--color-primary)" isAnimationActive={false} />
+          <Bar dataKey="premiumMin" stackId="effort" fill="url(#premium-hatch)" isAnimationActive={false} />
+        </BarChart>
+      </ResponsiveContainer>
     </div>
   )
 }

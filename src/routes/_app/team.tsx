@@ -37,7 +37,7 @@ function TeamPage() {
       <h1><Users size={18} /> Team</h1>
       {team.map((m) => (
         <section key={m.workerId} className="card">
-          <h2 className="today-section-title">{m.workerName}</h2>
+          <h2>{m.workerName}</h2>
           <table className="intervallist">
             <thead>
               <tr>

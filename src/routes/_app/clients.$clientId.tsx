@@ -6,7 +6,7 @@ import { ManageCard } from '~/components/manageCard'
 import { PeriodSelector, type Period } from '~/components/periodSelector'
 import { StatusChip } from '~/components/ui/chip'
 import { TrioChip } from '~/components/trioChip'
-import { Button } from '~/components/ui/button'
+import { Button, buttonClass } from '~/components/ui/button'
 import { FileDownload } from 'reicon-react'
 import { exportCsvFn } from '~/server/fns/exports'
 import { formatHmm, formatCents } from '~/lib/money'
@@ -75,7 +75,7 @@ function ClientDetailPage() {
       </div>
       {showMoney ? (
         <p>
-          <a className="btn btn--secondary" href={`/invoice?clientId=${detail.id}&from=${period.from}&to=${period.to}`}>
+          <a className={buttonClass('secondary', 'sm')} href={`/invoice?clientId=${detail.id}&from=${period.from}&to=${period.to}`}>
             Invoice for this period
           </a>
         </p>

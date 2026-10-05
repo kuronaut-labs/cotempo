@@ -73,10 +73,10 @@ export function ApproverView({
   return (
     <div className="approverview">
       <header className="approverview-head">
-        <div>
+        <div className="approverview-name">
           <h2>{week.workerName}</h2>
           <span className="approverview-week">{formatWeekLabel(week.weekStart)}</span>
-          <StatusChip kind={badgeKind[week.status]} style={{ marginLeft: 12 }}>
+          <StatusChip kind={badgeKind[week.status]}>
             {STATUS_LABEL[week.status]}
           </StatusChip>
         </div>
