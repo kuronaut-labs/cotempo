@@ -2086,7 +2086,7 @@ input[type='radio']:disabled:checked::after {
     display: none;
   }
 
-  .nav-menu {
+  .app-nav > .nav-menu {
     display: block;
     position: relative;
   }

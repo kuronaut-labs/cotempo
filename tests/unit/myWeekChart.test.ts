@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dayLabel, myWeekSeries } from '~/components/myWeekChart'
+import { dayLabel, myWeekSeries, weekSeriesBlocked } from '~/components/myWeekChart'
 
 const day = (iso: string, wallClockMin: number, premiumMin: number) => ({
   day: iso,
@@ -24,5 +24,18 @@ describe('myWeekSeries', () => {
 
   it('returns empty for an inverted range', () => {
     expect(myWeekSeries([], '2026-10-02', '2026-09-28')).toEqual([])
+  })
+
+  it('blocks invalid and too-wide ranges so the chart can show a distinct note', () => {
+    expect(weekSeriesBlocked('2026-10-02', '2026-09-28')).toBe(true)
+    expect(weekSeriesBlocked('2000-01-01', '2100-01-01')).toBe(true)
+    expect(weekSeriesBlocked('2026-09-28', '2026-10-02')).toBe(false)
+    // 370-day span exactly is allowed; strictly more is blocked.
+    expect(weekSeriesBlocked('2025-10-05', '2026-10-10')).toBe(false)
+    expect(weekSeriesBlocked('2024-10-05', '2026-10-10')).toBe(true)
+  })
+
+  it('blocks non-ISO dates rather than looping wide', () => {
+    expect(weekSeriesBlocked('2026-9-28', '2026-10-02')).toBe(true)
   })
 })
