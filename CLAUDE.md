@@ -6,7 +6,7 @@ Read this before every task. The plan is `docs/2026-09-07-concurrent-timesheetin
 
 - Node 24 (`.nvmrc`). `nvm use` before anything. npm 11.
 - After `npm install`: `npm approve-scripts workerd esbuild && npm rebuild workerd esbuild` (workerd needs its postinstall).
-- Dev server: `npm run dev -- --port 3123 --strictPort`. Port 3000 is often taken on this machine; `APP_URL` in `wrangler.jsonc` is still `http://localhost:3000`, so when testing BetterAuth with curl send `Origin: http://localhost:3000` or change `APP_URL` locally.
+- Dev server: `npm run dev` ( script carries `--strictPort`, serving on 3000). `APP_URL` in `wrangler.jsonc` is `http://localhost:3000` to match; swap it to the production origin before `wrangler deploy`.
 - Local DB: `npm run db:migrate:local && npm run db:seed`. Seeded logins: `admin@example.com` (password from `.dev.vars` `ADMIN_PASSWORD`), `billing@example.com` / `ops@example.com` (`demo-password-123`).
 
 ## The gate

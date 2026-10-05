@@ -30,9 +30,10 @@ function create() {
     secret: env.BETTER_AUTH_SECRET,
     // Trust the deployed APP_URL and — only when APP_URL itself is loopback —
     // other loopback ports. In production this list is exactly [APP_URL]; in
-    // dev it covers the predictable :3000 base plus the :3123 port CLAUDE.md
-    // uses for `npm run dev -- --port 3123`. `Origin` is attacker-controlled, so
-    // a forged loopback origin would otherwise pass the check on a deployed URL.
+    // dev it covers the pinned :3000 (npm run dev) plus strays like Vite's
+    // 5173 default or CLAUDE.md's historical :3123. `Origin` is attacker-
+    // controlled, so a forged loopback origin would otherwise pass the check
+    // on a deployed URL.
     trustedOrigins: async (request?: Request) => {
       const origin = request?.headers.get('origin')
       if (!origin) return []
@@ -42,7 +43,7 @@ function create() {
         appHost = new URL(env.APP_URL).hostname
       } catch {}
       if (appHost === 'localhost' || appHost === '127.0.0.1') {
-        for (const port of [3000, 3123]) {
+        for (const port of [3000, 3123, 5173]) {
           for (const host of ['localhost', '127.0.0.1']) {
             allow.add(`http://${host}:${port}`)
           }
