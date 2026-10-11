@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Layers, Pen, Trash2 } from 'reicon-react'
 import { Button } from '~/components/ui/button'
@@ -27,80 +28,106 @@ export function IntervalList({
   onHover?: (id: string | null) => void
   onOverlap?: (id: string) => void
 }) {
+  // Two-step delete inline: the second click on the armed button deletes. No
+  // native window.confirm, and the action stays where the finger is (#P2-2).
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   if (rows.length === 0) {
     return <div className="intervallist-empty">No entries logged for this day.</div>
   }
   return (
-    <table className="intervallist">
-      <thead>
-        <tr>
-          <th>Job</th>
-          <th className="col-client">Client</th>
-          <th>Start</th>
-          <th>End</th>
-          <th>Min</th>
-          <th>Note</th>
-          <th aria-label="actions" />
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((r) => {
-          const startMs = r.startedAt.getTime()
-          const endMs = r.endedAt.getTime()
-          const min = Math.max(0, Math.round((endMs - startMs) / 60_000))
-          // Clip minutes to the queried day so the row matches the trio chips
-          // (which are clipped at the service layer). The ‹/› glyph convention
-          // (from miniStrip) flags the row as crossing the day boundary; the
-          // full interval is still shown in Start/End. (#L4)
-          const dayStartMs = Math.floor(startMs / 86_400_000) * 86_400_000
-          const dayEndMs = dayStartMs + 86_400_000
-          const clippedStart = Math.max(startMs, dayStartMs)
-          const clippedEnd = Math.min(endMs, dayEndMs)
-          const clippedMin = Math.max(0, Math.round((clippedEnd - clippedStart) / 60_000))
-          const crossesDay = startMs < dayStartMs || endMs > dayEndMs
-          const editable = canEdit(r.workerId)
-          const n = jobColorIndex?.[r.jobId]
-          const swatch = n ? ` job-c${Math.min(5, Math.max(1, n))}` : ''
-          return (
-            <tr
-              key={r.id}
-              className={`${crossesDay ? 'intervallist-crosses' : ''}${hoverId === r.id ? ' is-hover' : ''}`.trim() || undefined}
-              onMouseEnter={onHover ? () => onHover(r.id) : undefined}
-              onMouseLeave={onHover ? () => onHover(null) : undefined}
-            >
-              <td>
-                {n ? <span aria-hidden className={`swatch${swatch}`} /> : null}
-                <Link to="/projects/$projectId" params={{ projectId: r.projectId }}>{r.jobName}</Link>
-                <span className="client-inline">{r.clientName}</span>
-              </td>
-              <td className="col-client">{r.clientName}</td>
-              <td className="mono">{localHHMM(startMs, tz)}{crossesDay && startMs < dayStartMs ? '‹' : ''}</td>
-              <td className="mono">{localHHMM(endMs, tz)}{crossesDay && endMs > dayEndMs ? '›' : ''}</td>
-              <td className="mono">
-                {crossesDay ? <span title={`Full entry (spans midnight): ${formatHmm(min)}`}>{formatHmm(clippedMin)}</span> : formatHmm(min)}
-              </td>
-              <td>{r.note ?? ''}</td>
-              <td className="intervallist-actions">
-                {editable && (
-                  <>
-                    {onOverlap && (
-                      <Button variant="ghost" size="sm" onClick={() => onOverlap(r.id)} aria-label="Add overlap">
-                        <Layers size={13} /> + Overlap
+    <div className="intervallist-wrap">
+      <table className="intervallist">
+        <thead>
+          <tr>
+            <th>Job</th>
+            <th className="col-client">Client</th>
+            <th>Start</th>
+            <th>End</th>
+            <th>Min</th>
+            <th>Note</th>
+            <th aria-label="actions" />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const startMs = r.startedAt.getTime()
+            const endMs = r.endedAt.getTime()
+            const min = Math.max(0, Math.round((endMs - startMs) / 60_000))
+            // Clip minutes to the queried day so the row matches the trio chips
+            // (which are clipped at the service layer). The ‹/› glyph convention
+            // (from miniStrip) flags the row as crossing the day boundary; the
+            // full interval is still shown in Start/End. (#L4)
+            const dayStartMs = Math.floor(startMs / 86_400_000) * 86_400_000
+            const dayEndMs = dayStartMs + 86_400_000
+            const clippedStart = Math.max(startMs, dayStartMs)
+            const clippedEnd = Math.min(endMs, dayEndMs)
+            const clippedMin = Math.max(0, Math.round((clippedEnd - clippedStart) / 60_000))
+            const crossesDay = startMs < dayStartMs || endMs > dayEndMs
+            const editable = canEdit(r.workerId)
+            const n = jobColorIndex?.[r.jobId]
+            const swatch = n ? ` job-c${Math.min(5, Math.max(1, n))}` : ''
+            return (
+              <tr
+                key={r.id}
+                className={`${crossesDay ? 'intervallist-crosses' : ''}${hoverId === r.id ? ' is-hover' : ''}`.trim() || undefined}
+                onMouseEnter={onHover ? () => onHover(r.id) : undefined}
+                onMouseLeave={onHover ? () => onHover(null) : undefined}
+              >
+                <td>
+                  {n ? <span aria-hidden className={`swatch${swatch}`} /> : null}
+                  <Link to="/projects/$projectId" params={{ projectId: r.projectId }}>{r.jobName}</Link>
+                  <span className="client-inline">{r.clientName}</span>
+                </td>
+                <td className="col-client">{r.clientName}</td>
+                <td className="mono">{localHHMM(startMs, tz)}{crossesDay && startMs < dayStartMs ? '‹' : ''}</td>
+                <td className="mono">{localHHMM(endMs, tz)}{crossesDay && endMs > dayEndMs ? '›' : ''}</td>
+                  <td className="mono">
+                    {crossesDay ? <span data-tip={`Full entry (spans midnight): ${formatHmm(min)}`}>{formatHmm(clippedMin)}</span> : formatHmm(min)}
+                  </td>
+                <td>{r.note ?? ''}</td>
+                <td className="intervallist-actions">
+                  {editable && (
+                    <>
+                      {onOverlap && (
+                        <Button variant="ghost" size="sm" onClick={() => onOverlap(r.id)} aria-label="Add overlap">
+                          <Layers size={13} /> + Overlap
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => onEdit(r.id)} aria-label="Edit">
+                        <Pen size={13} /> Edit
                       </Button>
-                    )}
-                    <Button variant="ghost" size="sm" onClick={() => onEdit(r.id)} aria-label="Edit">
-                      <Pen size={13} /> Edit
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => onDelete(r.id)} aria-label="Delete">
-                      <Trash2 size={13} /> Delete
-                    </Button>
-                  </>
-                )}
-              </td>
-            </tr>
-          )
-        })}
-      </tbody>
-    </table>
+                      {confirmDeleteId === r.id ? (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            setConfirmDeleteId(null)
+                            onDelete(r.id)
+                          }}
+                          onBlur={() => setConfirmDeleteId(null)}
+                          aria-label="Confirm delete"
+                          data-tip="Click again to delete"
+                        >
+                          <Trash2 size={13} /> Delete?
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setConfirmDeleteId(r.id)}
+                          aria-label="Delete"
+                        >
+                          <Trash2 size={13} /> Delete
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
   )
 }

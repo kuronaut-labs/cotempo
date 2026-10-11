@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { localDayBoundariesUtcMs } from '../../src/lib/dayMath'
-import { assignRows, hourTicks, stripWindow } from '../../src/lib/stripLayout'
+import { assignRows, hourTicks, legendItems, stripWindow } from '../../src/lib/stripLayout'
 
 const TZ = 'Australia/Perth'
 const DAY = localDayBoundariesUtcMs('2026-09-01', TZ)
@@ -48,5 +48,25 @@ describe('hourTicks', () => {
     const labelled = ticks.filter((t) => t.label !== null).map((t) => t.label)
     expect(labelled).toEqual(['06:00', '12:00', '18:00'])
     expect(Math.round(ticks.at(-1)!.leftPct)).toBe(100)
+  })
+})
+
+describe('legendItems', () => {
+  it('shows nothing for a plain in-day lane without overlap', () => {
+    expect(legendItems([{ leadingClip: '', trailingClip: '' }], 0)).toEqual({
+      leading: false,
+      trailing: false,
+      overlap: false,
+    })
+  })
+  it('explains ‹ only when a block starts before the day', () => {
+    expect(legendItems([{ leadingClip: '‹', trailingClip: '' }], 0).leading).toBe(true)
+  })
+  it('explains › only when a block ends after the day', () => {
+    expect(legendItems([{ leadingClip: '', trailingClip: '›' }], 0).trailing).toBe(true)
+  })
+  it('explains ×N only when overlap regions exist', () => {
+    expect(legendItems([{ leadingClip: '', trailingClip: '' }], 2).overlap).toBe(true)
+    expect(legendItems([], 0).overlap).toBe(false)
   })
 })

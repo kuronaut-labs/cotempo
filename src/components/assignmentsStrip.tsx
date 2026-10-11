@@ -48,9 +48,16 @@ export function AssignmentsStrip({
             ) : null}
             <span className="dot">·</span>
             {r.remainingMinutes == null ? (
-              <span className="mono">{formatHmm(r.allocatedMinutes ?? 0)} allocated</span>
-            ) : (
+              r.allocatedMinutes ? (
+                <span className="mono">{formatHmm(r.allocatedMinutes)} allocated</span>
+              ) : (
+                <span className="mono">No budget yet</span>
+              )
+            ) : r.remainingMinutes > 0 ? (
               <span className="mono">{formatHmm(r.remainingMinutes)} left</span>
+            ) : (
+              // A negative "left" reads as nonsense; say which side of the line it is on.
+              <span className="mono">Over by {formatHmm(-r.remainingMinutes)}</span>
             )}
             <StatusChip kind={PACE_KIND[r.pace] ?? 'muted'}>{PACE_LABEL[r.pace] ?? '—'}</StatusChip>
           </li>

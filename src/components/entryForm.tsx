@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { TZDate } from '@date-fns/tz'
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
@@ -120,18 +121,28 @@ export function EntryForm({
       const note = value.note.trim()
       const base = { workerId: value.workerId, jobId: value.jobId, startedAt, endedAt, ...(note ? { note } : {}) }
       const payload: FormInput = isEdit ? { id: value.id!, ...base } : base
+      // Disable the submit button for the round-trip so a double Enter can't
+      // create the entry twice (#P2-1).
+      setSubmitting(true)
       try {
         await onSubmit(payload)
       } catch (e) {
         const err = e as { field?: string } | null
         const field = err?.field ? serverFieldMap[err.field] ?? err.field : undefined
         applyServerError(form, err && typeof err === 'object' ? { ...err, field } : err)
+      } finally {
+        setSubmitting(false)
       }
     },
   })
 
   const workerOpts = workerGroups(selfWorkerId, superviseeWorkerIds, workers).flatMap((g) => g.options)
+  const [submitting, setSubmitting] = useState(false)
   const hideWorker = workerOpts.length <= 1
+  // Cancel dismisses any non-default form state: an edit, a + Overlap prefill,
+  // or a worker preset from a collapsed lane. A plain create form is already
+  // the default state and has nothing to dismiss.
+  const dismissCancel = Boolean(onCancel) && Boolean(initial && (initial.id || initial.startedAt || initial.workerId))
 
   const jobField = (
     <form.Field name="jobId">
@@ -270,14 +281,14 @@ export function EntryForm({
 
   const actions = (
     <div className="entryform-actions">
-      <Button type="submit" variant="primary">
-        <Check size={14} /> {isEdit ? 'Save' : 'Add'}
+      <Button type="submit" variant="primary" disabled={submitting}>
+        <Check size={14} /> {submitting ? (isEdit ? 'Saving…' : 'Adding…') : isEdit ? 'Save' : 'Add'}
       </Button>
-      {isEdit && onCancel && (
+      {dismissCancel ? (
         <Button type="button" variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
-      )}
+      ) : null}
     </div>
   )
 
@@ -296,19 +307,27 @@ export function EntryForm({
             {jobField}
             {startTimeField}
             {durationField}
-            <div className="entryform-actions">{submitButton(isEdit)}</div>
+            <div className="entryform-actions">
+              {submitButton(isEdit)}
+              {dismissCancel && onCancel && (
+                <Button type="button" variant="secondary" onClick={onCancel}>
+                  Cancel
+                </Button>
+              )}
+            </div>
           </div>
           <details className="entryform-more">
             <summary>More</summary>
             {workerField}
             {endTimeField}
             {noteField}
-            {form.state.errorMap.onServer && (
-              <p role="alert" className="form-error">
-                {String(form.state.errorMap.onServer)}
-              </p>
-            )}
           </details>
+          {/* Outside the <details>: a server error must be visible even with More closed. */}
+          {form.state.errorMap.onServer && (
+            <p role="alert" className="form-error">
+              {String(form.state.errorMap.onServer)}
+            </p>
+          )}
         </>
       ) : (
         <>

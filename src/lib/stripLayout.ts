@@ -61,6 +61,18 @@ export function hourTicks(window: Range, tz: string, everyHours = 2): { ms: numb
   return out
 }
 
+/** Which legend items the strip needs: only explain glyphs that actually appear. */
+export function legendItems(
+  blocks: { leadingClip: string; trailingClip: string }[],
+  overlapCount: number,
+): { leading: boolean; trailing: boolean; overlap: boolean } {
+  return {
+    leading: blocks.some((b) => b.leadingClip !== ''),
+    trailing: blocks.some((b) => b.trailingClip !== ''),
+    overlap: overlapCount > 0,
+  }
+}
+
 function minutesOfDay(ms: number, tz: string): number {
   const hhmm = localHHMM(ms, tz)
   const [h, m] = hhmm.split(':').map(Number) as [number, number]

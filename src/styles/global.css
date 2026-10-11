@@ -29,6 +29,10 @@ a:hover {
   outline-offset: 2px;
 }
 
+::selection {
+  background: var(--tint-lavender);
+}
+
 /* Transitions ≤ 200ms (both source systems agree); 150ms ease is Notion's. */
 button,
 a,
@@ -425,6 +429,21 @@ input[type='radio']:disabled:checked::after {
   font: 400 13px/1.6 var(--font-body);
 }
 
+/* Rows wrap instead of clipping a mono token in half on phones (#P2-3). */
+.assignmentsstrip li {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+.assignmentsstrip li > * {
+  min-width: 0;
+}
+
+.assignmentsstrip .mono {
+  overflow-wrap: anywhere;
+}
+
 .assignmentsstrip .dot {
   color: var(--color-faint);
   margin: 0 4px;
@@ -669,6 +688,9 @@ input[type='radio']:disabled:checked::after {
   overflow: hidden;
   min-width: 1px;
   border-radius: 0;
+  /* Above the full-height overlap hatch so a lower-row entry and its label are
+     never crossed by hatch strokes (#P1-5). */
+  z-index: 1;
   font-family: var(--font-mono);
   font-size: 9px;
   font-weight: 600;
@@ -683,15 +705,25 @@ input[type='radio']:disabled:checked::after {
   pointer-events: none;
 }
 
+/* Labels live in their own layer below the track: inside it, overflow:hidden
+   on the track would clip them, and translateX(-50%) clips the edge ticks.
+   Edge ticks anchor inset instead (#P1-4). */
+.ministrip-ticklabels {
+  position: relative;
+  height: 12px;
+  margin-top: 2px;
+}
+
 .ministrip-tick-label {
   position: absolute;
-  top: 100%;
-  margin-top: 2px;
+  top: 0;
   transform: translateX(-50%);
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--color-info);
 }
+.ministrip-tick-label.is-first { left: 0; transform: none; }
+.ministrip-tick-label.is-last { right: 0; transform: none; }
 
 .ministrip-select {
   position: absolute;
@@ -728,6 +760,12 @@ input[type='radio']:disabled:checked::after {
 }
 
 /* ---------- interval list (today view table) ---------- */
+
+/* The table's labeled actions give it a ~660px min-content; on phones only the
+   table pans (its lane, strip, and the page grid stay at viewport width). */
+.intervallist-wrap {
+  overflow-x: auto;
+}
 
 .intervallist {
   width: 100%;
@@ -840,11 +878,29 @@ input[type='radio']:disabled:checked::after {
 
 /* ---------- /today page ---------- */
 
+/* The EntryForm inside carries the card look; the outer section is only the
+   scroll anchor, so it doesn't double up a card-in-card border. */
+.today-add.panel {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+
 .today {
   padding: var(--space-5) var(--space-4);
   display: grid;
   gap: var(--space-5);
   max-width: 1100px;
+  /* The table pans inside its own lane wrapper; the page itself must never
+     grow a horizontal scrollbar on phones (#P0-2). */
+  overflow-x: clip;
+}
+
+/* Grid items must be allowed to compress below their content's intrinsic
+   width, or one wide panel widens every sibling and the page (#P0-2). */
+.today > * {
+  min-width: 0;
 }
 
 .today-lanes { display: grid; gap: var(--space-4); }
@@ -1410,6 +1466,7 @@ input[type='radio']:disabled:checked::after {
   position: relative;
 }
 .howcounted .iconbtn {
+  position: relative;
   list-style: none;
   cursor: pointer;
   display: inline-flex;
@@ -1425,12 +1482,22 @@ input[type='radio']:disabled:checked::after {
 .howcounted .iconbtn::-webkit-details-marker {
   display: none;
 }
+/* Touch floor: the visible glyph stays 22px, the tap target grows to 44px. */
+@media (pointer: coarse) {
+  .howcounted .iconbtn::after {
+    content: '';
+    position: absolute;
+    inset: -11px;
+  }
+}
 .howcounted-body {
   position: absolute;
   right: 0;
   top: 28px;
   z-index: var(--z-popover, 30);
-  max-width: 360px;
+  /* width, not max-width: the body would shrink-wrap to the summary's sibling
+     text otherwise (#P1-3). */
+  width: min(360px, calc(100vw - 32px));
   padding: var(--space-3);
   background: var(--surface-card);
   border: 1px solid var(--border-card);
@@ -2147,11 +2214,29 @@ input[type='radio']:disabled:checked::after {
   }
 
   .entryform.compact .entryform-main {
+    /* The desktop column track (240/120/120/auto) min-content overflows a
+       phone viewport (#P0-1): restack instead — job spans the full width,
+       start and duration pair up, actions drop below. */
+    grid-template-columns: 1fr 1fr;
+  }
+  .entryform.compact .entryform-main > * {
+    min-width: 0;
+  }
+  .entryform.compact .entryform-main > .field:first-child,
+  .entryform.compact .entryform-main > .entryform-actions {
+    grid-column: 1 / -1;
+  }
+  .entryform.compact .entryform-main > .entryform-actions > * {
+    flex: 1;
+  }
+
+  .datenav {
     flex-wrap: wrap;
   }
-  .entryform.compact .entryform-main > .field,
-  .entryform.compact .entryform-main > .entryform-actions {
-    flex: 1 1 45%;
+  .datenav input {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
   }
 
   .intervallist .col-client {

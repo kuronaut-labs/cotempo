@@ -92,6 +92,10 @@ function TodayView() {
   // + Overlap gesture (LD6): clone the row's span but no job — the picker lands focused.
   const [prefill, setPrefill] = useState<Initial | null>(null)
   const addPanelRef = useRef<HTMLElement>(null)
+  // Every path that opens the form (edit, + Overlap, drag, collapsed-lane Add)
+  // also scrolls it into view — on phones the form is above the fold, the
+  // trigger is not, and a silent off-screen form reads as a dead button.
+  const focusAddPanel = () => addPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   const noteLock = (e: unknown) => {
     // Defensive: server-fn errors may arrive as a plain object that lost the
     // HttpError prototype over the wire (#M11). parseHttpError handles both.
@@ -104,13 +108,23 @@ function TodayView() {
   async function submit(input: CreateIntervalInput | UpdateIntervalInput) {
     setActionError(null)
     try {
+      let flashId: string | null = null
       if ('id' in input) await updateIntervalFn({ data: input })
-      else await createIntervalFn({ data: input })
+      else {
+        const row = await createIntervalFn({ data: input })
+        flashId = row.id
+      }
       setEditing(null)
       setPrefill(null)
       setPresetWorker(null)
       setLockedWeek(null)
       await invalidate()
+      // Success acknowledgment: the new row pulses in place via the shared
+      // strip ↔ row hover highlight (#P2-1).
+      if (flashId) {
+        setHoverId(flashId)
+        window.setTimeout(() => setHoverId((cur) => (cur === flashId ? null : cur)), 1600)
+      }
     } catch (e) {
       noteLock(e)
       setActionError(serverErrorMessage(e))
@@ -119,7 +133,6 @@ function TodayView() {
   }
 
   async function remove(id: string) {
-    if (!window.confirm('Delete this entry?')) return
     setActionError(null)
     try {
       await deleteIntervalFn({ data: { id } })
@@ -152,8 +165,6 @@ function TodayView() {
         today={today}
         onChange={(next) => navigate({ to: '/today', search: next === today ? {} : { date: next } })}
       />
-
-      <AssignmentsStrip rows={allocations} workers={workers} />
 
       {ctx && (
         <section className="panel today-add" ref={addPanelRef}>
@@ -191,6 +202,7 @@ function TodayView() {
             onCancel={() => {
               setEditing(null)
               setPrefill(null)
+              setPresetWorker(null)
             }}
           />
           {/* Plan 4.4d: link to /approvals?worker=&week= once that route exists (4.6). */}
@@ -232,6 +244,7 @@ function TodayView() {
                         e.stopPropagation()
                         setEditing(null)
                         setPresetWorker(w.workerId)
+                        focusAddPanel()
                       }}
                     >
                       Add
@@ -271,7 +284,7 @@ function TodayView() {
                           startedAt: new Date(range.startMs).toISOString(),
                           endedAt: new Date(range.endMs).toISOString(),
                         })
-                        addPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                        focusAddPanel()
                       }
                     : undefined
                 }
@@ -284,6 +297,7 @@ function TodayView() {
                   setEditing(intervals.find((i) => i.id === id) ?? null)
                   setPrefill(null)
                   setLockedWeek(null)
+                  focusAddPanel()
                 }}
                 onDelete={remove}
                 jobColorIndex={jobColorIndex}
@@ -295,7 +309,7 @@ function TodayView() {
                   setEditing(null)
                   setPresetWorker(null)
                   setPrefill({ workerId: r.workerId, startedAt: r.startedAt.toISOString(), endedAt: r.endedAt.toISOString() })
-                  addPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                  focusAddPanel()
                 }}
               />
             </section>
@@ -303,7 +317,9 @@ function TodayView() {
         })}
       </div>
 
-
+      {/* LD2 (#29): date nav → Add entry → own lane → other lanes; the
+          assignments strip is planning context, so it follows the lanes. */}
+      <AssignmentsStrip rows={allocations} workers={workers} />
     </main>
   )
 }

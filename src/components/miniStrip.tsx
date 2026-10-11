@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { localHHMM, type Range } from '~/lib/dayMath'
-import { assignRows, hourTicks, stripWindow } from '~/lib/stripLayout'
+import { assignRows, hourTicks, legendItems, stripWindow } from '~/lib/stripLayout'
 
 export type StripInterval = { id: string; jobId: string; startMs: number; endMs: number }
 
@@ -168,13 +168,15 @@ export function MiniStrip({
 
   return (
     <div className="ministrip" role="img" aria-label="Day timeline">
-      <div className="ministrip-tags" aria-hidden>
-        {overlaps.map((o, i) => (
-          <span key={i} className="ministrip-overlap-tag" style={{ left: `${o.leftPct}%` }}>
-            ×{o.count}
-          </span>
-        ))}
-      </div>
+      {overlaps.length > 0 && (
+        <div className="ministrip-tags" aria-hidden>
+          {overlaps.map((o, i) => (
+            <span key={i} className="ministrip-overlap-tag" style={{ left: `${o.leftPct}%` }}>
+              ×{o.count}
+            </span>
+          ))}
+        </div>
+      )}
       <div
         className="ministrip-track"
         style={{ height: trackHeight }}
@@ -182,9 +184,7 @@ export function MiniStrip({
       >
         {selection && onRangeSelect ? <div className="ministrip-select" style={selectionStyle} /> : null}
         {ticks.map((t, i) => (
-          <div key={i} className="ministrip-tick" style={{ left: `${t.leftPct}%` }}>
-            {t.label ? <span className="ministrip-tick-label">{t.label}</span> : null}
-          </div>
+          <div key={i} className="ministrip-tick" style={{ left: `${t.leftPct}%` }} />
         ))}
         {overlaps.map((o, i) => (
           <div key={i} className="ministrip-overlap" style={{ left: `${o.leftPct}%`, width: `${o.widthPct}%` }} />
@@ -212,11 +212,34 @@ export function MiniStrip({
           )
         })}
       </div>
-      <div className="ministrip-legend" aria-label="Timeline legend">
-        <span><b>‹</b> starts before this day</span>
-        <span><b>›</b> ends after this day</span>
-        <span><b>×N</b> N entries overlap</span>
-      </div>
+      {ticks.some((t) => t.label) && (
+        <div className="ministrip-ticklabels" aria-hidden>
+          {ticks.map((t, i) => {
+            if (!t.label) return null
+            const first = t.leftPct <= 0.01
+            const last = t.leftPct >= 99.99
+            return (
+              <span
+                key={i}
+                className={`ministrip-tick-label${first ? ' is-first' : ''}${last ? ' is-last' : ''}`}
+                style={first || last ? undefined : { left: `${t.leftPct}%` }}
+              >
+                {t.label}
+              </span>
+            )
+          })}
+        </div>
+      )}
+      {(() => {
+        const items = legendItems(blocks, overlaps.length)
+        return items.leading || items.trailing || items.overlap ? (
+          <div className="ministrip-legend" aria-label="Timeline legend">
+            {items.leading && <span><b>‹</b> starts before this day</span>}
+            {items.trailing && <span><b>›</b> ends after this day</span>}
+            {items.overlap && <span><b>×N</b> N entries overlap</span>}
+          </div>
+        ) : null
+      })()}
     </div>
   )
 }
