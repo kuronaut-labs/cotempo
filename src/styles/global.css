@@ -888,14 +888,19 @@ input[type='radio']:disabled:checked::after {
 }
 
 .today {
+  /* Nav+entry form read as one action group at 32px; the two-step path (nav →
+     entry → data → planning, #29) gets a deliberate 64px before each data group. */
   padding: var(--space-5) var(--space-4);
   display: grid;
-  gap: var(--space-5);
+  gap: var(--space-4);
   max-width: 1100px;
   /* The table pans inside its own lane wrapper; the page itself must never
      grow a horizontal scrollbar on phones (#P0-2). */
   overflow-x: clip;
 }
+
+.today-lanes,
+.today > .assignmentsstrip { margin-top: var(--space-4); }
 
 /* Grid items must be allowed to compress below their content's intrinsic
    width, or one wide panel widens every sibling and the page (#P0-2). */
@@ -2181,9 +2186,15 @@ input[type='radio']:disabled:checked::after {
   }
 
   .app-nav {
+    /* 44px icon squares for 8-9 links exceed a 360px phone's width; the bar
+       pans within itself (same pattern as .intervallist-wrap) rather than
+       widening the page. */
     gap: 0;
     padding: 0 var(--space-2);
+    overflow-x: auto;
+    scrollbar-width: none;
   }
+  .app-nav::-webkit-scrollbar { display: none; }
   .app-nav a {
     justify-content: center;
     width: 44px;
