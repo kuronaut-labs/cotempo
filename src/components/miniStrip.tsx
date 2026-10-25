@@ -99,6 +99,30 @@ export function stripBlocks(day: Range, intervals: StripInterval[]): StripLayout
   return { blocks, overlaps }
 }
 
+/** Accessible label for the role=img timeline: role=img collapses every child
+ *  for AT, so the entries' data is carried here instead (critique Sam finding). */
+export function stripAltText(
+  blocks: StripBlock[],
+  overlaps: OverlapRegion[],
+  jobNames: Record<string, string> | undefined,
+  tz: string,
+): string {
+  if (blocks.length === 0) return 'Day timeline — nothing logged'
+  const peak = Math.max(0, ...overlaps.map((o) => o.count))
+  const entries = blocks.map((b) => {
+    const name = jobNames?.[b.jobId] ?? 'Entry'
+    const clip =
+      b.leadingClip !== ''
+        ? ', starts before this day'
+        : b.trailingClip !== ''
+          ? ', ends after this day'
+          : ''
+    return `${name} ${localHHMM(b.clippedStart, tz)}–${localHHMM(b.clippedEnd, tz)}${clip}`
+  })
+  const overlap = peak > 1 ? `, ${peak} entries overlap` : ''
+  return `Day timeline, ${blocks.length} ${blocks.length === 1 ? 'entry' : 'entries'}: ${entries.join('; ')}${overlap}`
+}
+
 export function MiniStrip({
   day,
   tz,
@@ -167,7 +191,11 @@ export function MiniStrip({
   }
 
   return (
-    <div className="ministrip" role="img" aria-label="Day timeline">
+    <div
+      className="ministrip"
+      role="img"
+      aria-label={stripAltText(blocks, overlaps, jobNames, tz)}
+    >
       {overlaps.length > 0 && (
         <div className="ministrip-tags" aria-hidden>
           {overlaps.map((o, i) => (

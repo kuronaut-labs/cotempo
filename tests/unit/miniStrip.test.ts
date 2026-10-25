@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { stripBlocks } from '~/components/miniStrip'
+import { stripAltText, stripBlocks } from '~/components/miniStrip'
 
 const day = { startMs: 0, endMs: 24 * 60 * 60 * 1000 } // 24h
 const hrs = (h: number, m = 0) => (h * 60 + m) * 60 * 1000
@@ -116,5 +116,44 @@ describe('stripBlocks', () => {
     const layout = stripBlocks(day, [{ id: 'a', jobId: 'j1', startMs: hrs(0, 1), endMs: hrs(0, 2) }])
     expect(layout.blocks[0]!.leftPct).toBeGreaterThan(0)
     expect(layout.blocks[0]!.leftPct).toBeLessThan(1)
+  })
+})
+
+// role=img swallows every child from the accessibility tree, so the timeline's
+// data must live in the label itself (critique Sam finding).
+describe('stripAltText', () => {
+  it('reads as empty when no entries fall inside the day', () => {
+    expect(stripAltText([], [], undefined, 'UTC')).toBe('Day timeline — nothing logged')
+  })
+
+  it('names each entry with its clipped time window', () => {
+    const { blocks, overlaps } = stripBlocks(day, [{ id: 'a', jobId: 'j1', startMs: hrs(9), endMs: hrs(10) }])
+    expect(stripAltText(blocks, overlaps, { j1: 'ACME relaying' }, 'UTC')).toBe(
+      'Day timeline, 1 entry: ACME relaying 09:00–10:00',
+    )
+  })
+
+  it('falls back to Entry for unnamed jobs', () => {
+    const { blocks, overlaps } = stripBlocks(day, [{ id: 'a', jobId: 'jx', startMs: hrs(9), endMs: hrs(10) }])
+    expect(stripAltText(blocks, overlaps, undefined, 'UTC')).toBe(
+      'Day timeline, 1 entry: Entry 09:00–10:00',
+    )
+  })
+
+  it('flags day-crossing entries in words, not glyphs', () => {
+    const { blocks, overlaps } = stripBlocks(day, [{ id: 'a', jobId: 'j1', startMs: hrs(-2), endMs: hrs(2) }])
+    expect(stripAltText(blocks, overlaps, { j1: 'ACME relaying' }, 'UTC')).toBe(
+      'Day timeline, 1 entry: ACME relaying 00:00–02:00, starts before this day',
+    )
+  })
+
+  it('announces the overlap peak separately from the entry list', () => {
+    const { blocks, overlaps } = stripBlocks(day, [
+      { id: 'a', jobId: 'j1', startMs: hrs(9), endMs: hrs(12) },
+      { id: 'b', jobId: 'j2', startMs: hrs(10), endMs: hrs(14) },
+    ])
+    expect(stripAltText(blocks, overlaps, {}, 'UTC')).toBe(
+      'Day timeline, 2 entries: Entry 09:00–12:00; Entry 10:00–14:00, 2 entries overlap',
+    )
   })
 })

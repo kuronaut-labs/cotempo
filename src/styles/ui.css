@@ -168,3 +168,19 @@
 .row.active {
   border-radius: var(--radius-xs);
 }
+
+/* Off-screen text — tooltip text mirrors and status announcements (#P2-1).
+   Everything a data-tip hides from non-hover users is repeated here.
+   Kept focusably hidden: no tab stop of its own, but readable by AT. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+}

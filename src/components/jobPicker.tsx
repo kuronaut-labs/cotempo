@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { ClientNode } from '~/server/services/structure'
 
 type RecentJob = {
@@ -33,6 +33,8 @@ export function JobPicker({
   const [draft, setDraft] = useState('')
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
+  // aria ids: pickers mount per worker lane, so option ids can't collide (#P2-1).
+  const uid = useId()
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus()
@@ -44,6 +46,9 @@ export function JobPicker({
     .map((g) => ({ ...g, jobs: g.jobs.filter((j) => !q || j.keywords.includes(q)) }))
     .filter((g) => g.jobs.length > 0)
   const jobs = filtered.flatMap((g) => g.jobs)
+  // Rendering clamps instead of an effect: the filter can drop the previously
+  // highlighted option, leaving `active` past the end of `jobs`.
+  const activeIdx = jobs.length > 0 ? Math.min(active, jobs.length - 1) : 0
 
   const jobOptions = new Map(
     [...groups.flatMap((g) => g.jobs)].map((j) => [j.jobId, j.label]),
@@ -63,7 +68,9 @@ export function JobPicker({
         type="text"
         role="combobox"
         aria-expanded={open}
-        aria-controls="jobpicker-list"
+        aria-controls={open ? `${uid}-list` : undefined}
+        aria-autocomplete="list"
+        aria-activedescendant={open && jobs[activeIdx] ? `${uid}-opt-${activeIdx}` : undefined}
         placeholder="Search jobs…"
         value={open ? draft : selectedLabel}
         onChange={(e) => {
@@ -79,13 +86,13 @@ export function JobPicker({
           if (e.key === 'ArrowDown') {
             e.preventDefault()
             setOpen(true)
-            setActive((a) => Math.min(a + 1, jobs.length - 1))
+            setActive((a) => Math.min(a + 1, Math.max(0, jobs.length - 1)))
           } else if (e.key === 'ArrowUp') {
             e.preventDefault()
             setActive((a) => Math.max(a - 1, 0))
-          } else if (e.key === 'Enter' && open && jobs[active]) {
+          } else if (e.key === 'Enter' && open && jobs[activeIdx]) {
             e.preventDefault()
-            commit(jobs[active]!)
+            commit(jobs[activeIdx]!)
           } else if (e.key === 'Escape') {
             setOpen(false)
             setDraft('')
@@ -97,7 +104,7 @@ export function JobPicker({
         }}
       />
       {open && (
-        <ul id="jobpicker-list" role="listbox" className="jobpicker-list">
+        <ul id={`${uid}-list`} role="listbox" className="jobpicker-list" aria-label="Jobs">
           {filtered.length === 0 ? (
             <li className="jobpicker-group">No jobs match</li>
           ) : (
@@ -110,9 +117,10 @@ export function JobPicker({
                     return (
                       <li
                         key={j.key}
+                        id={`${uid}-opt-${idx}`}
                         role="option"
                         aria-selected={j.jobId === value}
-                        className={idx === active && j.jobId === jobs[active]?.jobId ? 'is-active' : ''}
+                        className={idx === activeIdx ? 'is-active' : ''}
                         onMouseDown={(e) => {
                           e.preventDefault()
                           commit(j)
