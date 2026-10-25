@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   accrualYears, carryOverMinutes, computeAvailableMinutes, daysInclusive,
-  grantedMinutes, requestMinutes, type LeavePolicy,
+  grantedMinutes, requestMinutes, workdaysInclusive, type LeavePolicy,
 } from '~/lib/leaveMath'
 
 const annual20d: LeavePolicy = { key: 'annual', accrualMethod: 'monthly_prorata', minutesPerYear: 20 * 480, accrualRatePer10k: 0, maxCarryOverMinutes: 5 * 480, yearBasis: 'calendar' }
@@ -50,14 +50,17 @@ describe('carryOverMinutes + computeAvailableMinutes', () => {
     expect(carryOverMinutes(annual20d, 8 * 480)).toBe(5 * 480)
     expect(carryOverMinutes(sick10d, 8 * 480)).toBe(0)
   })
-  it('folds years and applies the cap once per boundary', () => {
-    // Formula-consistent: Y1 grants floor(9600*5/12)=4000 (hire 2025-07-15 → 5 completed
-    // months), used 6000 → nothing available, carry 0; Y2 grants floor(9600*8/12)=6400.
-    // (The plan doc's prose 8400 count is inconsistent with its own grantedMinutes tests.)
+  it('folds years and carries an overdraw forward as a negative', () => {
+    // Y1 grants floor(9600*5/12)=4000 (hire 2025-07-15 → 5 completed months), used 6000 → −2000
+    // carried; Y2 grants floor(9600*8/12)=6400, so 4400 remain.
     const used = [6_000, 0]
     const worked = [0, 0]
     const avail = computeAvailableMinutes(annual20d, '2025-07-15', '2026-09-17', used, worked)
-    expect(avail).toBe(6_400)
+    expect(avail).toBe(4_400)
+  })
+  it('reports a balance still overdrawn after the new grant as negative', () => {
+    expect(computeAvailableMinutes(sick10d, '2025-03-01', '2026-03-02', [8_000, 0], [0, 0])).toBe(4_800 - 3_200)
+    expect(computeAvailableMinutes(sick10d, '2025-03-01', '2026-03-02', [12_000, 0], [0, 0])).toBe(-2_400)
   })
   it('loses minutes above the carry cap at the boundary', () => {
     // Formula-consistent: Y1/Y2 grant floor(9600*11/12)=8800 (hire Jan 5, 11 completed
@@ -78,8 +81,18 @@ describe('daysInclusive + requestMinutes', () => {
     expect(daysInclusive('2026-09-24', '2026-09-24')).toBe(1)
     expect(daysInclusive('2026-02-27', '2026-03-02')).toBe(4)
   })
-  it('multiplies by minutes per day', () => {
+  it('multiplies working days by minutes per day', () => {
     expect(requestMinutes('2026-09-24', '2026-09-25', 480)).toBe(960)
     expect(requestMinutes('2026-09-24', '2026-09-24', 240)).toBe(240)
+    // Mon 2026-09-21 → Sun 2026-09-27
+    expect(requestMinutes('2026-09-21', '2026-09-27', 480)).toBe(5 * 480)
+  })
+})
+
+describe('workdaysInclusive', () => {
+  it('counts Monday to Friday only', () => {
+    expect(workdaysInclusive('2026-09-21', '2026-09-27')).toBe(5)
+    expect(workdaysInclusive('2026-09-26', '2026-09-27')).toBe(0)
+    expect(workdaysInclusive('2026-09-25', '2026-10-05')).toBe(7)
   })
 })

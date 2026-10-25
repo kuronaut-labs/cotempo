@@ -104,6 +104,12 @@ function diffInterval(
   return out
 }
 
+// Snapshot for a new entry (#18): null stays non-billable and $0 stays a pro bono line; a position overrides only a priced job.
+async function snapshotRate(db: Db, workerId: string, jobRateCents: number | null): Promise<number | null> {
+  if (jobRateCents === null || jobRateCents === 0) return jobRateCents
+  return (await positionRateCents(db, workerId)) ?? jobRateCents
+}
+
 // position rate for a human worker, else null; archived positions stop overriding
 async function positionRateCents(db: Db, workerId: string): Promise<number | null> {
   const row = await db
@@ -161,10 +167,7 @@ export async function createInterval(
     jobId: input.jobId,
     startedAt: new Date(range.startMs),
     endedAt: new Date(range.endMs),
-    rateCents:
-      job.billableRateCents !== null
-        ? ((await positionRateCents(db, input.workerId)) ?? job.billableRateCents)
-        : null, // position overrides billable jobs only; non-billable stays null
+    rateCents: await snapshotRate(db, input.workerId, job.billableRateCents),
     note: input.note ?? null,
     createdBy: ctx.workerId,
     editCount: 0,
@@ -212,12 +215,7 @@ export async function updateInterval(
   await assertWeeksEditable(db, cur.workerId, keys)
 
   // snapshot only moves with the job (#18); the position rate applies at write time
-  const rateCents: number | null =
-    job === null
-      ? cur.rateCents
-      : job.billableRateCents !== null
-        ? ((await positionRateCents(db, cur.workerId)) ?? job.billableRateCents)
-        : null
+  const rateCents = job === null ? cur.rateCents : await snapshotRate(db, cur.workerId, job.billableRateCents)
 
   const now = deps.now()
   const write = db

@@ -81,16 +81,27 @@ export function computeAvailableMinutes(
   years.forEach((y, i) => {
     // Completed years grant up to their window end, not the current asOf.
     const asOfForYear = i === last ? asOfDay : (dayMs(asOfDay) < dayMs(y.endDay) ? asOfDay : y.endDay)
-    const carried = i === 0 ? 0 : carryOverMinutes(policy, available)
+    // An overdraw is owed, not forgiven: it carries in full; only a surplus is capped.
+    const carried = i === 0 ? 0 : available < 0 ? available : carryOverMinutes(policy, available)
     available = carried + grantedMinutes(policy, y.startDay, accrualStartDay, asOfForYear, workedMinutesByYear[i] ?? 0) - (usedMinutesByYear[i] ?? 0)
   })
-  return Math.max(0, available)
+  return available
 }
 
 export function daysInclusive(startDay: string, endDay: string): number {
   return Math.round((dayMs(endDay) - dayMs(startDay)) / MS_PER_DAY) + 1
 }
 
+/** Monday–Friday days in [startDay, endDay]; public holidays are not modelled. */
+export function workdaysInclusive(startDay: string, endDay: string): number {
+  let n = 0
+  for (let ms = dayMs(startDay); ms <= dayMs(endDay); ms += MS_PER_DAY) {
+    const dow = new Date(ms).getUTCDay()
+    if (dow !== 0 && dow !== 6) n++
+  }
+  return n
+}
+
 export function requestMinutes(startDay: string, endDay: string, minutesPerDay: number): number {
-  return daysInclusive(startDay, endDay) * minutesPerDay
+  return workdaysInclusive(startDay, endDay) * minutesPerDay
 }

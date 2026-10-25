@@ -19,6 +19,7 @@ describe('display formats', () => {
   it('h:mm and h.hh', () => {
     expect(formatHmm(65)).toBe('1:05')
     expect(formatHmm(0)).toBe('0:00')
+    expect(formatHmm(-90)).toBe('-1:30')
     expect(formatDecimalHours(330)).toBe('5.50')
     expect(formatDecimalHours(108)).toBe('1.80')
   })

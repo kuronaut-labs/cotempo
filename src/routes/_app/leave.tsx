@@ -19,12 +19,8 @@ import {
   submitLeaveRequestFn,
 } from '~/server/fns/leave'
 import type { LeaveBalanceView, LeaveRequestView } from '~/server/fns/leave'
+import { workdaysInclusive } from '~/lib/leaveMath'
 
-// LeaveRequestView carries startDay/endDay; inclusive day count derived here
-const daysInclusive = (startDay: string, endDay: string) =>
-  startDay && endDay
-    ? Math.round((new Date(endDay).getTime() - new Date(startDay).getTime()) / 86_400_000) + 1
-    : ''
 
 const leaveBadgeKind = {
   submitted: 'inverse',
@@ -122,7 +118,7 @@ function LeavePage() {
           </h2>
           {queue.length === 0 && <p className="tree-empty">Nothing waiting on you.</p>}
           {queue.map((r) => {
-            const days = daysInclusive(r.startDay, r.endDay)
+            const days = workdaysInclusive(r.startDay, r.endDay)
             return (
               <div key={r.id} className="leavequeue-row">
                 <div className="leavequeue-main">
@@ -240,7 +236,7 @@ function LeavePage() {
             {requests.map((r) => (
               <tr key={r.id}>
                 <td>{r.typeName}</td>
-                <td className="mono">{daysInclusive(r.startDay, r.endDay)}</td>
+                <td className="mono">{workdaysInclusive(r.startDay, r.endDay)}</td>
                 <td className="mono">{formatHmm(r.minutes)}</td>
                 <td><StatusChip kind={leaveBadgeKind[r.status]}>{STATUS_TEXT[r.status]}</StatusChip></td>
                 <td>{r.reason ?? ''}</td>

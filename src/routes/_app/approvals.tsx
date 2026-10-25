@@ -23,18 +23,20 @@ const searchSchema = z.object({
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD')
     .optional(),
+  // Approvers also log time; 'mine' shows their own weeks so they can submit them.
+  show: z.enum(['queue', 'mine']).optional(),
 })
 
 export const Route = createFileRoute('/_app/approvals')({
   validateSearch: searchSchema,
-  loaderDeps: ({ search }) => ({ worker: search.worker, week: search.week }),
+  loaderDeps: ({ search }) => ({ worker: search.worker, week: search.week, show: search.show }),
   loader: async ({ deps }) => {
     const ctx = await getSessionCtxFn()
     if (!ctx) return { ctx: null as SessionContext | null, tz: '' as string }
     const today = await getTodayFn()
     const tz = today.tz
     const canApprove = hasRole(ctx, 'billing')
-    if (canApprove) {
+    if (canApprove && deps.show !== 'mine') {
       const queue = await listPendingWeeksFn()
       let view: WeekForApproval | null = null
       if (deps.worker && deps.week) {
@@ -49,20 +51,43 @@ export const Route = createFileRoute('/_app/approvals')({
       view = await getWeekForApprovalFn({ data: { workerId: deps.worker, weekStart: deps.week } })
     }
     const workers = await listWorkersFn()
-    return { ctx, tz, mode: 'operator' as const, weeks, withEntries, view, workers, selected: deps.worker && deps.week ? { workerId: deps.worker, weekStart: deps.week } : null }
+    return { ctx, tz, mode: 'operator' as const, canApprove, weeks, withEntries, view, workers, selected: deps.worker && deps.week ? { workerId: deps.worker, weekStart: deps.week } : null }
   },
   component: ApprovalsView,
 })
 
-function goSearch(navigate: ReturnType<typeof useNavigate>, next: { worker?: string; week?: string }) {
+function goSearch(navigate: ReturnType<typeof useNavigate>, next: { worker?: string; week?: string; show?: 'queue' | 'mine' }) {
   navigate({ to: '/approvals', search: (prev) => ({ ...prev, ...next }) })
+}
+
+function ApprovalTabs({ active, navigate }: { active: 'queue' | 'mine'; navigate: ReturnType<typeof useNavigate> }) {
+  const tabs = [
+    { id: 'queue', label: 'Queue' },
+    { id: 'mine', label: 'My weeks' },
+  ] as const
+  return (
+    <nav className="tabs" role="tablist" aria-label="Approvals tabs">
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          type="button"
+          role="tab"
+          aria-selected={active === t.id}
+          className="tab"
+          onClick={() => goSearch(navigate, { show: t.id, worker: undefined, week: undefined })}
+        >
+          {t.label}
+        </button>
+      ))}
+    </nav>
+  )
 }
 
 function ApprovalsView() {
   const data = Route.useLoaderData() as
     | { ctx: null }
     | { ctx: SessionContext; tz: string; mode: 'approver'; queue: PendingWeek[]; view: WeekForApproval | null; selected: { workerId: string; weekStart: string } | null; today: string }
-    | { ctx: SessionContext; tz: string; mode: 'operator'; weeks: MyWeek[]; withEntries: string[]; view: WeekForApproval | null; workers: { workerId: string; name: string; kind: 'human' | 'agent' }[]; selected: { workerId: string; weekStart: string } | null }
+    | { ctx: SessionContext; tz: string; mode: 'operator'; canApprove: boolean; weeks: MyWeek[]; withEntries: string[]; view: WeekForApproval | null; workers: { workerId: string; name: string; kind: 'human' | 'agent' }[]; selected: { workerId: string; weekStart: string } | null }
   const navigate = useNavigate()
   const router = useRouter()
   const invalidate = () => router.invalidate()
@@ -80,7 +105,7 @@ function ApprovalsView() {
     return (
       <main className="approvals">
         <header className="approvals-head">
-          <h1>Approvals queue</h1>
+          <h1>Approvals</h1>
           <span className="approvals-count">{data.queue.length} submitted</span>
           <span className="spacer" />
           <Button
@@ -107,6 +132,7 @@ function ApprovalsView() {
             <FileDownload size={13} /> Export audit log
           </Button>
         </header>
+        <ApprovalTabs active="queue" navigate={navigate} />
         <div className="approvals-split">
           <aside className="approvals-queue-pane">
             <div className="approvalsqueue-toolbar">
@@ -167,6 +193,7 @@ function ApprovalsView() {
       <header className="approvals-head">
         <h1>My weeks</h1>
       </header>
+      {data.canApprove && <ApprovalTabs active="mine" navigate={navigate} />}
       <div className="approvals-split">
         <aside className="approvals-queue-pane">
           <ul className="approvalsqueue">
@@ -188,7 +215,7 @@ function ApprovalsView() {
                   >
                     <div className="nm">{data.workers.find((x) => x.workerId === w.workerId)?.name ?? w.workerId}</div>
                     <div className="wk">{formatWeekLabel(w.weekStart)}</div>
-                    <WeekStatusChip week={w} hasIntervals={data.withEntries.includes(w.weekStart)} onNavigate={() => goSearch(navigate, { worker: w.workerId, week: w.weekStart })} />
+                    <WeekStatusChip week={w} hasIntervals={data.withEntries.includes(w.weekStart)} onSubmitted={invalidate} />
                   </div>
                 </li>
               )
@@ -215,7 +242,7 @@ function ApprovalsView() {
   )
 }
 
-function WeekStatusChip({ week, hasIntervals, onNavigate }: { week: MyWeek; hasIntervals: boolean; onNavigate?: () => void }) {
+function WeekStatusChip({ week, hasIntervals, onSubmitted }: { week: MyWeek; hasIntervals: boolean; onSubmitted: () => Promise<void> }) {
   return (
     <WeekStatus
       week={week}
@@ -224,7 +251,7 @@ function WeekStatusChip({ week, hasIntervals, onNavigate }: { week: MyWeek; hasI
       onSubmit={async () => {
         // Submit through the fn so the role check runs server-side.
         await submitWeekFn({ data: { workerId: week.workerId, weekStart: week.weekStart } })
-        onNavigate?.()
+        await onSubmitted()
       }}
     />
   )

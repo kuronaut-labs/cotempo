@@ -252,8 +252,28 @@ export async function archiveWorker(deps: Deps, ctx: SessionContext, input: Arch
   if (supervisees.length > 0) {
     throw new HttpError(409, 'HAS_SUPERVISEES', 'workerId', { count: supervisees.length })
   }
-  await db
+  const now = deps.now()
+  const archive = db
     .update(schema.workers)
-    .set({ archivedAt: deps.now() })
+    .set({ archivedAt: now })
     .where(and(eq(schema.workers.id, input.workerId), isNull(schema.workers.archivedAt)))
+  const human = await db
+    .select({ userId: schema.humanWorkers.userId })
+    .from(schema.humanWorkers)
+    .where(eq(schema.humanWorkers.workerId, input.workerId))
+    .get()
+  if (!human) {
+    await archive
+    return
+  }
+  // The session path refuses archived workers, but /api/auth/admin/* only checks user.role and a live session.
+  // Demote, ban and drop sessions so an archived admin keeps no BetterAuth powers (#8, #16).
+  await db.batch([
+    archive,
+    db
+      .update(schema.user)
+      .set({ role: 'user', banned: true, banReason: 'archived', updatedAt: now })
+      .where(eq(schema.user.id, human.userId)),
+    db.delete(schema.session).where(eq(schema.session.userId, human.userId)),
+  ])
 }

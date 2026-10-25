@@ -6,6 +6,7 @@ export function moneyCents(rows: { minutes: number; rateCents: number | null }[]
 
 /** Minutes as 'h:mm' for entry screens (#13). */
 export function formatHmm(minutes: number): string {
+  if (minutes < 0) return `-${formatHmm(-minutes)}` // overdrawn leave balances
   const h = Math.floor(minutes / 60)
   return `${h}:${String(minutes % 60).padStart(2, '0')}`
 }

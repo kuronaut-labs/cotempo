@@ -139,20 +139,21 @@ describe('position rate override', () => {
     expect(row.rateCents).toBe(14_000)
   })
 
-  it('$0-billable job + position → position rate', async () => {
+  it('$0-billable job stays $0 even with a position (#18: pro bono line)', async () => {
     const row = await createInterval(deps(), op, {
       ...baseInput,
       jobId: zeroJob.id,
     })
-    expect(row.rateCents).toBe(12_000)
+    expect(row.rateCents).toBe(0)
   })
 
   it('changing the job re-snapshots with the current position', async () => {
-    const created = await createInterval(deps(), op, baseInput)
+    const created = await createInterval(deps(), op, { ...baseInput, jobId: zeroJob.id })
     const moved = await updateInterval(deps(), op, {
       id: created.id,
-      jobId: zeroJob.id,
+      jobId: ids.j1,
     })
+    expect(created.rateCents).toBe(0)
     expect(moved.rateCents).toBe(12_000)
   })
 })

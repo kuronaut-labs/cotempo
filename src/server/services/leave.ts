@@ -10,6 +10,7 @@ import {
   accrualYears,
   computeAvailableMinutes,
   requestMinutes,
+  workdaysInclusive,
   type LeavePolicy,
 } from '~/lib/leaveMath'
 import {
@@ -268,6 +269,7 @@ export async function submitLeaveRequest(
   if (!type) throw new HttpError(404, 'LEAVE_TYPE_NOT_FOUND', 'typeId')
   // zod refines this; the service re-checks for direct callers (#25, like NOT_A_MONDAY)
   if (input.endDay < input.startDay) throw new HttpError(400, 'END_BEFORE_START', 'endDay')
+  if (workdaysInclusive(input.startDay, input.endDay) === 0) throw new HttpError(400, 'LEAVE_NO_WORKDAYS', 'endDay')
 
   // inclusive-day overlap against this worker's submitted/approved leave, any type
   const own = await deps.db

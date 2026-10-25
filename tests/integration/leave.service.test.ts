@@ -100,6 +100,16 @@ describe('leave lifecycle', () => {
     expect(events.map((e) => e.kind)).toEqual(['submit'])
   })
 
+  it('charges working days only and refuses a weekend-only request', async () => {
+    const week = await submit(asUser('operator'), 'lt-sick', '2026-10-05', '2026-10-11') // Mon → Sun
+    expect(week.minutes).toBe(5 * 480)
+    await expect(submit(asUser('operator'), 'lt-sick', '2026-10-17', '2026-10-18')).rejects.toMatchObject({
+      status: 400,
+      code: 'LEAVE_NO_WORKDAYS',
+      field: 'endDay',
+    })
+  })
+
   it('re-checks END_BEFORE_START at the service layer', async () => {
     await expect(submit(asUser('operator'), 'lt-sick', '2026-10-07', '2026-10-06')).rejects.toMatchObject({
       status: 400,
