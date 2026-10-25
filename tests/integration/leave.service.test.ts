@@ -69,6 +69,13 @@ describe('myLeave', () => {
     expect(mine.requests.map((r) => r.id)).toEqual([]) // lr-demo-1 removed above
   })
 
+  it('per_hours_worked accrues on all minutes worked in the year, not just its first day', async () => {
+    await upsertLeaveType(deps(), asUser('admin'), { ...baseType, key: 'ph', accrualMethod: 'per_hours_worked', minutesPerYear: 0, accrualRatePer10k: 1207, maxCarryOverMinutes: 0 })
+    const mine = await myLeave(deps(), asUser('operator'))
+    // fixture: 900 operator minutes in 2026 → floor(900 × 1207 / 10000)
+    expect(mine.balances.find((b) => b.type.key === 'ph')!.availableMinutes).toBe(108)
+  })
+
   it('reports my own leave requests with names resolved', async () => {
     const mine = await myLeave(deps(), asUser('operator'))
     expect(mine.requests.map((r) => r.id)).toEqual([])

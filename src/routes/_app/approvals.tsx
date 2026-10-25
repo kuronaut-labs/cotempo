@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import { z } from 'zod'
 import { FileDownload } from 'reicon-react'
@@ -7,7 +7,7 @@ import { ApproverView } from '~/components/approverView'
 import { WeekStatus } from '~/components/weekStatus'
 import { Button } from '~/components/ui/button'
 import { serverErrorMessage } from '~/components/forms/applyServerError'
-import { canSeeMoney, hasRole, type SessionContext } from '~/server/context'
+import { hasRole, type SessionContext } from '~/server/context'
 import { formatWeekLabel } from '~/lib/dayMath'
 import { addDays, parseIsoDate, toIsoDate } from '~/lib/dateShift'
 import { getSessionCtxFn } from '~/server/fns/auth'
@@ -15,8 +15,6 @@ import { approveWeeksBulkFn, getWeekForApprovalFn, listMyWeeksFn, listPendingWee
 import { getTodayFn } from '~/server/fns/intervals'
 import { exportCsvFn } from '~/server/fns/exports'
 import { listWorkersFn } from '~/server/fns/workers'
-import { submitWeek as submitWeekSvc } from '~/server/services/approvals'
-import { assertCanEditWorker } from '~/server/guards/worker'
 import type { MyWeek, PendingWeek, WeekForApproval } from '~/server/services/approvals'
 
 const searchSchema = z.object({
@@ -66,10 +64,8 @@ function ApprovalsView() {
     | { ctx: SessionContext; tz: string; mode: 'approver'; queue: PendingWeek[]; view: WeekForApproval | null; selected: { workerId: string; weekStart: string } | null; today: string }
     | { ctx: SessionContext; tz: string; mode: 'operator'; weeks: MyWeek[]; withEntries: string[]; view: WeekForApproval | null; workers: { workerId: string; name: string; kind: 'human' | 'agent' }[]; selected: { workerId: string; weekStart: string } | null }
   const navigate = useNavigate()
-  const router = (Route as unknown as { useRouter?: () => { invalidate: () => Promise<void> } }).useRouter?.()
-  const invalidate = async () => {
-    if (router) await router.invalidate()
-  }
+  const router = useRouter()
+  const invalidate = () => router.invalidate()
   // C4: exception-based review hooks — declared before any early return.
   const [flaggedOnly, setFlaggedOnly] = useState(false)
   const [checked, setChecked] = useState<Record<string, boolean>>({})
@@ -78,7 +74,6 @@ function ApprovalsView() {
   if (!data.ctx) {
     return <main className="approvals">Sign in to view approvals.</main>
   }
-  const showMoney = canSeeMoney(data.ctx)
 
   if (data.mode === 'approver') {
     const queue: PendingWeek[] = data.queue.filter((w) => !flaggedOnly || w.flagCount > 0)
@@ -130,9 +125,13 @@ function ApprovalsView() {
                     .filter((w) => checked[`${w.workerId}-${w.weekStart}`])
                     .map((w) => ({ workerId: w.workerId, weekStart: w.weekStart }))
                   try {
-                    await approveWeeksBulkFn({ data: { weeks } })
+                    const results = await approveWeeksBulkFn({ data: { weeks } })
                     setChecked({})
                     await invalidate()
+                    const failed = results.filter((r) => !r.ok)
+                    if (failed.length > 0) {
+                      setBulkError(`${failed.length} of ${results.length} not approved: ${failed.map((r) => `${formatWeekLabel(r.weekStart)}: ${serverErrorMessage({ code: r.code })}`).join('; ')}`)
+                    }
                   } catch (e) {
                     setBulkError(serverErrorMessage(e))
                   }
@@ -158,9 +157,6 @@ function ApprovalsView() {
             )}
           </section>
         </div>
-        <span style={{ display: 'none' }} aria-hidden>
-          {showMoney ? 'money' : 'no-money'}
-        </span>
       </main>
     )
   }
@@ -233,6 +229,3 @@ function WeekStatusChip({ week, hasIntervals, onNavigate }: { week: MyWeek; hasI
     />
   )
 }
-
-void submitWeekSvc
-void assertCanEditWorker

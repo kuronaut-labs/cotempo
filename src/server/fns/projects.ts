@@ -17,7 +17,7 @@ export const getProjectFn = createServerFn({ method: 'GET' })
 
 export const projectFiguresFn = createServerFn({ method: 'GET' })
   .middleware([authMw])
-  .validator(z.object({ id: z.string().min(1), from: z.string().optional(), to: z.string().optional() }))
+  .validator(z.object({ id: z.string().min(1), from: z.iso.date().optional(), to: z.iso.date().optional() }))
   .handler(({ data, context }) => projectFigures(runtimeDeps(), ctxOf(context), data))
 
 export type { ProjectDetail, ProjectFigures, ProjectListRow } from '~/server/services/projects'

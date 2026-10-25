@@ -291,6 +291,7 @@ function TodayView() {
               />
               <IntervalList
                 rows={intervals}
+                day={day.day}
                 tz={tz}
                 canEdit={canEditRow}
                 onEdit={(id) => {

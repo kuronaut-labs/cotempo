@@ -160,6 +160,7 @@ function DevComponents() {
         <h2 style={{ marginBottom: 8 }}>IntervalList</h2>
         <IntervalList
           rows={listRows}
+          day={day}
           tz="UTC"
           canEdit={(workerId) => workerId === 'op-worker'}
           onEdit={() => {}}

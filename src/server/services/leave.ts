@@ -180,7 +180,7 @@ async function leaveBalancesFor(
       for (const row of rows) {
         years.forEach((y, i) => {
           const ws = localDayBoundariesUtcMs(y.startDay, deps.tz).startMs
-          const we = localDayBoundariesUtcMs(y.startDay, deps.tz).endMs
+          const we = localDayBoundariesUtcMs(y.endDay, deps.tz).endMs
           const nextStart =
             i === years.length - 1
               ? Number.MAX_SAFE_INTEGER

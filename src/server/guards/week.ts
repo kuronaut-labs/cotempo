@@ -1,4 +1,5 @@
 import { and, eq, inArray } from 'drizzle-orm'
+import type { BatchItem } from 'drizzle-orm/batch'
 import { schema, type Db } from '~/server/db'
 import { HttpError } from '~/lib/errors'
 
@@ -22,8 +23,19 @@ export async function assertWeeksEditable(db: Db, workerId: string, weekKeys: st
 /* A mutation on a 'submitted' week drops it back to 'draft' and records why,
    so the approver sees it leave the queue (#26). */
 export async function resetSubmittedWeeks(db: Db, workerId: string, weekKeys: string[], actorWorkerId: string): Promise<void> {
-  if (weekKeys.length === 0) return
-  const now = new Date()
+  const stmts = await submittedWeekResets(db, workerId, weekKeys, actorWorkerId, new Date())
+  if (stmts.length > 0) await db.batch(stmts as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]])
+}
+
+/** The writes resetSubmittedWeeks would make, for callers that batch them with their own mutation. */
+export async function submittedWeekResets(
+  db: Db,
+  workerId: string,
+  weekKeys: string[],
+  actorWorkerId: string,
+  now: Date,
+): Promise<BatchItem<'sqlite'>[]> {
+  if (weekKeys.length === 0) return []
   const rows = await db
     .select({ id: schema.approvals.id })
     .from(schema.approvals)
@@ -35,9 +47,9 @@ export async function resetSubmittedWeeks(db: Db, workerId: string, weekKeys: st
       ),
     )
     .all()
-  if (rows.length === 0) return
+  if (rows.length === 0) return []
   const idList = rows.map((r) => r.id)
-  await db.batch([
+  return [
     db.update(schema.approvals).set({ status: 'draft', updatedAt: now }).where(inArray(schema.approvals.id, idList)),
     db.insert(schema.approvalEvents).values(
       idList.map((approvalId) => ({
@@ -48,5 +60,5 @@ export async function resetSubmittedWeeks(db: Db, workerId: string, weekKeys: st
         at: now,
       })),
     ),
-  ])
+  ]
 }

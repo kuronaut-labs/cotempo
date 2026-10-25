@@ -140,7 +140,7 @@ function InvoicePage({ invoice }: { invoice: Invoice }) {
         </thead>
         <tbody>
           {invoice.lines.map((l) => (
-            <tr key={l.jobId}>
+            <tr key={`${l.jobId}-${l.rateCents}`}>
               <td>{l.job}</td>
               <td>{l.project}</td>
               <td className="num">{formatHmm(l.billableMin)}</td>

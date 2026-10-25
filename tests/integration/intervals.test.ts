@@ -88,6 +88,22 @@ describe('createInterval (#7, #17, #18, #22, #26)', () => {
   })
 })
 
+describe('createInterval guards on structure and length', () => {
+  it('rejects a job whose project or client is archived', async () => {
+    await db.update(schema.projects).set({ archivedAt: new Date() }).where(eq(schema.projects.id, ids.p1))
+    await expect(createInterval(deps(), op, baseInput)).rejects.toMatchObject({ code: 'JOB_NOT_FOUND', field: 'jobId' })
+    await db.update(schema.projects).set({ archivedAt: null }).where(eq(schema.projects.id, ids.p1))
+    await db.update(schema.clients).set({ archivedAt: new Date() }).where(eq(schema.clients.id, ids.c1))
+    await expect(createInterval(deps(), op, baseInput)).rejects.toMatchObject({ code: 'JOB_NOT_FOUND', field: 'jobId' })
+  })
+
+  it('rejects an interval longer than 7 days', async () => {
+    await expect(
+      createInterval(deps(), op, { ...baseInput, startedAt: iso(at(4, 9)), endedAt: iso(at(11, 9, 1)) }),
+    ).rejects.toMatchObject({ status: 400, code: 'INTERVAL_TOO_LONG', field: 'endedAt' })
+  })
+})
+
 describe('position rate override', () => {
   // inline $0-billable job (demo seed has none; A1 assigns opWorker → Senior developer 12_000)
   const zeroJob = {
@@ -230,6 +246,18 @@ describe('Sunday → Monday week boundary (#26)', () => {
         endedAt: iso(at(7, 0, 30)),
       }),
     ).rejects.toMatchObject({ code: 'WEEK_LOCKED' })
+  })
+})
+
+describe('interval writes are atomic', () => {
+  it('an edit whose submitted-week reset fails leaves the interval unchanged', async () => {
+    await setWeekStatus(ids.opWorker, '2026-08-31', 'submitted')
+    // An actor with no workers row: the approval event's foreign key rejects the last statement.
+    const ghost = { ...asUser('admin'), workerId: 'ghost-worker' }
+    await expect(updateInterval(deps(), ghost, { id: 'demo-0000-iv-05', note: 'should roll back' })).rejects.toThrow()
+    const row = await db.select().from(schema.intervals).where(eq(schema.intervals.id, 'demo-0000-iv-05')).get()
+    expect(row!.note).toBeNull()
+    expect(row!.editCount).toBe(0)
   })
 })
 

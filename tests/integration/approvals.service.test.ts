@@ -18,6 +18,13 @@ describe('weeksWithEntries', () => {
     void tz
   })
 
+  it('counts entries on any day of the week, not just Monday', async () => {
+    // Tue 2026-09-08 10:00–11:00 Perth
+    await createInterval(deps(), asUser('operator'), { workerId: ids.opWorker, jobId: ids.j2, startedAt: at(8, 2).toISOString(), endedAt: at(8, 3).toISOString() })
+    const out = await weeksWithEntries(deps(), asUser('operator'), { workerId: ids.opWorker, weekStarts: ['2026-09-07'] })
+    expect(out).toEqual(['2026-09-07'])
+  })
+
   it('views someone else only within scope', async () => {
     await expect(
       weeksWithEntries(deps(), asUser('operator'), { workerId: ids.billingWorker, weekStarts: ['2026-08-31'] }),

@@ -1,4 +1,4 @@
-import { groupBy, type Piece } from './attribution'
+import type { Piece } from './attribution'
 import { localDateOf } from './dayMath'
 import { localDayBoundariesUtcMs, mergeRanges, type Range } from './dayMath'
 import { weekDates } from './week'
@@ -16,8 +16,6 @@ export type RedFlagInput = {
   intervals: { id: string; startedAt: number; endedAt: number; createdAt: number; editCount: number; createdBy: string }[]
   pieces: Piece[]
 }
-
-const DAY = 86_400_000
 
 /* Per-day wall-clock across the worker's pieces on that local day, UNIONED like
    recon() (attribution's explode does NOT resolve concurrency — pieces overlap,
@@ -60,11 +58,10 @@ function gapFlags(input: RedFlagInput, cfg: FlagConfig): Flag[] {
 
 /* late_entry: createdAt > end-of-week + lateEntryDays (#17). */
 function lateEntryFlags(input: RedFlagInput, cfg: FlagConfig): Flag[] {
-  // end of weekStart is the start of Tuesday; add 6 days to reach end-of-Sunday
-  // (which is the same as Monday-next-week 00:00 local).
-  const startOfWeek: Range = localDayBoundariesUtcMs(input.weekStart, input.tz)
-  const endOfWeek = startOfWeek.endMs + 6 * DAY
-  const deadline = endOfWeek + cfg.lateEntryDays * DAY
+  // End of the local day lateEntryDays after the week's Sunday; counted in calendar days so DST can't shift it (#23).
+  const [y, m, d] = weekDates(input.weekStart)[6]!.split('-').map(Number) as [number, number, number]
+  const lastDay = new Date(Date.UTC(y, m - 1, d + cfg.lateEntryDays)).toISOString().slice(0, 10)
+  const deadline = localDayBoundariesUtcMs(lastDay, input.tz).endMs
   const out: Flag[] = []
   for (const iv of input.intervals) {
     if (iv.createdAt > deadline) {
@@ -114,7 +111,6 @@ function nonSupervisorFlags(input: RedFlagInput): Flag[] {
    retroactive, non_supervisor. Add a new check at the end and extend the contract
    rather than re-ordering, so the existing assertions stay stable. */
 export function redFlags(input: RedFlagInput, cfg: FlagConfig = defaults): Flag[] {
-  void groupBy // kept to ensure attribution stays the canonical grouping helper
   return [
     ...gapFlags(input, cfg),
     ...lateEntryFlags(input, cfg),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isMonday, isoWeekStart, weekDates, weekKeysTouched } from '~/lib/week'
+import { isMonday, isoWeekStart, weekBoundariesUtcMs, weekDates, weekKeysTouched } from '~/lib/week'
 
 describe('isoWeekStart (#23)', () => {
   it('uses the org zone, not UTC', () => {
@@ -40,9 +40,27 @@ describe('weekKeysTouched (#26)', () => {
       '2026-09-07',
     ])
   })
+  it('a range spanning three weeks touches every week, including the middle one', () => {
+    // Wed 2026-09-02 → Tue 2026-09-15, Perth
+    expect(weekKeysTouched({ startMs: Date.UTC(2026, 8, 2, 0), endMs: Date.UTC(2026, 8, 15, 0) }, 'Australia/Perth')).toEqual([
+      '2026-08-31',
+      '2026-09-07',
+      '2026-09-14',
+    ])
+  })
   it('ending exactly at Monday 00:00 touches one week', () => {
     expect(weekKeysTouched({ startMs: Date.UTC(2026, 8, 6, 13, 0), endMs: Date.UTC(2026, 8, 6, 14, 0) }, 'Australia/Sydney')).toEqual([
       '2026-08-31',
     ])
+  })
+})
+
+describe('weekBoundariesUtcMs (#23)', () => {
+  it('runs Monday 00:00 to the next Monday 00:00 local, so a DST week is 167h', () => {
+    // Sydney springs forward on Sun 2026-10-04
+    expect(weekBoundariesUtcMs('2026-09-28', 'Australia/Sydney')).toEqual({
+      startMs: Date.UTC(2026, 8, 27, 14),
+      endMs: Date.UTC(2026, 9, 4, 13),
+    })
   })
 })

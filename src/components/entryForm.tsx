@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { TZDate } from '@date-fns/tz'
 import { useForm } from '@tanstack/react-form'
 import { z } from 'zod'
 import { Check } from 'reicon-react'
-import { localHHMM } from '~/lib/dayMath'
+import { localHHMM, localInstantIso } from '~/lib/dayMath'
 import { crossesMidnight, defaultStart, durationBetween, endFromDuration } from '~/lib/entryDefaults'
 import { effectiveJobIds } from '~/lib/allocation'
 import { CreateIntervalInput, UpdateIntervalInput } from '~/lib/schemas/intervals'
@@ -116,8 +115,8 @@ export function EntryForm({
       // LD9: an end ≤ start wraps to the next day in the org tz. (#19)
       const crossed = crossesMidnight(value.startTime, value.endTime)
       const endDate = crossed ? addDaysIso(date, 1) : date
-      const startedAt = combine(date, value.startTime, tz)
-      const endedAt = combine(endDate, value.endTime, tz)
+      const startedAt = localInstantIso(date, value.startTime, tz)
+      const endedAt = localInstantIso(endDate, value.endTime, tz)
       const note = value.note.trim()
       const base = { workerId: value.workerId, jobId: value.jobId, startedAt, endedAt, ...(note ? { note } : {}) }
       const payload: FormInput = isEdit ? { id: value.id!, ...base } : base
@@ -404,11 +403,6 @@ function workerGroups(selfId: string, superviseeIds: string[], workers: WorkerVi
     { label: 'People', options: humans.map((h) => ({ value: h.workerId, label: tag(h) })) },
     { label: 'AI assistants', options: agents.map((a) => ({ value: a.workerId, label: a.name })) },
   ]
-}
-
-function combine(date: string, hhmm: string, tz: string): string {
-  // TZDate.toISOString() emits local time with a numeric offset; the wire schema (#19) wants UTC Z.
-  return new Date(new TZDate(`${date}T${hhmm}:00`, tz).getTime()).toISOString()
 }
 
 function addDaysIso(iso: string, days: number): string {

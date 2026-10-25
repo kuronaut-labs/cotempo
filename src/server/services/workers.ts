@@ -3,6 +3,7 @@ import { HttpError } from '~/lib/errors'
 import { schema, type Db } from '~/server/db'
 import { hasRole, isAdmin, parseRolesOrDefault, type Role, type SessionContext } from '~/server/context'
 import { activatedUserIds } from '~/server/inviteState'
+import { inChunks } from '~/server/inChunks'
 import type {
   AgentWorkerInput,
   ArchiveWorkerInput,
@@ -79,27 +80,27 @@ export async function listWorkers(deps: Deps, ctx: SessionContext): Promise<Work
   const humanIds = visible.filter((w) => w.kind === 'human').map((w) => w.id)
   const agentIds = visible.filter((w) => w.kind === 'agent').map((w) => w.id)
 
-  const humans = humanIds.length
-    ? await db
-        .select({
-          workerId: schema.humanWorkers.workerId,
-          userId: schema.humanWorkers.userId,
-          roles: schema.humanWorkers.roles,
-          name: schema.user.name,
-          email: schema.user.email,
-          positionId: schema.humanWorkers.positionId,
-        })
-        .from(schema.humanWorkers)
-        .innerJoin(schema.user, eq(schema.user.id, schema.humanWorkers.userId))
-        .where(inArray(schema.humanWorkers.workerId, humanIds))
-        .all()
-    : []
+  const humans = await inChunks(humanIds, (chunk) =>
+    db
+      .select({
+        workerId: schema.humanWorkers.workerId,
+        userId: schema.humanWorkers.userId,
+        roles: schema.humanWorkers.roles,
+        name: schema.user.name,
+        email: schema.user.email,
+        positionId: schema.humanWorkers.positionId,
+      })
+      .from(schema.humanWorkers)
+      .innerJoin(schema.user, eq(schema.user.id, schema.humanWorkers.userId))
+      .where(inArray(schema.humanWorkers.workerId, chunk))
+      .all(),
+  )
   const humanById = new Map(humans.map((h) => [h.workerId, h]))
   const activated = await activatedUserIds(db, humans.map((h) => h.userId))
 
-  const agents = agentIds.length
-    ? await db.select().from(schema.agentWorkers).where(inArray(schema.agentWorkers.workerId, agentIds)).all()
-    : []
+  const agents = await inChunks(agentIds, (chunk) =>
+    db.select().from(schema.agentWorkers).where(inArray(schema.agentWorkers.workerId, chunk)).all(),
+  )
   const agentById = new Map(agents.map((a) => [a.workerId, a]))
 
   const out: WorkerView[] = []

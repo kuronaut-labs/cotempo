@@ -19,7 +19,7 @@ const adminOnly = [authMw, requireRole('admin')]
 
 export const getClientFiguresFn = createServerFn({ method: 'GET' })
   .middleware([authMw])
-  .validator(z.object({ id: z.string().min(1), from: z.string().optional(), to: z.string().optional() }))
+  .validator(z.object({ id: z.string().min(1), from: z.iso.date().optional(), to: z.iso.date().optional() }))
   .handler(({ data, context }) => svc.clientFigures(runtimeDeps(), ctxOf(context), data))
 
 export const listClientsFn = createServerFn({ method: 'GET' })

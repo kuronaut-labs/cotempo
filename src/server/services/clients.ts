@@ -15,7 +15,7 @@ import { isoWeekStart, weekDates } from '~/lib/week'
 import { recon as piecesRecon, type Piece } from '~/lib/attribution'
 import { loadPieces, type RoleRecon, type TimeRecon } from './reports'
 import type { ProjectListRow } from './projects'
-import { listProjects } from './projects'
+import { allProjects } from './projects'
 import type { Deps } from './deps'
 
 export type ClientListRow = {
@@ -73,9 +73,19 @@ function page<T extends { sortKey: SortKey; id: string }>(
 }
 
 export async function listClients(deps: Deps, ctx: SessionContext, input: ListClientsInput): Promise<Page<ClientListRow>> {
+  return page(await clientRows(deps, ctx, input), input)
+}
+
+async function clientRows(
+  deps: Deps,
+  ctx: SessionContext,
+  input: Omit<ListClientsInput, 'cursor' | 'limit'>,
+  onlyId?: string,
+): Promise<(ClientListRow & { sortKey: SortKey })[]> {
   const { db } = deps
 
   const eConds = []
+  if (onlyId) eConds.push(eq(schema.clients.id, onlyId))
   if (input.status === 'active') eConds.push(isNull(schema.clients.archivedAt))
   if (input.status === 'archived') eConds.push(isNotNull(schema.clients.archivedAt))
   if (input.q) {
@@ -90,6 +100,7 @@ export async function listClients(deps: Deps, ctx: SessionContext, input: ListCl
   }
 
   const ivConds = [isNull(schema.intervals.deletedAt)]
+  if (onlyId) ivConds.push(eq(schema.projects.clientId, onlyId))
   const workers = scopeIds(ctx)
   if (workers) ivConds.push(inArray(schema.intervals.workerId, workers))
   if (input.activeSince) {
@@ -151,8 +162,7 @@ export async function listClients(deps: Deps, ctx: SessionContext, input: ListCl
     return row
   })
 
-  const filtered = input.activeSince ? merged.filter((r) => r.lastActivityMs != null) : merged
-  return page(filtered, input)
+  return input.activeSince ? merged.filter((r) => r.lastActivityMs != null) : merged
 }
 
 // ---- Detail + contact writes (Wave 2) ----
@@ -184,9 +194,9 @@ export type ClientDetail = ClientListRow & {
 }
 
 export async function getClient(deps: Deps, ctx: SessionContext, input: { id: string }): Promise<ClientDetail> {
-  const list = await listClients(deps, ctx, { status: 'all', sort: 'name', limit: 200 })
-  const row = list.rows.find((r) => r.id === input.id)
-  if (!row) throw new HttpError(404, 'NOT_FOUND')
+  const [found] = await clientRows(deps, ctx, { status: 'all', sort: 'name' }, input.id)
+  if (!found) throw new HttpError(404, 'NOT_FOUND')
+  const { sortKey: _k, ...row } = found
   const [detail, contacts, projects] = await Promise.all([
     deps.db.select().from(schema.clients).where(eq(schema.clients.id, input.id)).get(),
     deps.db
@@ -203,7 +213,7 @@ export async function getClient(deps: Deps, ctx: SessionContext, input: { id: st
       .from(schema.clientContacts)
       .where(and(eq(schema.clientContacts.clientId, input.id), isNull(schema.clientContacts.archivedAt)))
       .all(),
-    listProjects(deps, ctx, { clientId: input.id, status: 'all', sort: 'name', limit: 200, due: 'any' }),
+    allProjects(deps, ctx, { clientId: input.id, status: 'all', sort: 'name', due: 'any' }),
   ])
   if (!detail) throw new HttpError(404, 'NOT_FOUND')
   contacts.sort((a, b) => (a.isPrimary === b.isPrimary ? a.name.localeCompare(b.name) : a.isPrimary ? -1 : 1))
@@ -220,7 +230,7 @@ export async function getClient(deps: Deps, ctx: SessionContext, input: { id: st
     country: detail.country,
     notes: detail.notes,
     contacts,
-    projects: projects.rows,
+    projects,
   }
 }
 
@@ -294,8 +304,14 @@ export async function archiveContact(deps: Deps, ctx: SessionContext, input: { i
 
 export async function setPrimaryContact(deps: Deps, ctx: SessionContext, input: SetPrimaryContactInput): Promise<void> {
   if (!isAdmin(ctx)) throw new HttpError(403, 'FORBIDDEN')
+  const contact = await deps.db
+    .select({ id: schema.clientContacts.id })
+    .from(schema.clientContacts)
+    .where(and(eq(schema.clientContacts.id, input.id), eq(schema.clientContacts.clientId, input.clientId), isNull(schema.clientContacts.archivedAt)))
+    .get()
+  if (!contact) throw new HttpError(404, 'CONTACT_NOT_FOUND', 'id')
   const now = deps.now()
-  deps.db.batch([
+  await deps.db.batch([
     deps.db
       .update(schema.clientContacts)
       .set({ isPrimary: false, updatedAt: now })
@@ -343,20 +359,17 @@ export async function clientFigures(
   const [pieces, allPieces, projectRows] = await Promise.all([
     loadPieces(deps, filteredPeriod ? period : ALL, { clientId: input.id, ...scope }),
     filteredPeriod ? loadPieces(deps, ALL, { clientId: input.id, ...scope }) : Promise.resolve(null),
-    listProjects(deps, ctx, { clientId: input.id, status: 'all', sort: 'name', limit: 200, due: 'any' }),
+    allProjects(deps, ctx, { clientId: input.id, status: 'all', sort: 'name', due: 'any' }),
   ])
 
   // Map pieces to their project via job→project.
-  const projectIds = projectRows.rows.map((p) => p.id)
-  const jobProject = new Map<string, string>()
-  if (projectIds.length > 0) {
-    const jobs = await deps.db
-      .select({ id: schema.jobs.id, projectId: schema.jobs.projectId })
-      .from(schema.jobs)
-      .where(inArray(schema.jobs.projectId, projectIds))
-      .all()
-    for (const j of jobs) jobProject.set(j.id, j.projectId)
-  }
+  const jobs = await deps.db
+    .select({ id: schema.jobs.id, projectId: schema.jobs.projectId })
+    .from(schema.jobs)
+    .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
+    .where(eq(schema.projects.clientId, input.id))
+    .all()
+  const jobProject = new Map(jobs.map((j) => [j.id, j.projectId]))
   const piecesByProject = new Map<string, Piece[]>()
   for (const x of pieces) {
     const pid = jobProject.get(x.jobId)
@@ -365,7 +378,7 @@ export async function clientFigures(
     if (list) list.push(x)
     else piecesByProject.set(pid, [x])
   }
-  const byProject = projectRows.rows.map((p) => ({ ...p, period: reconLiteral(piecesRecon(piecesByProject.get(p.id) ?? []), keepCents) }))
+  const byProject = projectRows.map((p) => ({ ...p, period: reconLiteral(piecesRecon(piecesByProject.get(p.id) ?? []), keepCents) }))
 
   const workers = await workerNames(deps)
   const byWorker = [...new Set(pieces.map((p) => p.workerId))]

@@ -1,5 +1,8 @@
 import { z } from 'zod'
 
+// Caps report fan-out: every interval is exploded into one piece per local day.
+export const MAX_INTERVAL_MS = 7 * 86_400_000
+
 const minuteAligned = z.iso.datetime().refine((s) => Date.parse(s) % 60_000 === 0, { message: 'MINUTE_ALIGNMENT' })
 
 export const CreateIntervalInput = z
@@ -11,6 +14,7 @@ export const CreateIntervalInput = z
     note: z.string().max(500).optional(),
   })
   .refine((v) => Date.parse(v.endedAt) > Date.parse(v.startedAt), { message: 'END_BEFORE_START', path: ['endedAt'] })
+  .refine((v) => Date.parse(v.endedAt) - Date.parse(v.startedAt) <= MAX_INTERVAL_MS, { message: 'INTERVAL_TOO_LONG', path: ['endedAt'] })
 
 export const UpdateIntervalInput = z
   .object({
@@ -22,6 +26,10 @@ export const UpdateIntervalInput = z
   })
   .refine((v) => !(v.startedAt && v.endedAt) || Date.parse(v.endedAt) > Date.parse(v.startedAt), {
     message: 'END_BEFORE_START',
+    path: ['endedAt'],
+  })
+  .refine((v) => !(v.startedAt && v.endedAt) || Date.parse(v.endedAt) - Date.parse(v.startedAt) <= MAX_INTERVAL_MS, {
+    message: 'INTERVAL_TOO_LONG',
     path: ['endedAt'],
   })
 

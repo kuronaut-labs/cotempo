@@ -70,10 +70,28 @@ function page<T extends { sortKey: SortKey; id: string }>(
   return { rows: out.map(({ sortKey: _k, ...rest }) => rest), nextCursor }
 }
 
+type RowsInput = Omit<ListProjectsInput, 'cursor' | 'limit'>
+
 export async function listProjects(deps: Deps, ctx: SessionContext, input: ListProjectsInput): Promise<Page<ProjectListRow>> {
+  return page(await projectRows(deps, ctx, input), input)
+}
+
+/** Every matching row, sorted, unpaged — for detail pages that must not stop at a page limit. */
+export async function allProjects(deps: Deps, ctx: SessionContext, input: RowsInput): Promise<ProjectListRow[]> {
+  const rows = await projectRows(deps, ctx, input)
+  return page(rows, { sort: input.sort, limit: rows.length }).rows
+}
+
+async function projectRows(
+  deps: Deps,
+  ctx: SessionContext,
+  input: RowsInput,
+  onlyId?: string,
+): Promise<(ProjectListRow & { sortKey: SortKey })[]> {
   const { db } = deps
 
   const eConds = []
+  if (onlyId) eConds.push(eq(schema.projects.id, onlyId))
   if (input.status === 'active') eConds.push(isNull(schema.projects.archivedAt))
   if (input.status === 'archived') eConds.push(isNotNull(schema.projects.archivedAt))
   if (input.clientId) eConds.push(eq(schema.projects.clientId, input.clientId))
@@ -82,6 +100,7 @@ export async function listProjects(deps: Deps, ctx: SessionContext, input: ListP
   }
 
   const ivConds = [isNull(schema.intervals.deletedAt)]
+  if (onlyId) ivConds.push(eq(schema.jobs.projectId, onlyId))
   const workers = scopeIds(ctx)
   if (workers) ivConds.push(inArray(schema.intervals.workerId, workers))
   if (input.activeSince) {
@@ -151,8 +170,7 @@ export async function listProjects(deps: Deps, ctx: SessionContext, input: ListP
     return row
   })
 
-  const filtered = input.activeSince ? merged.filter((r) => r.lastActivityMs != null) : merged
-  return page(filtered, input)
+  return input.activeSince ? merged.filter((r) => r.lastActivityMs != null) : merged
 }
 
 export type ProjectDetail = ProjectListRow & { client: { id: string; name: string }; jobs: JobNode[] }
@@ -248,8 +266,8 @@ export async function getProject(deps: Deps, ctx: SessionContext, input: { id: s
 }
 
 async function effortForProject(deps: Deps, ctx: SessionContext, projectId: string): Promise<number> {
-  const list = await listProjects(deps, ctx, { status: 'all', sort: 'name', due: 'any', limit: 200, clientId: undefined })
-  return list.rows.find((r) => r.id === projectId)?.effortMin ?? 0
+  const [row] = await projectRows(deps, ctx, { status: 'all', sort: 'name', due: 'any' }, projectId)
+  return row?.effortMin ?? 0
 }
 
 /** Figures + overtime for the project page; `from`/`to` omitted = all time. */

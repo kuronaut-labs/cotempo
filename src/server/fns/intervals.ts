@@ -36,7 +36,10 @@ export const listDayFn = createServerFn({ method: 'GET' })
 export const listIntervalsFn = createServerFn({ method: 'GET' })
   .middleware([authMw])
   .validator(ListIntervalsInput)
-  .handler(({ data, context }) => svc.listIntervals(runtimeDeps(), ctxOf(context), data))
+  .handler(async ({ data, context }) => {
+    const page = await svc.listIntervals(runtimeDeps(), ctxOf(context), data)
+    return { ...page, rows: page.rows.map(omitRateCents) }
+  })
 
 // The browser never picks a zone or reads its own clock (#23).
 export const getTodayFn = createServerFn({ method: 'GET' }).handler(() => {

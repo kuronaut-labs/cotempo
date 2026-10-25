@@ -80,6 +80,13 @@ export function localDayBoundariesUtcMs(isoDate: string, tz: string): Range {
   return { startMs, endMs }
 }
 
+/** UTC ISO instant of wall time `hhmm` on `isoDate` in `tz`. TZDate's string form would read the host zone (#23). */
+export function localInstantIso(isoDate: string, hhmm: string, tz: string): string {
+  const [y, m, d] = parseIsoDate(isoDate)
+  const [hh, mm] = hhmm.split(':').map(Number) as [number, number]
+  return new Date(new TZDate(y, m - 1, d, hh, mm, 0, tz).getTime()).toISOString()
+}
+
 export function localDateOf(ms: number, tz: string): string {
   const t = new TZDate(ms, tz)
   return `${t.getFullYear()}-${pad(t.getMonth() + 1)}-${pad(t.getDate())}`

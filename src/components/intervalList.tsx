@@ -2,13 +2,20 @@ import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Layers, Pen, Trash2 } from 'reicon-react'
 import { Button } from '~/components/ui/button'
-import { localHHMM } from '~/lib/dayMath'
+import { localHHMM, type Range } from '~/lib/dayMath'
 import { formatHmm } from '~/lib/money'
 import type { DayIntervalRow } from '~/server/services/intervals'
+
+/** Minutes of [startMs, endMs) inside the local `day`, so a row matches the service's clipped trio (#23). */
+export function clipToDay(startMs: number, endMs: number, day: Range): { minutes: number; crossesDay: boolean } {
+  const minutes = Math.max(0, Math.round((Math.min(endMs, day.endMs) - Math.max(startMs, day.startMs)) / 60_000))
+  return { minutes, crossesDay: startMs < day.startMs || endMs > day.endMs }
+}
 
 // Edit/Delete are UX-only; the server re-checks (#10).
 export function IntervalList({
   rows,
+  day,
   tz,
   canEdit,
   onEdit,
@@ -19,6 +26,7 @@ export function IntervalList({
   onOverlap,
 }: {
   rows: DayIntervalRow[]
+  day: Range
   tz: string
   canEdit: (workerId: string) => boolean
   onEdit: (id: string) => void
@@ -53,16 +61,9 @@ export function IntervalList({
             const startMs = r.startedAt.getTime()
             const endMs = r.endedAt.getTime()
             const min = Math.max(0, Math.round((endMs - startMs) / 60_000))
-            // Clip minutes to the queried day so the row matches the trio chips
-            // (which are clipped at the service layer). The ‹/› glyph convention
-            // (from miniStrip) flags the row as crossing the day boundary; the
-            // full interval is still shown in Start/End. (#L4)
-            const dayStartMs = Math.floor(startMs / 86_400_000) * 86_400_000
-            const dayEndMs = dayStartMs + 86_400_000
-            const clippedStart = Math.max(startMs, dayStartMs)
-            const clippedEnd = Math.min(endMs, dayEndMs)
-            const clippedMin = Math.max(0, Math.round((clippedEnd - clippedStart) / 60_000))
-            const crossesDay = startMs < dayStartMs || endMs > dayEndMs
+            // The ‹/› glyph convention (from miniStrip) flags a row crossing the day
+            // boundary; the full interval is still shown in Start/End. (#L4)
+            const { minutes: clippedMin, crossesDay } = clipToDay(startMs, endMs, day)
             const editable = canEdit(r.workerId)
             const n = jobColorIndex?.[r.jobId]
             const swatch = n ? ` job-c${Math.min(5, Math.max(1, n))}` : ''
@@ -79,8 +80,8 @@ export function IntervalList({
                   <span className="client-inline">{r.clientName}</span>
                 </td>
                 <td className="col-client">{r.clientName}</td>
-                <td className="mono">{localHHMM(startMs, tz)}{crossesDay && startMs < dayStartMs ? '‹' : ''}</td>
-                <td className="mono">{localHHMM(endMs, tz)}{crossesDay && endMs > dayEndMs ? '›' : ''}</td>
+                <td className="mono">{localHHMM(startMs, tz)}{startMs < day.startMs ? '‹' : ''}</td>
+                <td className="mono">{localHHMM(endMs, tz)}{endMs > day.endMs ? '›' : ''}</td>
                   <td className="mono">
                     {crossesDay ? <span data-tip={`Full entry (spans midnight): ${formatHmm(min)}`}>{formatHmm(clippedMin)}</span> : formatHmm(min)}
                   </td>

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { CreateIntervalInput, UpdateIntervalInput, ListIntervalsInput } from '~/lib/schemas/intervals'
 import { CreateJobInput } from '~/lib/schemas/structure'
 import { InviteInput, SetRolesInput } from '~/lib/schemas/workers'
-import { PeriodInput } from '~/lib/schemas/reports'
+import { ExportCsvInput, InvoiceInput, PeriodInput } from '~/lib/schemas/reports'
+import { LeaveRequestInput } from '~/lib/schemas/leave'
 
 const base = { workerId: 'w', jobId: 'j', startedAt: '2026-09-04T14:00:00.000Z', endedAt: '2026-09-04T15:00:00.000Z' }
 
@@ -25,6 +26,16 @@ describe('interval inputs (#22)', () => {
       expect(r.error.issues[0]?.message).toBe('END_BEFORE_START')
       expect(r.error.issues[0]?.path).toEqual(['endedAt'])
     }
+  })
+  it('rejects intervals longer than 7 days with INTERVAL_TOO_LONG on endedAt', () => {
+    const r = CreateIntervalInput.safeParse({ ...base, endedAt: '2026-09-11T14:01:00.000Z' })
+    expect(r.success).toBe(false)
+    if (!r.success) {
+      expect(r.error.issues[0]?.message).toBe('INTERVAL_TOO_LONG')
+      expect(r.error.issues[0]?.path).toEqual(['endedAt'])
+    }
+    expect(CreateIntervalInput.safeParse({ ...base, endedAt: '2026-09-11T14:00:00.000Z' }).success).toBe(true)
+    expect(UpdateIntervalInput.safeParse({ id: 'i', startedAt: base.startedAt, endedAt: '2026-09-11T14:01:00.000Z' }).success).toBe(false)
   })
   it('has no rate field: the server snapshots it (#18)', () => {
     const r = CreateIntervalInput.safeParse({ ...base, rateCents: 100 })
@@ -62,5 +73,19 @@ describe('period', () => {
   it('to must not precede from', () => {
     expect(PeriodInput.safeParse({ from: '2026-09-07', to: '2026-09-01' }).success).toBe(false)
     expect(PeriodInput.safeParse({ from: '2026-09-01', to: '2026-09-01' }).success).toBe(true)
+  })
+})
+
+describe('export, invoice and leave dates', () => {
+  it('export and invoice periods must not run backwards', () => {
+    expect(ExportCsvInput.safeParse({ from: '2026-09-07', to: '2026-09-01', view: 'daily' }).success).toBe(false)
+    expect(ExportCsvInput.safeParse({ from: '2026-09-01', to: '2026-09-07', view: 'daily' }).success).toBe(true)
+    expect(InvoiceInput.safeParse({ clientId: 'c', from: '2026-09-07', to: '2026-09-01' }).success).toBe(false)
+    expect(InvoiceInput.safeParse({ clientId: 'c', from: '2026-09-01', to: '2026-09-07' }).success).toBe(true)
+  })
+  it('leave days must be real calendar dates', () => {
+    const leave = { typeId: 't', minutesPerDay: 480 }
+    expect(LeaveRequestInput.safeParse({ ...leave, startDay: '2026-13-45', endDay: '2026-13-46' }).success).toBe(false)
+    expect(LeaveRequestInput.safeParse({ ...leave, startDay: '2026-09-01', endDay: '2026-09-02' }).success).toBe(true)
   })
 })

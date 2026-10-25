@@ -6,7 +6,7 @@ export type AccrualMethod = z.infer<typeof AccrualMethodEnum>
 export const YearBasisEnum = z.enum(['calendar', 'anniversary'])
 export type YearBasis = z.infer<typeof YearBasisEnum>
 
-const dayIso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD')
+const dayIso = z.iso.date('Use YYYY-MM-DD')
 const minutes = (min: number, max: number) => z.number().int().min(min).max(max)
 
 export const LeaveTypeInput = z.object({

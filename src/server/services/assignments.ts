@@ -8,6 +8,7 @@ import {
 } from '~/lib/schemas/assignments'
 import { isAdmin, hasRole, type SessionContext } from '~/server/context'
 import { schema, type Db } from '~/server/db'
+import { inChunks } from '~/server/inChunks'
 import type { Deps } from './deps'
 
 export type AssignmentView = {
@@ -110,33 +111,33 @@ export async function listAssignments(deps: Deps, ctx: SessionContext, input: Li
   const projectIds = rows.filter((r) => r.targetKind === 'project').map((r) => r.targetId)
   const jobIds = rows.filter((r) => r.targetKind === 'job').map((r) => r.targetId)
 
-  const projRows = projectIds.length
-    ? await db
-        .select({
-          id: schema.projects.id,
-          name: schema.projects.name,
-          dueOn: schema.projects.dueOn,
-          clientId: schema.projects.clientId,
-        })
-        .from(schema.projects)
-        .where(inArray(schema.projects.id, projectIds))
-        .all()
-    : []
-  const jobRows = jobIds.length
-    ? await db
-        .select({
-          id: schema.jobs.id,
-          name: schema.jobs.name,
-          jDueOn: schema.jobs.dueOn,
-          projectId: schema.jobs.projectId,
-          clientId: schema.projects.clientId,
-          pDueOn: schema.projects.dueOn,
-        })
-        .from(schema.jobs)
-        .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
-        .where(inArray(schema.jobs.id, jobIds))
-        .all()
-    : []
+  const projRows = await inChunks(projectIds, (chunk) =>
+    db
+      .select({
+        id: schema.projects.id,
+        name: schema.projects.name,
+        dueOn: schema.projects.dueOn,
+        clientId: schema.projects.clientId,
+      })
+      .from(schema.projects)
+      .where(inArray(schema.projects.id, chunk))
+      .all(),
+  )
+  const jobRows = await inChunks(jobIds, (chunk) =>
+    db
+      .select({
+        id: schema.jobs.id,
+        name: schema.jobs.name,
+        jDueOn: schema.jobs.dueOn,
+        projectId: schema.jobs.projectId,
+        clientId: schema.projects.clientId,
+        pDueOn: schema.projects.dueOn,
+      })
+      .from(schema.jobs)
+      .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
+      .where(inArray(schema.jobs.id, chunk))
+      .all(),
+  )
   const projById = new Map(projRows.map((p) => [p.id, p]))
   const jobById = new Map(jobRows.map((j) => [j.id, j]))
 
@@ -172,13 +173,15 @@ export async function listAssignments(deps: Deps, ctx: SessionContext, input: Li
 
 async function workerNamesVia(db: Db, workerIds: string[]): Promise<Map<string, string>> {
   if (workerIds.length === 0) return new Map()
-  const rows = await db
-    .select({ workerId: schema.workers.id, workerName: schema.workers.name, userName: schema.user.name })
-    .from(schema.workers)
-    .leftJoin(schema.humanWorkers, eq(schema.humanWorkers.workerId, schema.workers.id))
-    .leftJoin(schema.user, eq(schema.user.id, schema.humanWorkers.userId))
-    .where(inArray(schema.workers.id, workerIds))
-    .all()
+  const rows = await inChunks(workerIds, (chunk) =>
+    db
+      .select({ workerId: schema.workers.id, workerName: schema.workers.name, userName: schema.user.name })
+      .from(schema.workers)
+      .leftJoin(schema.humanWorkers, eq(schema.humanWorkers.workerId, schema.workers.id))
+      .leftJoin(schema.user, eq(schema.user.id, schema.humanWorkers.userId))
+      .where(inArray(schema.workers.id, chunk))
+      .all(),
+  )
   return new Map(rows.map((r) => [r.workerId, r.userName ?? r.workerName ?? '?']))
 }
 

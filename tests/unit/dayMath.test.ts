@@ -7,6 +7,7 @@ import {
   localDateOf,
   localDayBoundariesUtcMs,
   localHHMM,
+  localInstantIso,
   mergeRanges,
   minutesBetween,
   splitRangeAtBoundaries,
@@ -108,5 +109,14 @@ describe('local day boundaries in the org zone (#23)', () => {
     const end = Date.UTC(2026, 8, 4, 17) // 01:00 Perth Sep 5
     expect(dayBoundariesWithin({ startMs: start, endMs: end }, 'Australia/Perth')).toEqual([Date.UTC(2026, 8, 3, 16), Date.UTC(2026, 8, 4, 16)])
     expect(dayBoundariesWithin({ startMs: start, endMs: Date.UTC(2026, 8, 3, 16) }, 'Australia/Perth')).toEqual([])
+  })
+})
+
+describe('localInstantIso (#23)', () => {
+  // Two zones 25h apart: whatever the host zone, it cannot match both.
+  it('reads the wall time in the given zone, not the host zone', () => {
+    expect(localInstantIso('2026-09-02', '10:00', 'Pacific/Kiritimati')).toBe('2026-09-01T20:00:00.000Z')
+    expect(localInstantIso('2026-09-02', '10:00', 'Pacific/Pago_Pago')).toBe('2026-09-02T21:00:00.000Z')
+    expect(localInstantIso('2026-09-02', '10:00', 'Australia/Perth')).toBe('2026-09-02T02:00:00.000Z')
   })
 })

@@ -1,15 +1,16 @@
-import { and, asc, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm'
+import { and, asc, eq, getTableColumns, gt, inArray, isNull, lt, sql } from 'drizzle-orm'
 import { explode, recon as piecesRecon, type Piece } from '~/lib/attribution'
 import { localDateOf, localDayBoundariesUtcMs } from '~/lib/dayMath'
 import { HttpError } from '~/lib/errors'
 import { defaults as flagDefaults, redFlags, type Flag } from '~/lib/redFlags'
-import { isMonday } from '~/lib/week'
+import { isMonday, weekBoundariesUtcMs, weekDates } from '~/lib/week'
 import { effectiveJobIds } from '~/lib/allocation'
 import { listAssignments } from './assignments'
 import { listStructure } from './structure'
 import { getOrgSettings, type OrgSettingsView } from './settings'
 import { canSeeMoney, hasRole, isAdmin, type SessionContext } from '~/server/context'
 import { schema, type Db } from '~/server/db'
+import { inChunks } from '~/server/inChunks'
 import { assertCanEditWorker, assertCanViewWorker } from '~/server/guards/worker'
 import type {
   ApproveWeekInput,
@@ -72,8 +73,6 @@ export type IntervalEventView = {
 export type PendingWeek = { workerId: string; workerName: string; weekStart: string; recon: TimeRecon & { cents?: number }; flagCount: number }
 export type MyWeek = { workerId: string; weekStart: string; status: ApprovalStatus | 'none'; rejectedReason: string | null }
 
-const DAY = 86_400_000
-
 function assertMonday(weekStart: string) {
   if (!isMonday(weekStart)) throw new HttpError(400, 'NOT_A_MONDAY', 'weekStart')
 }
@@ -93,33 +92,36 @@ async function loadApprovalRow(db: Db, workerId: string, weekStart: string): Pro
 
 async function workerNames(db: Db, workerIds: string[]): Promise<Map<string, string>> {
   if (workerIds.length === 0) return new Map()
-  const rows = await db
-    .select({
-      workerId: schema.workers.id,
-      workerName: schema.workers.name,
-      userName: schema.user.name,
-    })
-    .from(schema.workers)
-    .leftJoin(schema.humanWorkers, eq(schema.humanWorkers.workerId, schema.workers.id))
-    .leftJoin(schema.user, eq(schema.user.id, schema.humanWorkers.userId))
-    .where(inArray(schema.workers.id, workerIds))
-    .all()
+  const rows = await inChunks(workerIds, (chunk) =>
+    db
+      .select({
+        workerId: schema.workers.id,
+        workerName: schema.workers.name,
+        userName: schema.user.name,
+      })
+      .from(schema.workers)
+      .leftJoin(schema.humanWorkers, eq(schema.humanWorkers.workerId, schema.workers.id))
+      .leftJoin(schema.user, eq(schema.user.id, schema.humanWorkers.userId))
+      .where(inArray(schema.workers.id, chunk))
+      .all(),
+  )
   return new Map(rows.map((r) => [r.workerId, r.userName ?? r.workerName ?? '?']))
 }
 
 async function workerSupervisors(db: Db, workerIds: string[]): Promise<Map<string, string | null>> {
   if (workerIds.length === 0) return new Map()
-  const rows = await db
-    .select({ id: schema.workers.id, supervisorId: schema.workers.supervisorId })
-    .from(schema.workers)
-    .where(inArray(schema.workers.id, workerIds))
-    .all()
+  const rows = await inChunks(workerIds, (chunk) =>
+    db
+      .select({ id: schema.workers.id, supervisorId: schema.workers.supervisorId })
+      .from(schema.workers)
+      .where(inArray(schema.workers.id, chunk))
+      .all(),
+  )
   return new Map(rows.map((r) => [r.id, r.supervisorId]))
 }
 
 async function loadIntervalsForWeek(db: Db, workerId: string, weekStart: string, tz: string) {
-  const start = localDayBoundariesUtcMs(weekStart, tz).startMs
-  const end = start + 7 * DAY
+  const { startMs: start, endMs: end } = weekBoundariesUtcMs(weekStart, tz)
   return db
     .select({
       id: schema.intervals.id,
@@ -164,8 +166,7 @@ function toIntervalsForRedFlags(rows: Awaited<ReturnType<typeof loadIntervalsFor
 }
 
 function toPieces(rows: Awaited<ReturnType<typeof loadIntervalsForWeek>>, weekStart: string, tz: string): Piece[] {
-  const weekStartMs = localDayBoundariesUtcMs(weekStart, tz).startMs
-  const weekEndMs = weekStartMs + 7 * DAY
+  const { startMs: weekStartMs, endMs: weekEndMs } = weekBoundariesUtcMs(weekStart, tz)
   const all: Piece[] = []
   for (const r of rows) {
     const pieces = explode(
@@ -440,8 +441,7 @@ export async function getWeekForApproval(deps: Deps, ctx: SessionContext, input:
   const recon = makeReconLiteral(r, keepCents)
   const intervalsAudit: WeekIntervalAudit[] = []
   if (intervals.length > 0) {
-    const weekStartMs = localDayBoundariesUtcMs(input.weekStart, tz).startMs
-    const weekEndMs = weekStartMs + 7 * DAY
+    const { startMs: weekStartMs, endMs: weekEndMs } = weekBoundariesUtcMs(input.weekStart, tz)
     const creatorIds = [...new Set(intervals.map((i) => i.createdBy))]
     const creators = await workerNames(db, creatorIds)
     for (const i of intervals) {
@@ -496,12 +496,21 @@ export async function getWeekForApproval(deps: Deps, ctx: SessionContext, input:
   // C1: merge interval events for this week's intervals into the audit data.
   const intervalEventViews: IntervalEventView[] = []
   if (intervals.length > 0) {
-    const idList = intervals.map((i) => i.id)
+    const week = weekBoundariesUtcMs(input.weekStart, tz)
+    // Same interval set as loadIntervalsForWeek, joined rather than listed: a busy week has more ids than D1's 100 bound parameters.
     const rawIe = await db
-      .select()
+      .select(getTableColumns(schema.intervalEvents))
       .from(schema.intervalEvents)
-      .where(inArray(schema.intervalEvents.intervalId, idList))
-      .orderBy(asc(schema.intervalEvents.at), sql`rowid`) // rowid breaks same-instant ties (fixed clock)
+      .innerJoin(schema.intervals, eq(schema.intervals.id, schema.intervalEvents.intervalId))
+      .where(
+        and(
+          eq(schema.intervals.workerId, input.workerId),
+          isNull(schema.intervals.deletedAt),
+          lt(schema.intervals.startedAt, new Date(week.endMs)),
+          gt(schema.intervals.endedAt, new Date(week.startMs)),
+        ),
+      )
+      .orderBy(asc(schema.intervalEvents.at), sql`${schema.intervalEvents}.rowid`) // rowid breaks same-instant ties (fixed clock)
       .all()
     if (rawIe.length > 0) {
       const actors = await workerNames(db, rawIe.map((e) => e.actorWorkerId))
@@ -536,7 +545,7 @@ export async function weeksWithEntries(deps: Deps, ctx: SessionContext, input: {
   await assertCanViewWorker(ctx, input.workerId)
   const { db, tz } = deps
   const starts = input.weekStarts.map((ws) => localDayBoundariesUtcMs(ws, tz).startMs)
-  const ends = input.weekStarts.map((ws) => localDayBoundariesUtcMs(ws, tz).endMs)
+  const ends = input.weekStarts.map((ws) => localDayBoundariesUtcMs(weekDates(ws)[6]!, tz).endMs)
   const ivs = await db
     .select({ startedAt: schema.intervals.startedAt, endedAt: schema.intervals.endedAt })
     .from(schema.intervals)

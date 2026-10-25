@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { and, eq, gt, inArray, isNull, lt, sql } from 'drizzle-orm'
+import { and, eq, gt, inArray, isNull, lt, sql, type SQL } from 'drizzle-orm'
 import {
   clipPieces,
   explode,
@@ -8,12 +8,13 @@ import {
   type Piece,
   type Recon,
 } from '~/lib/attribution'
-import { localDateOf, localDayBoundariesUtcMs, minutesBetween } from '~/lib/dayMath'
+import { localDayBoundariesUtcMs, localHHMM, minutesBetween } from '~/lib/dayMath'
 import { moneyCents } from '~/lib/money'
 import { HttpError } from '~/lib/errors'
 import { WeeksInput, type KpiInput, type PeriodInput } from '~/lib/schemas/reports'
 import { canSeeMoney, hasRole, type SessionContext } from '~/server/context'
 import { schema, type Db } from '~/server/db'
+import { inChunks } from '~/server/inChunks'
 import type { Deps } from './deps'
 import { getOrgSettings } from './settings'
 import { isoWeekStart, weekDates } from '~/lib/week'
@@ -84,30 +85,15 @@ async function loadIntervalsInRange(
   endMs: number,
   filter: { workerIds?: string[]; clientId?: string; jobIds?: string[]; projectId?: string } = {},
 ) {
-  const conds = [
+  const conds: SQL[] = [
     isNull(schema.intervals.deletedAt),
     lt(schema.intervals.startedAt, new Date(endMs)),
     gt(schema.intervals.endedAt, new Date(startMs)),
   ]
-  if (filter.workerIds && filter.workerIds.length > 0) conds.push(inArray(schema.intervals.workerId, filter.workerIds))
-  if (filter.jobIds && filter.jobIds.length > 0) conds.push(inArray(schema.intervals.jobId, filter.jobIds))
   if (filter.projectId) conds.push(eq(schema.jobs.projectId, filter.projectId))
-  if (filter.clientId) {
-    // Archived jobs keep their historical time everywhere — archiving stops
-    // *new* entries (guarded at interval create) but billing for past work
-    // stays. The previous filter dropped the time from invoice/client views
-    // while keeping it in reconciliation, exports, and operator lanes, so
-    // totals disagreed. (#H5)
-    const jobIds = await db
-      .select({ id: schema.jobs.id })
-      .from(schema.jobs)
-      .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
-      .where(eq(schema.projects.clientId, filter.clientId))
-      .all()
-    if (jobIds.length === 0) return []
-    conds.push(inArray(schema.intervals.jobId, jobIds.map((j) => j.id)))
-  }
-  return db
+  // Archived jobs keep their historical time everywhere: archiving stops new entries, not billing for past work (#H5).
+  if (filter.clientId) conds.push(eq(schema.projects.clientId, filter.clientId))
+  const query = (extra?: SQL) => db
     .select({
       id: schema.intervals.id,
       workerId: schema.intervals.workerId,
@@ -120,17 +106,24 @@ async function loadIntervalsInRange(
     .from(schema.intervals)
     .innerJoin(schema.jobs, eq(schema.jobs.id, schema.intervals.jobId))
     .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
-    .where(and(...conds))
+    .where(and(...conds, extra))
     .all()
+
+  // Id lists are chunked (D1 caps bound parameters at 100). With both filters, only worker ids go to SQL.
+  const jobIds = filter.jobIds?.length ? new Set(filter.jobIds) : null
+  if (filter.workerIds?.length) {
+    const rows = await inChunks(filter.workerIds, (chunk) => query(inArray(schema.intervals.workerId, chunk)))
+    return jobIds ? rows.filter((r) => jobIds.has(r.jobId)) : rows
+  }
+  if (jobIds) return inChunks(jobIds, (chunk) => query(inArray(schema.intervals.jobId, chunk)))
+  return query()
 }
 
 async function clientNameMap(db: Db, clientIds: string[]): Promise<Map<string, string>> {
   if (clientIds.length === 0) return new Map()
-  const rows = await db
-    .select({ id: schema.clients.id, name: schema.clients.name })
-    .from(schema.clients)
-    .where(inArray(schema.clients.id, clientIds))
-    .all()
+  const rows = await inChunks(clientIds, (chunk) =>
+    db.select({ id: schema.clients.id, name: schema.clients.name }).from(schema.clients).where(inArray(schema.clients.id, chunk)).all(),
+  )
   return new Map(rows.map((r) => [r.id, r.name]))
 }
 
@@ -179,11 +172,13 @@ export async function reconciliation(deps: Deps, ctx: SessionContext, input: Per
   if (keepCents) {
     const jobIds = [...new Set(pieces.map((p) => p.jobId))]
     if (jobIds.length > 0) {
-      const rows = await db
-        .select({ id: schema.jobs.id, billableRateCents: schema.jobs.billableRateCents })
-        .from(schema.jobs)
-        .where(inArray(schema.jobs.id, jobIds))
-        .all()
+      const rows = await inChunks(jobIds, (chunk) =>
+        db
+          .select({ id: schema.jobs.id, billableRateCents: schema.jobs.billableRateCents })
+          .from(schema.jobs)
+          .where(inArray(schema.jobs.id, chunk))
+          .all(),
+      )
       for (const j of rows) jobRates.set(j.id, j.billableRateCents)
     }
   }
@@ -256,22 +251,26 @@ export async function operatorLanes(deps: Deps, ctx: SessionContext, input: Peri
   const workerIds = [...byWorker.keys()]
   if (workerIds.length === 0) return []
 
-  const workerRows = await db
-    .select({ id: schema.workers.id, kind: schema.workers.kind, name: schema.workers.name })
-    .from(schema.workers)
-    .where(inArray(schema.workers.id, workerIds))
-    .all()
+  const workerRows = await inChunks(workerIds, (chunk) =>
+    db
+      .select({ id: schema.workers.id, kind: schema.workers.kind, name: schema.workers.name })
+      .from(schema.workers)
+      .where(inArray(schema.workers.id, chunk))
+      .all(),
+  )
   const workerMap = new Map(workerRows.map((w) => [w.id, w]))
 
   const humanIds = workerRows.filter((w) => w.kind === 'human').map((w) => w.id)
   const userNames = new Map<string, string>()
   if (humanIds.length > 0) {
-    const rows = await db
-      .select({ workerId: schema.humanWorkers.workerId, name: schema.user.name })
-      .from(schema.humanWorkers)
-      .innerJoin(schema.user, eq(schema.user.id, schema.humanWorkers.userId))
-      .where(inArray(schema.humanWorkers.workerId, humanIds))
-      .all()
+    const rows = await inChunks(humanIds, (chunk) =>
+      db
+        .select({ workerId: schema.humanWorkers.workerId, name: schema.user.name })
+        .from(schema.humanWorkers)
+        .innerJoin(schema.user, eq(schema.user.id, schema.humanWorkers.userId))
+        .where(inArray(schema.humanWorkers.workerId, chunk))
+        .all(),
+    )
     for (const r of rows) userNames.set(r.workerId, r.name)
   }
 
@@ -330,10 +329,11 @@ export async function weeklyTrends(
     .where(and(eq(schema.workers.kind, 'human'), isNull(schema.workers.archivedAt)))
     .all()
   const dayMinutes = settings.defaultDayMinutes
-  const thisMondayMs = localDayBoundariesUtcMs(isoWeekStart(deps.now().getTime(), tz), tz).startMs
+  const [y, m, d] = isoWeekStart(deps.now().getTime(), tz).split('-').map(Number) as [number, number, number]
   const out: WeekTrend[] = []
   for (let i = input.weeks - 1; i >= 0; i--) {
-    const weekStart = localDateOf(thisMondayMs - i * 7 * 86_400_000, tz)
+    // Step in calendar weeks: subtracting 7 × 24h lands on Sunday across a DST change (#23).
+    const weekStart = new Date(Date.UTC(y, m - 1, d - 7 * i)).toISOString().slice(0, 10)
     const days = weekDates(weekStart)
     const pieces = await loadPieces(deps, { from: weekStart, to: days[6]! })
     const r = recon(pieces)
@@ -368,27 +368,25 @@ export async function adminKpis(deps: Deps, ctx: SessionContext, input: KpiInput
 
   const dayPieces = await loadPieces(deps, { from: input.date, to: input.date })
   const dayR = recon(dayPieces)
-  const dayStart = localDayBoundariesUtcMs(input.date, tz).startMs
+  const day = localDayBoundariesUtcMs(input.date, tz)
 
   const byWorker = groupBy(dayPieces, 'workerId')
   const workerIds = [...byWorker.keys()]
-  const humanNames = workerIds.length
-    ? await db
-        .select({ workerId: schema.humanWorkers.workerId, name: schema.user.name })
-        .from(schema.humanWorkers)
-        .innerJoin(schema.user, eq(schema.user.id, schema.humanWorkers.userId))
-        .where(inArray(schema.humanWorkers.workerId, workerIds))
-        .all()
-    : []
+  const humanNames = await inChunks(workerIds, (chunk) =>
+    db
+      .select({ workerId: schema.humanWorkers.workerId, name: schema.user.name })
+      .from(schema.humanWorkers)
+      .innerJoin(schema.user, eq(schema.user.id, schema.humanWorkers.userId))
+      .where(inArray(schema.humanWorkers.workerId, chunk))
+      .all(),
+  )
   const nameMap = new Map(humanNames.map((u) => [u.workerId, u.name]))
   // Agents carry their display name on the workers row (mirrors operatorLanes).
   const missingIds = workerIds.filter((id) => !nameMap.has(id))
   if (missingIds.length > 0) {
-    const rows = await db
-      .select({ id: schema.workers.id, name: schema.workers.name })
-      .from(schema.workers)
-      .where(inArray(schema.workers.id, missingIds))
-      .all()
+    const rows = await inChunks(missingIds, (chunk) =>
+      db.select({ id: schema.workers.id, name: schema.workers.name }).from(schema.workers).where(inArray(schema.workers.id, chunk)).all(),
+    )
     for (const w of rows) if (!nameMap.has(w.id)) nameMap.set(w.id, w.name ?? '?')
   }
 
@@ -405,25 +403,24 @@ export async function adminKpis(deps: Deps, ctx: SessionContext, input: KpiInput
     }
   })
 
-  const effortSeries: { hour: number; effortMin: number; wallClockMin: number }[] = []
-  for (let h = 0; h < 24; h++) {
-    const hourStart = dayStart + h * 3_600_000
-    const hourEnd = hourStart + 3_600_000
-    // Clip pieces to [hourStart, hourEnd) before recon — otherwise a 2h
-    // interval contributes 120min to *both* hour bins and the chart double-
-    // counts. (#H7)
-    const hourPieces: Piece[] = []
+  // Walk the day's real hours (23 or 25 on DST days) and bin by local hour; a repeated
+  // fall-back hour shares one bin. Pieces are clipped per hour so a 2h interval isn't counted in both bins (#H7).
+  const byHour = new Map<number, Piece[]>()
+  for (let hourStart = day.startMs; hourStart < day.endMs; hourStart += 3_600_000) {
+    const hourEnd = Math.min(hourStart + 3_600_000, day.endMs)
+    const hour = Number(localHHMM(hourStart, tz).slice(0, 2))
     for (const p of dayPieces) {
-      if (p.startMs < hourEnd && p.endMs > hourStart) {
-        const s = Math.max(p.startMs, hourStart)
-        const e = Math.min(p.endMs, hourEnd)
-        if (s < e) hourPieces.push({ ...p, startMs: s, endMs: e })
-      }
+      const s = Math.max(p.startMs, hourStart)
+      const e = Math.min(p.endMs, hourEnd)
+      if (s < e) byHour.set(hour, [...(byHour.get(hour) ?? []), { ...p, startMs: s, endMs: e }])
     }
-    if (hourPieces.length === 0) continue
-    const r = recon(hourPieces)
-    effortSeries.push({ hour: h, effortMin: r.effortMin, wallClockMin: r.wallClockMin })
   }
+  const effortSeries = [...byHour.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([hour, pieces]) => {
+      const r = recon(pieces)
+      return { hour, effortMin: r.effortMin, wallClockMin: r.wallClockMin }
+    })
 
   const weekStartIso = isoWeekStart(deps.now().getTime(), deps.tz)
   const weekEndIso = weekDates(weekStartIso)[6]!
@@ -455,20 +452,22 @@ export async function perJob(deps: Deps, ctx: SessionContext, input: PeriodInput
   const jobIds = [...byJob.keys()]
   if (jobIds.length === 0) return []
 
-  const jobRows = await db
-    .select({
-      id: schema.jobs.id,
-      name: schema.jobs.name,
-      projectId: schema.jobs.projectId,
-      projectName: schema.projects.name,
-      clientName: schema.clients.name,
-      budgetCents: schema.jobs.budgetCents,
-    })
-    .from(schema.jobs)
-    .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
-    .innerJoin(schema.clients, eq(schema.clients.id, schema.projects.clientId))
-    .where(inArray(schema.jobs.id, jobIds))
-    .all()
+  const jobRows = await inChunks(jobIds, (chunk) =>
+    db
+      .select({
+        id: schema.jobs.id,
+        name: schema.jobs.name,
+        projectId: schema.jobs.projectId,
+        projectName: schema.projects.name,
+        clientName: schema.clients.name,
+        budgetCents: schema.jobs.budgetCents,
+      })
+      .from(schema.jobs)
+      .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
+      .innerJoin(schema.clients, eq(schema.clients.id, schema.projects.clientId))
+      .where(inArray(schema.jobs.id, chunk))
+      .all(),
+  )
   const jobMap = new Map(jobRows.map((j) => [j.id, j]))
 
   const keepCents = canSeeMoney(ctx)

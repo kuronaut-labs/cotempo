@@ -1,7 +1,8 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
-import { asUser, deps, resetDb } from './helpers'
+import { asUser, at, deps, resetDb } from './helpers'
 import { leaveExportRows } from '~/server/services/leave'
-import { exportCsv } from '~/server/services/exports'
+import { exportCsv, invoiceData } from '~/server/services/exports'
+import { createInterval } from '~/server/services/intervals'
 import { HttpError } from '~/lib/errors'
 import { ids } from '../../src/server/fixtures/demo'
 
@@ -108,5 +109,25 @@ describe('entity-scoped exports (Task 4.1)', () => {
     expect(lines.length).toBeGreaterThan(1)
     const jobs = lines.slice(1).map((l) => l.split(',')[4])
     expect(jobs.every((j) => j === 'Pipeline Maintenance' || j === 'Eval Harness Runs')).toBe(true)
+  })
+})
+
+describe('invoice lines (#18)', () => {
+  beforeEach(() => resetDb())
+
+  it('splits a job into one line per snapshot rate so each line multiplies out', async () => {
+    // opWorker's position (12_000) overrides j1's 14_000 on new entries
+    await createInterval(deps(), asUser('operator'), {
+      workerId: ids.opWorker,
+      jobId: ids.j1,
+      startedAt: at(4, 9).toISOString(),
+      endedAt: at(4, 10).toISOString(),
+    })
+    const inv = await invoiceData(deps(), asUser('billing'), { clientId: ids.c1, from: '2026-08-31', to: '2026-09-06' })
+    const j1 = inv.lines.filter((l) => l.jobId === ids.j1)
+    expect(j1.map((l) => l.rateCents)).toEqual([12_000, 14_000])
+    expect(j1[0]).toMatchObject({ billableMin: 60, cents: 12_000 })
+    for (const l of inv.lines) expect(l.cents).toBe(Math.floor((l.billableMin * l.rateCents!) / 60 + 0.5))
+    expect(inv.subtotalCents).toBe(inv.lines.reduce((s, l) => s + l.cents, 0))
   })
 })

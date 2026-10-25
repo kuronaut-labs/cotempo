@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
-import { asUser, at, deps, resetDb } from './helpers'
+import { asUser, at, db, deps, resetDb } from './helpers'
 import { ids } from '~/server/fixtures/demo'
 import {
   archiveContact,
@@ -104,6 +104,16 @@ describe('client contacts (Task 2.1)', () => {
     expect(detail.contacts.find((c) => c.name === 'Sam Reyes')!.isPrimary).toBe(true)
   })
 
+  it('setPrimaryContact refuses a contact from another client and leaves the primary alone', async () => {
+    // demo-0000-contact-3 belongs to c2
+    await expect(setPrimaryContact(deps(), asUser('admin'), { id: 'demo-0000-contact-3', clientId: ids.c1 })).rejects.toMatchObject({
+      status: 404,
+      code: 'CONTACT_NOT_FOUND',
+    })
+    const detail = await getClient(deps(), asUser('admin'), { id: ids.c1 })
+    expect(detail.contacts.filter((c) => c.isPrimary).map((c) => c.name)).toEqual(['Jane Okafor'])
+  })
+
   it('archive hides a contact', async () => {
     await archiveContact(deps(), asUser('admin'), { id: 'demo-0000-contact-2' })
     const detail = await getClient(deps(), asUser('admin'), { id: ids.c1 })
@@ -161,5 +171,22 @@ describe('client figures (Task 2.3)', () => {
     const f = await clientFigures(deps(), asUser('billing'), { id: ids.c1 })
     expect(f.byProject.map((p) => p.id)).toContain(ids.p1)
     expect(f.byProject[0]!.archivedAt).not.toBeNull()
+  })
+})
+
+describe('detail pages past the first 200 rows', () => {
+  it('getClient finds a client that sorts after 200 others, with all its projects', async () => {
+    const now = new Date()
+    const name = (i: number) => `AAA ${String(i).padStart(3, '0')}` // sorts ahead of the demo rows
+    // chunks of 20 stay under D1's 100 bound parameters
+    for (let i = 0; i < 205; i += 20) {
+      const n = Array.from({ length: Math.min(20, 205 - i) }, (_, k) => i + k)
+      await db.insert(schema.clients).values(n.map((k) => ({ id: `bulk-c-${k}`, name: name(k), createdAt: now })))
+      await db.insert(schema.projects).values(n.map((k) => ({ id: `bulk-p-${k}`, clientId: ids.c1, name: name(k), createdAt: now })))
+    }
+    const detail = await getClient(deps(), asUser('admin'), { id: ids.c1 })
+    expect(detail.name).toBe('Acme Aerospace')
+    expect(detail.effortMin).toBeGreaterThan(0)
+    expect(detail.projects).toHaveLength(206)
   })
 })

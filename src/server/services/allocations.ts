@@ -8,6 +8,7 @@ import { listStructure } from './structure'
 import type { Deps } from './deps'
 import type { SessionContext } from '~/server/context'
 import { schema } from '~/server/db'
+import { inChunks } from '~/server/inChunks'
 
 export type AllocationRow = {
   assignmentId: string
@@ -31,11 +32,13 @@ export async function allocationReport(deps: Deps, ctx: SessionContext, input: {
   if (rows.length === 0) return []
   const structure = await listStructure(deps, ctx, { includeArchived: true })
 
-  const kinds = await deps.db
-    .select({ workerId: schema.workers.id, kind: schema.workers.kind })
-    .from(schema.workers)
-    .where(inArray(schema.workers.id, rows.map((r) => r.workerId)))
-    .all()
+  const kinds = await inChunks(rows.map((r) => r.workerId), (chunk) =>
+    deps.db
+      .select({ workerId: schema.workers.id, kind: schema.workers.kind })
+      .from(schema.workers)
+      .where(inArray(schema.workers.id, chunk))
+      .all(),
+  )
   const kindBy = new Map(kinds.map((k) => [k.workerId, k.kind]))
 
   const clientNames = new Map(

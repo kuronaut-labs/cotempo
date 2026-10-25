@@ -4,6 +4,7 @@ import { parseHttpError } from '~/lib/errors'
 const messages: Record<string, string> = {
   END_BEFORE_START: 'End must be after start.',
   MINUTE_ALIGNMENT: 'Use whole minutes.',
+  INTERVAL_TOO_LONG: 'An entry can be at most 7 days long.',
   SAME_JOB_OVERLAP: 'This overlaps another entry on the same job. That would bill one client twice for the same minutes.',
   WEEK_LOCKED: 'This week is approved. Ask an admin to unlock it.',
   FORBIDDEN_TARGET: 'You can only log time for yourself or your supervisees.',
@@ -16,6 +17,8 @@ const messages: Record<string, string> = {
   ROLES_MUST_INCLUDE_OPERATOR: 'Every person keeps the operator role.',
   HAS_SUPERVISEES: 'This worker still has supervisees — reassign them first.',
   CREATE_USER_FAILED: 'The auth service refused to create that user.',
+  SELF_APPROVAL: "You can't approve your own week.",
+  INVALID_TRANSITION: 'That week is no longer waiting for approval.',
 }
 
 /** Non-form surfaces (tree rows, roster actions) show the same mapped text. */

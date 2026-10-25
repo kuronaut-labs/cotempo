@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
-import { asUser, at, deps, resetDb } from './helpers'
+import { asUser, at, db, deps, resetDb } from './helpers'
 import { ids } from '~/server/fixtures/demo'
-import { listProjects, projectFigures } from '~/server/services/projects'
+import { getProject, listProjects, projectFigures } from '~/server/services/projects'
 import * as schema from '../../drizzle/schema'
 import { updateOrgSettings } from '~/server/services/settings'
 
@@ -107,5 +107,17 @@ describe('project figures (Task 3.2)', () => {
     expect(f.weeks[0]!.weekStart).toBe('2026-08-31')
     expect(f.recent.length).toBeGreaterThan(0)
     expect(f.budgetCents).toBeUndefined()
+  })
+})
+
+describe('getProject', () => {
+  it('reports effort for a project that sorts after 200 others', async () => {
+    const now = new Date()
+    for (let i = 0; i < 205; i += 20) {
+      const n = Array.from({ length: Math.min(20, 205 - i) }, (_, k) => i + k)
+      await db.insert(schema.projects).values(n.map((k) => ({ id: `bulk-p-${k}`, clientId: ids.c2, name: `AAA ${String(k).padStart(3, '0')}`, createdAt: now })))
+    }
+    const p = await getProject(deps(), asUser('admin'), { id: ids.p1 })
+    expect(p.effortMin).toBeGreaterThan(0)
   })
 })

@@ -61,3 +61,18 @@ it('templates the gap threshold into the detail (byte-identical at default)', ()
   expect(onDay(redFlags(input))).toBe(`Only 300 min on ${DAY} (< 8h).`)
   expect(onDay(redFlags(input, { gapMinWallMin: 450, lateEntryDays: 7, multiEditOver: 2 }))).toBe(`Only 300 min on ${DAY} (< 7.5h).`)
 })
+
+describe('late_entry across a DST change (#23)', () => {
+  // Sydney week of 2026-09-28 ends Sun 2026-10-04 24:00 AEDT; seven local days later is Oct 11 24:00 AEDT = 13:00Z.
+  const late = (createdAt: number) => {
+    const iv = { id: 'x', startedAt: Date.UTC(2026, 8, 30, 0), endedAt: Date.UTC(2026, 8, 30, 1), createdAt, editCount: 0, createdBy: 'w' }
+    const flags = redFlags({ weekStart: '2026-09-28', tz: 'Australia/Sydney', worker, intervals: [iv], pieces: [] })
+    return flags.some((f) => f.kind === 'late_entry')
+  }
+  it('flags an entry made at 00:30 on the Monday after the window', () => {
+    expect(late(Date.UTC(2026, 9, 11, 13, 30))).toBe(true)
+  })
+  it('does not flag one made at 23:30 on the last Sunday of the window', () => {
+    expect(late(Date.UTC(2026, 9, 11, 12, 30))).toBe(false)
+  })
+})

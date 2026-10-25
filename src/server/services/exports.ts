@@ -1,10 +1,11 @@
 import { and, eq, gt, gte, inArray, isNull, lt, type SQL } from 'drizzle-orm'
 import { clipPieces, explode, recon as piecesRecon, type Piece, type Recon } from '~/lib/attribution'
-import { localDateOf, localDateTimeOf, localDayBoundariesUtcMs } from '~/lib/dayMath'
+import { localDateOf, localDateTimeOf, localDayBoundariesUtcMs, minutesBetween } from '~/lib/dayMath'
 import { moneyCents, formatDecimalHours } from '~/lib/money'
 import { HttpError } from '~/lib/errors'
 import { canSeeMoney, type SessionContext } from '~/server/context'
 import { schema, type Db } from '~/server/db'
+import { inChunks } from '~/server/inChunks'
 import type { ExportCsvInput, InvoiceInput } from '~/lib/schemas/reports'
 import { groupBy } from '~/lib/attribution'
 import { loadPieces } from './reports'
@@ -101,15 +102,12 @@ type IntervalRow = {
 
 async function loadIntervalRowsForCsv(
   db: Db,
-  workerIds: string[],
   startMs: number,
   endMs: number,
   entity?: { clientId?: string | null; projectId?: string | null },
 ): Promise<IntervalRow[]> {
-  if (workerIds.length === 0) return []
   const conds: SQL[] = [
     isNull(schema.intervals.deletedAt),
-    inArray(schema.intervals.workerId, workerIds),
     lt(schema.intervals.startedAt, new Date(endMs)),
     gt(schema.intervals.endedAt, new Date(startMs)),
   ]
@@ -179,8 +177,7 @@ export async function exportCsv(
   // Archived workers keep their historical time in the intervals CSV — same
   // policy as the invoice/client views after #H5 (archiving stops *new*
   // entries, not billing for past work). (#M10)
-  const allWorkerIds = (await db.select({ id: schema.workers.id }).from(schema.workers).all()).map((w) => w.id)
-  const rows = await loadIntervalRowsForCsv(db, allWorkerIds, start, end, {
+  const rows = await loadIntervalRowsForCsv(db, start, end, {
     clientId: input.clientId,
     projectId: input.projectId,
   })
@@ -379,11 +376,9 @@ export async function exportCsv(
   })
   const byDay = groupBy(pieces, 'day')
   const byClient = groupBy(pieces, 'clientId')
-  const clientNames = await db
-    .select({ id: schema.clients.id, name: schema.clients.name })
-    .from(schema.clients)
-    .where(inArray(schema.clients.id, [...byClient.keys()]))
-    .all()
+  const clientNames = await inChunks(byClient.keys(), (chunk) =>
+    db.select({ id: schema.clients.id, name: schema.clients.name }).from(schema.clients).where(inArray(schema.clients.id, chunk)).all(),
+  )
   const nameMap = new Map(clientNames.map((c) => [c.id, c.name]))
   const out: string[] = [csvRow(DAILY_CSV_COLUMNS as unknown as string[])]
   for (const day of [...byDay.keys()].sort()) {
@@ -422,15 +417,15 @@ export async function invoiceData(deps: Deps, ctx: SessionContext, input: Invoic
   const pieces = await loadPieces(deps, { from: input.from, to: input.to }, { clientId: input.clientId })
   const byJob = groupBy(pieces, 'jobId')
   const jobIds = [...byJob.keys()]
-  const jobRows = jobIds.length
-    ? await db
-        .select({ id: schema.jobs.id, name: schema.jobs.name, projectName: schema.projects.name, clientId: schema.projects.clientId, clientName: schema.clients.name, rate: schema.jobs.billableRateCents })
-        .from(schema.jobs)
-        .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
-        .innerJoin(schema.clients, eq(schema.clients.id, schema.projects.clientId))
-        .where(inArray(schema.jobs.id, jobIds))
-        .all()
-    : []
+  const jobRows = await inChunks(jobIds, (chunk) =>
+    db
+      .select({ id: schema.jobs.id, name: schema.jobs.name, projectName: schema.projects.name, clientId: schema.projects.clientId, clientName: schema.clients.name, rate: schema.jobs.billableRateCents })
+      .from(schema.jobs)
+      .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
+      .innerJoin(schema.clients, eq(schema.clients.id, schema.projects.clientId))
+      .where(inArray(schema.jobs.id, chunk))
+      .all(),
+  )
   const jobMap = new Map(jobRows.map((j) => [j.id, j]))
   const clientInfo = jobRows[0]
     ? { id: jobRows[0].clientId, name: jobRows[0].clientName }
@@ -438,16 +433,16 @@ export async function invoiceData(deps: Deps, ctx: SessionContext, input: Invoic
   const lines: InvoiceLine[] = []
   let subtotalCents = 0
   for (const [jobId, jobPieces] of [...byJob.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
-    const billablePieces = jobPieces.filter((p) => p.rateCents !== null)
-    if (billablePieces.length === 0) continue // non-billable jobs excluded
-    const billableMin = billablePieces.reduce((s, p) => s + (p.endMs - p.startMs) / 60_000, 0)
-    const rate = billablePieces[0]!.rateCents!
-    const cents = moneyCents(
-      billablePieces.map((p) => ({ minutes: Math.round((p.endMs - p.startMs) / 60_000), rateCents: p.rateCents })),
-    )
+    // One line per snapshot rate (#18): positions and rate edits leave a job with several, and each line must multiply out.
+    const byRate = new Map<number, Piece[]>()
+    for (const p of jobPieces) if (p.rateCents !== null) byRate.set(p.rateCents, [...(byRate.get(p.rateCents) ?? []), p])
     const job = jobMap.get(jobId)!
-    lines.push({ jobId, job: job.name, project: job.projectName, billableMin: Math.round(billableMin), rateCents: rate, cents })
-    subtotalCents += cents
+    for (const [rate, ratePieces] of [...byRate.entries()].sort((a, b) => a[0] - b[0])) {
+      const billableMin = ratePieces.reduce((s, p) => s + minutesBetween(p.startMs, p.endMs), 0)
+      const cents = moneyCents([{ minutes: billableMin, rateCents: rate }])
+      lines.push({ jobId, job: job.name, project: job.projectName, billableMin, rateCents: rate, cents })
+      subtotalCents += cents
+    }
   }
   return {
     client: clientInfo,

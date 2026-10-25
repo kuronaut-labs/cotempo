@@ -1,10 +1,12 @@
 import { and, desc, eq, gt, gte, inArray, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm'
 import type { z } from 'zod'
 import { schema, type Db } from '~/server/db'
+import { inChunks } from '~/server/inChunks'
 import { HttpError } from '~/lib/errors'
 import type { SessionContext } from '~/server/context'
 import { assertCanEditWorker, assertCanViewWorker } from '~/server/guards/worker'
-import { assertWeeksEditable, resetSubmittedWeeks } from '~/server/guards/week'
+import { assertWeeksEditable, submittedWeekResets } from '~/server/guards/week'
+import type { BatchItem } from 'drizzle-orm/batch'
 import { weekKeysTouched } from '~/lib/week'
 import { computeTrio, localDayBoundariesUtcMs, type Range, type Trio } from '~/lib/dayMath'
 import { hasRole, isAdmin } from '~/server/context'
@@ -12,7 +14,7 @@ import { effectiveJobIds } from '~/lib/allocation'
 import { getOrgSettings } from './settings'
 import { listAssignments } from './assignments'
 import { listStructure } from './structure'
-import type { CreateIntervalInput, DayQuery, DeleteIntervalInput, ListIntervalsInput, UpdateIntervalInput } from '~/lib/schemas/intervals'
+import { MAX_INTERVAL_MS, type CreateIntervalInput, type DayQuery, type DeleteIntervalInput, type ListIntervalsInput, type UpdateIntervalInput } from '~/lib/schemas/intervals'
 import type { Deps } from './deps'
 
 export type IntervalRow = typeof schema.intervals.$inferSelect
@@ -33,14 +35,29 @@ export type DayIntervalRow = {
 
 export type DayView = { day: Range; date: string; intervals: DayIntervalRow[]; trioByWorker: Record<string, Trio> }
 
+// Archiving a project or client closes its jobs to new time too.
 async function liveJob(db: Db, jobId: string) {
-  const job = await db
-    .select()
+  const row = await db
+    .select({ job: schema.jobs })
     .from(schema.jobs)
-    .where(and(eq(schema.jobs.id, jobId), isNull(schema.jobs.archivedAt)))
+    .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
+    .innerJoin(schema.clients, eq(schema.clients.id, schema.projects.clientId))
+    .where(
+      and(
+        eq(schema.jobs.id, jobId),
+        isNull(schema.jobs.archivedAt),
+        isNull(schema.projects.archivedAt),
+        isNull(schema.clients.archivedAt),
+      ),
+    )
     .get()
-  if (!job) throw new HttpError(404, 'JOB_NOT_FOUND', 'jobId')
-  return job
+  if (!row) throw new HttpError(404, 'JOB_NOT_FOUND', 'jobId')
+  return row.job
+}
+
+// Services are called without the fn's validator, so the length cap is re-checked here.
+function assertLength(range: Range): void {
+  if (range.endMs - range.startMs > MAX_INTERVAL_MS) throw new HttpError(400, 'INTERVAL_TOO_LONG', 'endedAt')
 }
 
 // Org-wide enforcement (#7, default off): target worker judged, admins exempt.
@@ -54,6 +71,9 @@ async function assertAssigned(deps: Deps, ctx: SessionContext, workerId: string,
   if (effectiveJobIds(assignments, structure).has(jobId)) return
   throw new HttpError(403, 'NOT_ASSIGNED', 'jobId')
 }
+
+// The write, its audit event and any submitted-week reset land together or not at all.
+type Batch = [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]]
 
 type IntervalChanges = Record<string, { from: string | number | null; to: string | number | null }>
 
@@ -129,6 +149,7 @@ export async function createInterval(
   const job = await liveJob(db, input.jobId)
   await assertAssigned(deps, ctx, input.workerId, input.jobId)
   const range = { startMs: Date.parse(input.startedAt), endMs: Date.parse(input.endedAt) }
+  assertLength(range)
   await assertNoSameJobOverlap(db, input.workerId, input.jobId, range)
   const keys = weekKeysTouched(range, tz)
   await assertWeeksEditable(db, input.workerId, keys)
@@ -151,9 +172,11 @@ export async function createInterval(
     updatedAt: now,
     deletedAt: null,
   }
-  await db.insert(schema.intervals).values(row)
-  await db.insert(schema.intervalEvents).values(intervalEventRow(row.id, 'create', ctx.workerId, null, now))
-  await resetSubmittedWeeks(db, input.workerId, keys, ctx.workerId)
+  await db.batch([
+    db.insert(schema.intervals).values(row),
+    db.insert(schema.intervalEvents).values(intervalEventRow(row.id, 'create', ctx.workerId, null, now)),
+    ...(await submittedWeekResets(db, input.workerId, keys, ctx.workerId, now)),
+  ] as Batch)
   return row
 }
 
@@ -177,6 +200,7 @@ export async function updateInterval(
     endMs: input.endedAt ? Date.parse(input.endedAt) : before.endMs,
   }
   if (after.endMs <= after.startMs) throw new HttpError(400, 'END_BEFORE_START', 'endedAt')
+  assertLength(after)
 
   const jobChanged = input.jobId !== undefined && input.jobId !== cur.jobId
   const job = jobChanged ? await liveJob(db, input.jobId!) : null
@@ -196,7 +220,7 @@ export async function updateInterval(
         : null
 
   const now = deps.now()
-  await db
+  const write = db
     .update(schema.intervals)
     .set({
       startedAt: new Date(after.startMs),
@@ -219,8 +243,11 @@ export async function updateInterval(
     updatedAt: now,
   }
   // No-op saves still emit (editCount also increments). (#L4-like; diff may be {})
-  await db.insert(schema.intervalEvents).values(intervalEventRow(cur.id, 'edit', ctx.workerId, diffInterval(cur, updated), now))
-  await resetSubmittedWeeks(db, cur.workerId, keys, ctx.workerId)
+  await db.batch([
+    write,
+    db.insert(schema.intervalEvents).values(intervalEventRow(cur.id, 'edit', ctx.workerId, diffInterval(cur, updated), now)),
+    ...(await submittedWeekResets(db, cur.workerId, keys, ctx.workerId, now)),
+  ] as Batch)
   return updated
 }
 
@@ -240,12 +267,15 @@ export async function deleteInterval(
   const keys = weekKeysTouched({ startMs: cur.startedAt.getTime(), endMs: cur.endedAt.getTime() }, tz)
   await assertWeeksEditable(db, cur.workerId, keys)
   const now = deps.now()
-  await db
+  const write = db
     .update(schema.intervals)
     .set({ deletedAt: now, updatedAt: now })
     .where(eq(schema.intervals.id, cur.id))
-  await db.insert(schema.intervalEvents).values(intervalEventRow(cur.id, 'delete', ctx.workerId, null, now))
-  await resetSubmittedWeeks(db, cur.workerId, keys, ctx.workerId)
+  await db.batch([
+    write,
+    db.insert(schema.intervalEvents).values(intervalEventRow(cur.id, 'delete', ctx.workerId, null, now)),
+    ...(await submittedWeekResets(db, cur.workerId, keys, ctx.workerId, now)),
+  ] as Batch)
 }
 
 /** Self + supervisees (or one worker), intervals intersecting the local day, clipped for the trio. Time only (#5). */
@@ -262,34 +292,38 @@ export async function listDay(deps: Deps, ctx: SessionContext, input: z.infer<ty
   if (workerIds.length === 0) return { day, date: input.date, intervals: [], trioByWorker: {} }
   for (const w of workerIds) assertCanViewWorker(ctx, w)
 
-  const rows = await db
-    .select({
-      id: schema.intervals.id,
-      workerId: schema.intervals.workerId,
-      jobId: schema.intervals.jobId,
-      projectId: schema.jobs.projectId,
-      jobName: schema.jobs.name,
-      clientName: schema.clients.name,
-      startedAt: schema.intervals.startedAt,
-      endedAt: schema.intervals.endedAt,
-      note: schema.intervals.note,
-      editCount: schema.intervals.editCount,
-      createdBy: schema.intervals.createdBy,
-    })
-    .from(schema.intervals)
-    .innerJoin(schema.jobs, eq(schema.jobs.id, schema.intervals.jobId))
-    .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
-    .innerJoin(schema.clients, eq(schema.clients.id, schema.projects.clientId))
-    .where(
-      and(
-        inArray(schema.intervals.workerId, workerIds),
-        isNull(schema.intervals.deletedAt),
-        lt(schema.intervals.startedAt, new Date(day.endMs)),
-        gt(schema.intervals.endedAt, new Date(day.startMs)),
-      ),
+  // Billing sees every worker, more ids than D1's 100 bound parameters, so query in chunks and sort here.
+  const rows = (
+    await inChunks(workerIds, (chunk) =>
+      db
+        .select({
+          id: schema.intervals.id,
+          workerId: schema.intervals.workerId,
+          jobId: schema.intervals.jobId,
+          projectId: schema.jobs.projectId,
+          jobName: schema.jobs.name,
+          clientName: schema.clients.name,
+          startedAt: schema.intervals.startedAt,
+          endedAt: schema.intervals.endedAt,
+          note: schema.intervals.note,
+          editCount: schema.intervals.editCount,
+          createdBy: schema.intervals.createdBy,
+        })
+        .from(schema.intervals)
+        .innerJoin(schema.jobs, eq(schema.jobs.id, schema.intervals.jobId))
+        .innerJoin(schema.projects, eq(schema.projects.id, schema.jobs.projectId))
+        .innerJoin(schema.clients, eq(schema.clients.id, schema.projects.clientId))
+        .where(
+          and(
+            inArray(schema.intervals.workerId, chunk),
+            isNull(schema.intervals.deletedAt),
+            lt(schema.intervals.startedAt, new Date(day.endMs)),
+            gt(schema.intervals.endedAt, new Date(day.startMs)),
+          ),
+        )
+        .all(),
     )
-    .orderBy(schema.intervals.startedAt)
-    .all()
+  ).sort((x, y) => x.startedAt.getTime() - y.startedAt.getTime())
 
   const clip = (r: { startedAt: Date; endedAt: Date }): Range => ({
     startMs: Math.max(r.startedAt.getTime(), day.startMs),
