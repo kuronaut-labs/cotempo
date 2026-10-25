@@ -1,4 +1,4 @@
-import { and, asc, eq, getTableColumns, gt, inArray, isNull, lt, sql } from 'drizzle-orm'
+import { and, asc, eq, getTableColumns, gt, gte, inArray, isNull, lt, lte, sql, type SQL } from 'drizzle-orm'
 import { explode, recon as piecesRecon, type Piece } from '~/lib/attribution'
 import { localDateOf, localDayBoundariesUtcMs } from '~/lib/dayMath'
 import { HttpError } from '~/lib/errors'
@@ -121,6 +121,10 @@ async function workerSupervisors(db: Db, workerIds: string[]): Promise<Map<strin
 }
 
 async function loadIntervalsForWeek(db: Db, workerId: string, weekStart: string, tz: string) {
+  return intervalsInWeek(db, eq(schema.intervals.workerId, workerId), weekStart, tz)
+}
+
+function intervalsInWeek(db: Db, workerCond: SQL, weekStart: string, tz: string) {
   const { startMs: start, endMs: end } = weekBoundariesUtcMs(weekStart, tz)
   return db
     .select({
@@ -144,7 +148,7 @@ async function loadIntervalsForWeek(db: Db, workerId: string, weekStart: string,
     .innerJoin(schema.clients, eq(schema.clients.id, schema.projects.clientId))
     .where(
       and(
-        eq(schema.intervals.workerId, workerId),
+        workerCond,
         isNull(schema.intervals.deletedAt),
         lt(schema.intervals.startedAt, new Date(end)),
         gt(schema.intervals.endedAt, new Date(start)),
@@ -152,6 +156,28 @@ async function loadIntervalsForWeek(db: Db, workerId: string, weekStart: string,
     )
     .orderBy(schema.intervals.startedAt)
     .all()
+}
+
+type WeekInterval = Awaited<ReturnType<typeof loadIntervalsForWeek>>[number]
+const workerWeekKey = (workerId: string, weekStart: string) => `${workerId}|${weekStart}`
+
+/** loadIntervalsForWeek for many worker-weeks: one query per distinct week instead of one per pair. */
+async function loadIntervalsForWorkerWeeks(
+  db: Db,
+  pairs: { workerId: string; weekStart: string }[],
+  tz: string,
+): Promise<Map<string, WeekInterval[]>> {
+  const workersByWeek = new Map<string, string[]>()
+  for (const { workerId, weekStart } of pairs) workersByWeek.set(weekStart, [...(workersByWeek.get(weekStart) ?? []), workerId])
+  const out = new Map<string, WeekInterval[]>()
+  for (const [weekStart, workerIds] of workersByWeek) {
+    const rows = await inChunks(workerIds, (chunk) => intervalsInWeek(db, inArray(schema.intervals.workerId, chunk), weekStart, tz))
+    for (const r of rows) {
+      const k = workerWeekKey(r.workerId, weekStart)
+      out.set(k, [...(out.get(k) ?? []), r])
+    }
+  }
+  return out
 }
 
 function toIntervalsForRedFlags(rows: Awaited<ReturnType<typeof loadIntervalsForWeek>>) {
@@ -407,9 +433,11 @@ export async function listPendingWeeks(deps: Deps, ctx: SessionContext): Promise
   const names = await workerNames(db, rows.map((r) => r.workerId))
   const supervisors = await workerSupervisors(db, rows.map((r) => r.workerId))
   const keepCents = canSeeMoney(ctx)
+  const cfg = flagsCfg(await getOrgSettings(deps, ctx))
+  const byWorkerWeek = await loadIntervalsForWorkerWeeks(db, rows, tz)
   const out: PendingWeek[] = []
   for (const r of rows) {
-    const intervals = await loadIntervalsForWeek(db, r.workerId, r.weekStart, tz)
+    const intervals = byWorkerWeek.get(workerWeekKey(r.workerId, r.weekStart)) ?? []
     const pieces = toPieces(intervals, r.weekStart, tz)
     const flagInput = {
       weekStart: r.weekStart,
@@ -418,7 +446,7 @@ export async function listPendingWeeks(deps: Deps, ctx: SessionContext): Promise
       intervals: toIntervalsForRedFlags(intervals),
       pieces,
     }
-    const flags = redFlags(flagInput, flagsCfg(await getOrgSettings(deps, ctx)))
+    const flags = redFlags(flagInput, cfg)
     out.push({
       workerId: r.workerId,
       workerName: names.get(r.workerId) ?? '?',
@@ -608,16 +636,34 @@ export async function listTeamWeeks(
   const names = await workerNames(db, superviseeIds)
   const cfg = flagsCfg(await getOrgSettings(deps, ctx))
   const weekStarts = weekDatesOf(tz, input.weeks, deps.now())
+  const supervisors = await workerSupervisors(db, superviseeIds)
+  // weekStart range rather than a list: the worker chunk already uses most of D1's 100 bound parameters.
+  const approvalRows = await inChunks(superviseeIds, (chunk) =>
+    db
+      .select({ workerId: schema.approvals.workerId, weekStart: schema.approvals.weekStart, status: schema.approvals.status })
+      .from(schema.approvals)
+      .where(
+        and(
+          inArray(schema.approvals.workerId, chunk),
+          gte(schema.approvals.weekStart, weekStarts[0]!),
+          lte(schema.approvals.weekStart, weekStarts[weekStarts.length - 1]!),
+        ),
+      )
+      .all(),
+  )
+  const statusOf = new Map(approvalRows.map((a) => [workerWeekKey(a.workerId, a.weekStart), a.status]))
+  const byWorkerWeek = await loadIntervalsForWorkerWeeks(
+    db,
+    superviseeIds.flatMap((workerId) => weekStarts.map((weekStart) => ({ workerId, weekStart }))),
+    tz,
+  )
   const out: TeamMember[] = []
   for (const workerId of superviseeIds) {
     const weeks: TeamWeekRow[] = []
     for (const ws of weekStarts) {
-      // sequential per week keeps DB handling simple at demo scale
-      const row = await loadApprovalRow(db, workerId, ws)
-      const intervals = await loadIntervalsForWeek(db, workerId, ws, tz)
+      const intervals = byWorkerWeek.get(workerWeekKey(workerId, ws)) ?? []
       const pieces = toPieces(intervals, ws, tz)
       const r = piecesRecon(pieces)
-      const supervisors = await workerSupervisors(db, [workerId])
       const flagInput = {
         weekStart: ws,
         tz,
@@ -626,7 +672,7 @@ export async function listTeamWeeks(
         pieces,
       }
       const flags = redFlags(flagInput, cfg)
-      weeks.push({ weekStart: ws, status: row?.status ?? 'none', wallClockMin: r.wallClockMin, effortMin: r.effortMin, flagCount: flags.length })
+      weeks.push({ weekStart: ws, status: statusOf.get(workerWeekKey(workerId, ws)) ?? 'none', wallClockMin: r.wallClockMin, effortMin: r.effortMin, flagCount: flags.length })
     }
     out.push({ workerId, workerName: names.get(workerId) ?? '?', weeks })
   }

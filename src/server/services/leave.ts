@@ -22,6 +22,7 @@ import {
 import type { LeaveTypeInput } from '~/lib/schemas/leave'
 import { hasRole, type SessionContext } from '~/server/context'
 import { schema } from '~/server/db'
+import { inChunks } from '~/server/inChunks'
 import { assertCanEditWorker } from '~/server/guards/worker'
 import type { Deps } from './deps'
 
@@ -242,6 +243,30 @@ export async function workerDisplayName(deps: Deps, workerId: string): Promise<s
   return row?.userName ?? row?.workerName ?? '?'
 }
 
+async function workerDisplayNames(deps: Deps, workerIds: string[]): Promise<Map<string, string>> {
+  const rows = await inChunks(workerIds, (chunk) =>
+    deps.db
+      .select({ id: workers.id, userName: user.name, workerName: workers.name })
+      .from(workers)
+      .leftJoin(humanWorkers, eq(humanWorkers.workerId, workers.id))
+      .leftJoin(user, eq(user.id, humanWorkers.userId))
+      .where(inArray(workers.id, chunk))
+      .all(),
+  )
+  return new Map(rows.map((r) => [r.id, r.userName ?? r.workerName ?? '?']))
+}
+
+async function leaveTypeNames(deps: Deps): Promise<Map<string, string>> {
+  const rows = await deps.db.select({ id: leaveTypes.id, name: leaveTypes.name }).from(leaveTypes).all()
+  return new Map(rows.map((t) => [t.id, t.name]))
+}
+
+/** Views for many requests with two lookups in total, not three per request. */
+async function toViews(deps: Deps, rows: (typeof leaveRequests.$inferSelect)[]): Promise<LeaveRequestView[]> {
+  const [names, types] = await Promise.all([workerDisplayNames(deps, rows.map((r) => r.workerId)), leaveTypeNames(deps)])
+  return rows.map((r) => ({ ...toViewShell(r), typeName: types.get(r.typeId) ?? '?', workerName: names.get(r.workerId) ?? '?' }))
+}
+
 async function requestViewById(deps: Deps, id: string): Promise<LeaveRequestView | null> {
   const [r] = await deps.db.select().from(leaveRequests).where(eq(leaveRequests.id, id)).limit(1)
   if (!r) return null
@@ -398,9 +423,7 @@ export async function leaveQueue(deps: Deps, ctx: SessionContext): Promise<Leave
     .from(leaveRequests)
     .where(eq(leaveRequests.status, 'submitted'))
     .orderBy(asc(leaveRequests.submittedAt))
-  const views: LeaveRequestView[] = []
-  for (const r of rows) views.push((await requestViewById(deps, r.id))!)
-  return views
+  return toViews(deps, rows)
 }
 
 export type LeaveReportView = {
@@ -436,22 +459,17 @@ export async function leaveReport(
       pendingMinutes: number
     }
   >()
-  for (const r of all) {
-    if (r.status !== 'approved' && r.status !== 'submitted') continue
+  const live = all.filter((r) => r.status === 'approved' || r.status === 'submitted')
+  const [names, types] = await Promise.all([workerDisplayNames(deps, live.map((r) => r.workerId)), leaveTypeNames(deps)])
+  for (const r of live) {
     const key = `${r.workerId}|${r.typeId}`
-    const name = await workerDisplayName(deps, r.workerId)
-    const [t] = await deps.db
-      .select({ name: leaveTypes.name })
-      .from(leaveTypes)
-      .where(eq(leaveTypes.id, r.typeId))
-      .limit(1)
     const g =
       groups.get(key) ??
       {
         workerId: r.workerId,
-        workerName: name,
+        workerName: names.get(r.workerId) ?? '?',
         typeId: r.typeId,
-        typeName: t?.name ?? '?',
+        typeName: types.get(r.typeId) ?? '?',
         takenMinutes: 0,
         requests: 0,
         pendingMinutes: 0,
@@ -465,11 +483,14 @@ export async function leaveReport(
     }
     groups.set(key, g)
   }
+  // balance snapshot at the period end, not "now" — reports describe the period; once per worker, not per type
+  const balancesByWorker = new Map<string, LeaveBalanceView[]>()
+  for (const workerId of new Set([...groups.values()].map((g) => g.workerId))) {
+    balancesByWorker.set(workerId, await leaveBalancesFor(deps, ctx, workerId, input.to))
+  }
   const out: LeaveReportView[] = []
   for (const g of groups.values()) {
-    // balance snapshot at the period end, not "now" — reports describe the period
-    const balances = await leaveBalancesFor(deps, ctx, g.workerId, input.to)
-    const b = balances.find((x) => x.type.id === g.typeId)
+    const b = balancesByWorker.get(g.workerId)!.find((x) => x.type.id === g.typeId)
     out.push({ ...g, balanceMinutes: b?.availableMinutes ?? 0 })
   }
   return out
@@ -482,9 +503,7 @@ async function requestViewsFor(deps: Deps, workerId: string): Promise<LeaveReque
     .from(leaveRequests)
     .where(eq(leaveRequests.workerId, workerId))
     .orderBy(desc(leaveRequests.submittedAt))
-  const views: LeaveRequestView[] = []
-  for (const r of rows) views.push((await requestViewById(deps, r.id))!)
-  return views
+  return toViews(deps, rows)
 }
 
 function toViewShell(
@@ -536,11 +555,8 @@ export async function leaveExportRows(
     .from(leaveRequests)
     .where(and(gte(leaveRequests.startDay, input.from), lte(leaveRequests.startDay, input.to)))
     .all()
-  const workerIds = [...new Set(rows.flatMap((r) => [r.workerId, r.decidedById].filter((x): x is string => !!x)))]
-  const names = new Map<string, string>()
-  for (const id of workerIds) names.set(id, await workerDisplayName(deps, id))
-  const typeRows = await deps.db.select({ id: leaveTypes.id, name: leaveTypes.name }).from(leaveTypes).all()
-  const typeNames = new Map(typeRows.map((t) => [t.id, t.name] as const))
+  const names = await workerDisplayNames(deps, rows.flatMap((r) => [r.workerId, r.decidedById].filter((x): x is string => !!x)))
+  const typeNames = await leaveTypeNames(deps)
   return rows.map((r) => ({
     workerName: names.get(r.workerId) ?? '?',
     typeName: typeNames.get(r.typeId) ?? '?',

@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { asUser, at, deps, resetDb } from './helpers'
 import { leaveExportRows } from '~/server/services/leave'
-import { exportCsv, invoiceData } from '~/server/services/exports'
+import { INTERVALS_CSV_COLUMNS, exportCsv, invoiceData } from '~/server/services/exports'
 import { createInterval } from '~/server/services/intervals'
 import { HttpError } from '~/lib/errors'
 import { ids } from '../../src/server/fixtures/demo'
@@ -129,5 +129,23 @@ describe('invoice lines (#18)', () => {
     expect(j1[0]).toMatchObject({ billableMin: 60, cents: 12_000 })
     for (const l of inv.lines) expect(l.cents).toBe(Math.floor((l.billableMin * l.rateCents!) / 60 + 0.5))
     expect(inv.subtotalCents).toBe(inv.lines.reduce((s, l) => s + l.cents, 0))
+  })
+})
+
+describe('intervals CSV worker-day columns (#M2)', () => {
+  beforeEach(() => resetDb())
+
+  it('repeats the worker-day clock and overlap minutes on each of that day\'s rows', async () => {
+    // Fixture: the operator's 01 (3h) and 02 (1h, inside 01) on Mon 2026-08-31 Perth → clock 180, overlap 60.
+    const csv = await exportCsv(deps(), asUser('billing'), { from: '2026-08-31', to: '2026-08-31', view: 'intervals' })
+    const [head, ...lines] = csv.body.trimEnd().split('\n')
+    expect(head).toBe(INTERVALS_CSV_COLUMNS.join(','))
+    const col = (name: (typeof INTERVALS_CSV_COLUMNS)[number]) => INTERVALS_CSV_COLUMNS.indexOf(name)
+    const mine = lines.map((l) => l.split(',')).filter((c) => c[col('worker')] === 'Demo Operator')
+    expect(mine).toHaveLength(2)
+    for (const c of mine) {
+      expect(c[col('clock_minutes')]).toBe('180')
+      expect(c[col('overlap_minutes')]).toBe('60')
+    }
   })
 })

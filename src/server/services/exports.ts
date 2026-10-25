@@ -155,13 +155,22 @@ async function workerNamesForBilling(db: Db): Promise<Map<string, { name: string
   return new Map(rows.map((r) => [r.id, { name: r.userName ?? r.workerName ?? '?', kind: r.kind }]))
 }
 
-function wallAndPremiumForWorkerDay(pieces: Piece[], workerId: string, day: string): { wallMin: number; premiumMin: number } {
-  const dayPieces = pieces.filter((p) => p.workerId === workerId && p.day === day)
-  // `recon` computes wall-clock as the union of merged ranges via dayMath.mergeRanges,
-  // so a worker's concurrent-job overlap reduces wall without reducing effort.
-  // The old `effort === wall` reduce was structurally always 0. (#M2)
-  const r = piecesRecon(dayPieces)
-  return { wallMin: r.wallClockMin, premiumMin: r.premiumMin }
+/* Wall-clock and overlap per worker-day, computed once per group. `recon` unions a worker's
+   concurrent pieces, so overlap reduces wall without reducing effort (#M2). */
+function wallAndPremiumByWorkerDay(pieces: Piece[]): Map<string, { wallMin: number; premiumMin: number }> {
+  const groups = new Map<string, Piece[]>()
+  for (const p of pieces) {
+    const k = `${p.workerId}|${p.day}`
+    const list = groups.get(k)
+    if (list) list.push(p)
+    else groups.set(k, [p])
+  }
+  const out = new Map<string, { wallMin: number; premiumMin: number }>()
+  for (const [k, group] of groups) {
+    const r = piecesRecon(group)
+    out.set(k, { wallMin: r.wallClockMin, premiumMin: r.premiumMin })
+  }
+  return out
 }
 
 export async function exportCsv(
@@ -202,12 +211,14 @@ export async function exportCsv(
       for (const p of clipPieces(pieces, start, end, tz)) allPieces.push(p)
     }
     const out: string[] = [csvRow(INTERVALS_CSV_COLUMNS as unknown as string[])]
+    const rowById = new Map(rows.map((r) => [r.id, r]))
+    const workerDay = wallAndPremiumByWorkerDay(allPieces)
     for (const p of allPieces) {
-      const interval = rows.find((r) => r.id === p.intervalId)!
+      const interval = rowById.get(p.intervalId)!
       const minutes = Math.round((p.endMs - p.startMs) / 60_000)
       const billableMin = p.rateCents === null ? 0 : minutes
       const amountCents = moneyCents([{ minutes, rateCents: p.rateCents }])
-      const { wallMin, premiumMin } = wallAndPremiumForWorkerDay(allPieces, p.workerId, p.day)
+      const { wallMin, premiumMin } = workerDay.get(`${p.workerId}|${p.day}`)!
       const wn = wnames.get(p.workerId)
       const creator = wnames.get(interval.createdBy)
       // CSV is for billing staff who think in dollars, not cents; divide by 100 at the cell so the
