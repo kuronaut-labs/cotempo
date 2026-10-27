@@ -1,4 +1,4 @@
-import { createRootRoute, HeadContent, Outlet, Scripts } from '@tanstack/react-router'
+import { createRootRoute, HeadContent, Link, Outlet, Scripts } from '@tanstack/react-router'
 import globalCss from '~/styles/global.css?url'
 import uiCss from '~/styles/ui.css?url'
 import printCss from '~/styles/print.css?url'
@@ -12,7 +12,7 @@ export const Route = createRootRoute({
     ],
     links: [
       { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
-      { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: 'anonymous' },
+      { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossOrigin: 'anonymous' },
       {
         rel: 'stylesheet',
         href:
@@ -24,7 +24,18 @@ export const Route = createRootRoute({
     ],
   }),
   component: RootDocument,
+  notFoundComponent: NotFound,
 })
+
+function NotFound() {
+  return (
+    <main className="app-shell">
+      <p className="tree-empty">
+        Page not found. <Link to="/today">Go to Today</Link>
+      </p>
+    </main>
+  )
+}
 
 function RootDocument() {
   return (
