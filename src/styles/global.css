@@ -295,9 +295,11 @@ input[type='radio']:disabled:checked {
   border-color: var(--border-card);
 }
 
-input[type='checkbox']:disabled:checked::after,
-input[type='radio']:disabled:checked::after {
+input[type='checkbox']:disabled:checked::after {
   color: var(--color-faint);
+}
+
+input[type='radio']:disabled:checked::after {
   background: var(--color-faint);
 }
 
@@ -383,6 +385,7 @@ input[type='radio']:disabled:checked::after {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
+  white-space: nowrap;
   border: 1px solid var(--color-tertiary);
   background: var(--surface-card);
   padding: 2px 6px;
@@ -797,7 +800,10 @@ input[type='radio']:disabled:checked::after {
   color: var(--color-primary);
 }
 
-.intervallist-actions { display: flex; gap: var(--space-2); }
+/* Spacing via margins, not flex: `display: flex` on a <td> drops it out of the table,
+   so it stops sharing the row's height, vertical alignment and divider. */
+.intervallist-actions { white-space: nowrap; }
+.intervallist-actions > * + * { margin-left: var(--space-2); }
 
 .intervallist-empty {
   padding: var(--space-3);
@@ -924,20 +930,25 @@ input[type='radio']:disabled:checked::after {
 
 /* ---------- admin (4.5) ---------- */
 
+/* minmax(0, 1fr) keeps the column at viewport width on phones; wide children
+   (the tab row, the roster tables) scroll inside themselves instead. */
 .admin {
   padding: var(--space-5) var(--space-4);
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
-  max-width: 1100px;
+  max-width: 1200px; /* the People roster's seven columns need about 1,150px */
 }
 
 .admin-subnav {
   display: flex;
   gap: var(--space-1);
   border-bottom: 1px solid var(--border-card);
+  overflow-x: auto;
 }
 
 .admin-subnav a {
+  white-space: nowrap;
   font: 500 14px/1 var(--font-body);
   color: var(--color-info);
   text-decoration: none;
@@ -976,6 +987,7 @@ input[type='radio']:disabled:checked::after {
   padding: 2px 8px;
   border-radius: var(--radius-full);
   font: 600 11px/1.4 var(--font-body);
+  white-space: nowrap;
 }
 
 .tag { background: var(--tint-gray); color: var(--tint-gray-text); }
@@ -1079,11 +1091,16 @@ input[type='radio']:disabled:checked::after {
   gap: var(--space-2);
 }
 
-.roster { display: grid; gap: var(--space-4); }
+/* minmax(0, 1fr): without it the grid track grows to the table's width and the page scrolls sideways on phones. */
+.roster { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); }
 
-/* width: 200px because native selects size to their longest option,
-   and each row's supervisor list differs */
-.roster select { width: 200px; }
+/* Fixed width because native selects size to their longest option, and each row's
+   supervisor list differs; 32px tall to match the Assign control in the same row. */
+.roster select { width: 160px; height: 32px; font-size: 13px; }
+/* One item per line so the Assign control always sits under the pills, whatever fits. */
+.roster .assignpills { flex-direction: column; align-items: flex-start; }
+.roster .lane-empty-note,
+.roster td.mono { white-space: nowrap; }
 .roster-email {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -1098,6 +1115,9 @@ input[type='radio']:disabled:checked::after {
   color: var(--color-info);
   margin-right: var(--space-2);
 }
+/* In the roster table they stack, one role per line, instead of wrapping unevenly. */
+.intervallist .rolecheck { display: flex; margin-right: 0; }
+.intervallist .rolecheck + .rolecheck { margin-top: 2px; }
 .rolecheck input[disabled] { opacity: 0.6; }
 
 .admin-form { display: grid; gap: var(--space-3); }
@@ -2263,5 +2283,10 @@ input[type='radio']:disabled:checked::after {
 @media (max-width: 480px) {
   .ministrip-tick-label {
     display: none;
+  }
+
+  /* Admin forms pair long text fields (email, name, model); on a phone each would get about 150px. */
+  .admin .entryform-row {
+    grid-template-columns: 1fr;
   }
 }

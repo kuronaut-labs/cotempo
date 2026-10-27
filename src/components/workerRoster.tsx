@@ -104,6 +104,7 @@ export function WorkerRoster({
         {humans.length === 0 ? (
           <p className="tree-empty">No people yet — invite one below.</p>
         ) : (
+          <div className="intervallist-wrap">
           <table className="intervallist">
             <thead>
               <tr>
@@ -219,6 +220,7 @@ export function WorkerRoster({
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
 
@@ -227,6 +229,7 @@ export function WorkerRoster({
         {agents.length === 0 ? (
           <p className="tree-empty">No agents yet — register one below.</p>
         ) : (
+          <div className="intervallist-wrap">
           <table className="intervallist">
             <thead>
               <tr>
@@ -290,6 +293,7 @@ export function WorkerRoster({
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </section>
     </div>
