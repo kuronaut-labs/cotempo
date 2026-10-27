@@ -11,6 +11,8 @@ import { getOrgSettings, type OrgSettingsView } from './settings'
 import { canSeeMoney, hasRole, isAdmin, type SessionContext } from '~/server/context'
 import { schema, type Db } from '~/server/db'
 import { inChunks } from '~/server/inChunks'
+import { existsRow, insertIf } from '~/server/conditionalWrite'
+import type { BatchItem } from 'drizzle-orm/batch'
 import { assertCanEditWorker, assertCanViewWorker } from '~/server/guards/worker'
 import type {
   ApproveWeekInput,
@@ -236,6 +238,33 @@ async function loadEvents(db: Db, approvalId: string): Promise<ApprovalEventRow[
     .all()
 }
 
+/* One status transition, safe against concurrent requests: the event goes first, written only if the
+   row is still in an allowed `from` status, and the status change applies only if that event landed. */
+async function transition(
+  db: Db,
+  approvalId: string,
+  from: ApprovalStatus[],
+  event: { kind: ApprovalEventRow['kind']; actorWorkerId: string; reason?: string | null; at: Date },
+  set: Partial<typeof schema.approvals.$inferInsert>,
+  ensureRow?: typeof schema.approvals.$inferInsert,
+): Promise<void> {
+  const eventId = crypto.randomUUID()
+  const applied = existsRow(db, schema.approvalEvents.id, eventId)
+  const stmts: BatchItem<'sqlite'>[] = [
+    ...(ensureRow ? [db.insert(schema.approvals).values(ensureRow).onConflictDoNothing()] : []),
+    insertIf(
+      db,
+      schema.approvalEvents,
+      { id: eventId, approvalId, ...event, reason: event.reason ?? null },
+      existsRow(db, schema.approvals.id, approvalId, inArray(schema.approvals.status, from)),
+    ),
+    db.update(schema.approvals).set(set).where(and(eq(schema.approvals.id, approvalId), applied)),
+  ]
+  await db.batch(stmts as [BatchItem<'sqlite'>, ...BatchItem<'sqlite'>[]])
+  const landed = await db.select({ id: schema.approvalEvents.id }).from(schema.approvalEvents).where(eq(schema.approvalEvents.id, eventId)).get()
+  if (!landed) throw new HttpError(409, 'INVALID_TRANSITION')
+}
+
 export async function submitWeek(deps: Deps, ctx: SessionContext, input: SubmitWeekInput): Promise<ApprovalRow> {
   const { db } = deps
   assertCanEditWorker(ctx, input.workerId)
@@ -245,48 +274,29 @@ export async function submitWeek(deps: Deps, ctx: SessionContext, input: SubmitW
     throw new HttpError(409, 'INVALID_TRANSITION')
   }
   const now = deps.now()
-  const row: ApprovalRow = {
-    id: existing?.id ?? `appr-${input.workerId}-${input.weekStart}`,
-    workerId: input.workerId,
-    weekStart: input.weekStart,
-    status: 'submitted',
-    submittedAt: now,
-    submittedBy: ctx.workerId,
-    approvedAt: existing?.approvedAt ?? null,
-    approvedBy: existing?.approvedBy ?? null,
-    approvedComment: existing?.approvedComment ?? null,
-    rejectedAt: null,
-    rejectedBy: null,
-    rejectedReason: null,
-    createdAt: existing?.createdAt ?? now,
-    updatedAt: now,
-  }
-  await db.insert(schema.approvals).values(row).onConflictDoUpdate({
-    target: [schema.approvals.workerId, schema.approvals.weekStart],
-    set: {
+  const id = existing?.id ?? `appr-${input.workerId}-${input.weekStart}`
+  await transition(
+    db,
+    id,
+    ['draft', 'rejected'],
+    { kind: 'submit', actorWorkerId: ctx.workerId, at: now },
+    {
       status: 'submitted',
       submittedAt: now,
       submittedBy: ctx.workerId,
       rejectedReason: null,
       rejectedAt: null,
       rejectedBy: null,
-      // Clear stale approved* fields so a resubmit-after-reject (or any other
-      // path that left them populated) does not carry a prior approver's stamp
-      // into the new 'submitted' state. (#M6)
+      // Clear stale approved* fields so a resubmit does not carry a prior approver's stamp into 'submitted'. (#M6)
       approvedAt: null,
       approvedBy: null,
       approvedComment: null,
       updatedAt: now,
     },
-  })
-  await db.insert(schema.approvalEvents).values({
-    id: crypto.randomUUID(),
-    approvalId: row.id,
-    kind: 'submit',
-    actorWorkerId: ctx.workerId,
-    at: now,
-  })
-  return row
+    // First submission for the week: create the row as a draft so the transition has something to move.
+    existing ? undefined : { id, workerId: input.workerId, weekStart: input.weekStart, status: 'draft', createdAt: now, updatedAt: now },
+  )
+  return (await loadApprovalRow(db, input.workerId, input.weekStart))!
 }
 
 export async function approveWeek(deps: Deps, ctx: SessionContext, input: ApproveWeekInput): Promise<ApprovalRow> {
@@ -296,38 +306,9 @@ export async function approveWeek(deps: Deps, ctx: SessionContext, input: Approv
   const existing = await loadApprovalRow(db, input.workerId, input.weekStart)
   if (!existing || existing.status !== 'submitted') throw new HttpError(409, 'INVALID_TRANSITION')
   const now = deps.now()
-  // Add `status = 'submitted'` to the where clause so a concurrent approve/reject
-  // that already moved the row out of 'submitted' becomes a 0-row no-op rather
-  // than overwriting the later transition. The pre-check above is the primary
-  // guard; this closes the read-update race. (#M6)
-  const updated = await db
-    .update(schema.approvals)
-    .set({
-      status: 'approved',
-      approvedAt: now,
-      approvedBy: ctx.workerId,
-      approvedComment: input.comment ?? null,
-      updatedAt: now,
-    })
-    .where(and(eq(schema.approvals.id, existing.id), eq(schema.approvals.status, 'submitted')))
-    .returning({ id: schema.approvals.id })
-  if (updated.length === 0) throw new HttpError(409, 'INVALID_TRANSITION')
-  await db.insert(schema.approvalEvents).values({
-    id: crypto.randomUUID(),
-    approvalId: existing.id,
-    kind: 'approve',
-    actorWorkerId: ctx.workerId,
-    reason: input.comment ?? null,
-    at: now,
-  })
-  return {
-    ...existing,
-    status: 'approved',
-    approvedAt: now,
-    approvedBy: ctx.workerId,
-    approvedComment: input.comment ?? null,
-    updatedAt: now,
-  }
+  const set = { status: 'approved' as const, approvedAt: now, approvedBy: ctx.workerId, approvedComment: input.comment ?? null, updatedAt: now }
+  await transition(db, existing.id, ['submitted'], { kind: 'approve', actorWorkerId: ctx.workerId, reason: input.comment ?? null, at: now }, set)
+  return { ...existing, ...set }
 }
 
 export async function rejectWeek(deps: Deps, ctx: SessionContext, input: RejectWeekInput): Promise<ApprovalRow> {
@@ -337,34 +318,9 @@ export async function rejectWeek(deps: Deps, ctx: SessionContext, input: RejectW
   const existing = await loadApprovalRow(db, input.workerId, input.weekStart)
   if (!existing || existing.status !== 'submitted') throw new HttpError(409, 'INVALID_TRANSITION')
   const now = deps.now()
-  const updated = await db
-    .update(schema.approvals)
-    .set({
-      status: 'rejected',
-      rejectedAt: now,
-      rejectedBy: ctx.workerId,
-      rejectedReason: input.reason,
-      updatedAt: now,
-    })
-    .where(and(eq(schema.approvals.id, existing.id), eq(schema.approvals.status, 'submitted')))
-    .returning({ id: schema.approvals.id })
-  if (updated.length === 0) throw new HttpError(409, 'INVALID_TRANSITION')
-  await db.insert(schema.approvalEvents).values({
-    id: crypto.randomUUID(),
-    approvalId: existing.id,
-    kind: 'reject',
-    actorWorkerId: ctx.workerId,
-    reason: input.reason,
-    at: now,
-  })
-  return {
-    ...existing,
-    status: 'rejected',
-    rejectedAt: now,
-    rejectedBy: ctx.workerId,
-    rejectedReason: input.reason,
-    updatedAt: now,
-  }
+  const set = { status: 'rejected' as const, rejectedAt: now, rejectedBy: ctx.workerId, rejectedReason: input.reason, updatedAt: now }
+  await transition(db, existing.id, ['submitted'], { kind: 'reject', actorWorkerId: ctx.workerId, reason: input.reason, at: now }, set)
+  return { ...existing, ...set }
 }
 
 export async function unlockWeek(deps: Deps, ctx: SessionContext, input: UnlockWeekInput): Promise<ApprovalRow> {
@@ -373,19 +329,9 @@ export async function unlockWeek(deps: Deps, ctx: SessionContext, input: UnlockW
   const existing = await loadApprovalRow(db, input.workerId, input.weekStart)
   if (!existing || existing.status !== 'approved') throw new HttpError(409, 'INVALID_TRANSITION')
   const now = deps.now()
-  await db
-    .update(schema.approvals)
-    .set({ status: 'draft', approvedAt: null, approvedBy: null, approvedComment: null, updatedAt: now })
-    .where(eq(schema.approvals.id, existing.id))
-  await db.insert(schema.approvalEvents).values({
-    id: crypto.randomUUID(),
-    approvalId: existing.id,
-    kind: 'unlock',
-    actorWorkerId: ctx.workerId,
-    reason: input.reason,
-    at: now,
-  })
-  return { ...existing, status: 'draft', updatedAt: now, approvedAt: null, approvedBy: null, approvedComment: null }
+  const set = { status: 'draft' as const, approvedAt: null, approvedBy: null, approvedComment: null, updatedAt: now }
+  await transition(db, existing.id, ['approved'], { kind: 'unlock', actorWorkerId: ctx.workerId, reason: input.reason, at: now }, set)
+  return { ...existing, ...set }
 }
 
 /* A2: org-configurable thresholds; null falls back to redFlags' built-in defaults. */

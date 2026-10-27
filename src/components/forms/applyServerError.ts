@@ -5,6 +5,7 @@ const messages: Record<string, string> = {
   END_BEFORE_START: 'End must be after start.',
   MINUTE_ALIGNMENT: 'Use whole minutes.',
   INTERVAL_TOO_LONG: 'An entry can be at most 7 days long.',
+  EDIT_CONFLICT: 'This changed while you were saving. Reload and try again.',
   LEAVE_NO_WORKDAYS: 'Those dates are all weekend days. Leave counts Monday to Friday.',
   SAME_JOB_OVERLAP: 'This overlaps another entry on the same job. That would bill one client twice for the same minutes.',
   WEEK_LOCKED: 'This week is approved. Ask an admin to unlock it.',

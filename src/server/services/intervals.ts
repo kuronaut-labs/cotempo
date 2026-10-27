@@ -1,11 +1,12 @@
-import { and, desc, eq, gt, gte, inArray, isNull, lt, ne, or, sql, type SQL } from 'drizzle-orm'
+import { and, desc, eq, gt, gte, inArray, isNull, lt, ne, notExists, or, sql, type SQL } from 'drizzle-orm'
 import type { z } from 'zod'
 import { schema, type Db } from '~/server/db'
 import { inChunks } from '~/server/inChunks'
 import { HttpError } from '~/lib/errors'
 import type { SessionContext } from '~/server/context'
 import { assertCanEditWorker, assertCanViewWorker } from '~/server/guards/worker'
-import { assertWeeksEditable, submittedWeekResets } from '~/server/guards/week'
+import { assertWeeksEditable, lockedWeeksQuery, submittedWeekResets } from '~/server/guards/week'
+import { existsRow, insertIf } from '~/server/conditionalWrite'
 import type { BatchItem } from 'drizzle-orm/batch'
 import { weekKeysTouched } from '~/lib/week'
 import { computeTrio, localDayBoundariesUtcMs, type Range, type Trio } from '~/lib/dayMath'
@@ -128,7 +129,12 @@ async function assertNoSameJobOverlap(
   range: Range,
   excludeId?: string,
 ): Promise<void> {
-  const clash = await db
+  const clash = await sameJobClashQuery(db, workerId, jobId, range, excludeId).get()
+  if (clash) throw new HttpError(409, 'SAME_JOB_OVERLAP', 'jobId', { conflictingId: clash.id })
+}
+
+function sameJobClashQuery(db: Db, workerId: string, jobId: string, range: Range, excludeId?: string) {
+  return db
     .select({ id: schema.intervals.id })
     .from(schema.intervals)
     .where(
@@ -141,8 +147,22 @@ async function assertNoSameJobOverlap(
         excludeId ? ne(schema.intervals.id, excludeId) : undefined,
       ),
     )
-    .get()
-  if (clash) throw new HttpError(409, 'SAME_JOB_OVERLAP', 'jobId', { conflictingId: clash.id })
+}
+
+/* The batch's own conditions refused the write: another request changed things after our checks.
+   Re-run the checks to report the specific reason; anything else is a concurrent edit. */
+async function explainRefusedWrite(db: Db, intervalId: string | null, expectEditCount: number | null, check: () => Promise<void>): Promise<never> {
+  if (intervalId) {
+    const current = await db
+      .select({ editCount: schema.intervals.editCount })
+      .from(schema.intervals)
+      .where(and(eq(schema.intervals.id, intervalId), isNull(schema.intervals.deletedAt)))
+      .get()
+    if (!current) throw new HttpError(404, 'NOT_FOUND', 'id')
+    if (expectEditCount !== null && current.editCount !== expectEditCount) throw new HttpError(409, 'EDIT_CONFLICT')
+  }
+  await check()
+  throw new HttpError(409, 'EDIT_CONFLICT')
 }
 
 export async function createInterval(
@@ -175,11 +195,19 @@ export async function createInterval(
     updatedAt: now,
     deletedAt: null,
   }
+  // The checks above are repeated inside the insert; everything after it runs only if the row landed.
+  const created = existsRow(db, schema.intervals.id, row.id)
   await db.batch([
-    db.insert(schema.intervals).values(row),
-    db.insert(schema.intervalEvents).values(intervalEventRow(row.id, 'create', ctx.workerId, null, now)),
-    ...(await submittedWeekResets(db, input.workerId, keys, ctx.workerId, now)),
+    insertIf(db, schema.intervals, row, and(notExists(sameJobClashQuery(db, input.workerId, input.jobId, range)), notExists(lockedWeeksQuery(db, input.workerId, keys)))!),
+    insertIf(db, schema.intervalEvents, intervalEventRow(row.id, 'create', ctx.workerId, null, now), created),
+    ...submittedWeekResets(db, input.workerId, keys, ctx.workerId, now, created),
   ] as Batch)
+  if (!(await db.select({ id: schema.intervals.id }).from(schema.intervals).where(eq(schema.intervals.id, row.id)).get())) {
+    await explainRefusedWrite(db, null, null, async () => {
+      await assertNoSameJobOverlap(db, input.workerId, input.jobId, range)
+      await assertWeeksEditable(db, input.workerId, keys)
+    })
+  }
   return row
 }
 
@@ -218,18 +246,6 @@ export async function updateInterval(
   const rateCents = job === null ? cur.rateCents : await snapshotRate(db, cur.workerId, job.billableRateCents)
 
   const now = deps.now()
-  const write = db
-    .update(schema.intervals)
-    .set({
-      startedAt: new Date(after.startMs),
-      endedAt: new Date(after.endMs),
-      jobId,
-      rateCents,
-      note: input.note === undefined ? cur.note : input.note,
-      editCount: cur.editCount + 1,
-      updatedAt: now,
-    })
-    .where(eq(schema.intervals.id, cur.id))
   const updated: IntervalRow = {
     ...cur,
     startedAt: new Date(after.startMs),
@@ -240,12 +256,30 @@ export async function updateInterval(
     editCount: cur.editCount + 1,
     updatedAt: now,
   }
-  // No-op saves still emit (editCount also increments). (#L4-like; diff may be {})
+  // The audit event goes first and carries the checks, plus "unchanged since read" (editCount);
+  // the update and resets apply only if that event was written. No-op saves still emit. (#L4-like; diff may be {})
+  const event = intervalEventRow(cur.id, 'edit', ctx.workerId, diffInterval(cur, updated), now)
+  const applied = existsRow(db, schema.intervalEvents.id, event.id)
+  const { startedAt, endedAt, note, editCount, updatedAt } = updated
+  const write = db
+    .update(schema.intervals)
+    .set({ startedAt, endedAt, jobId, rateCents, note, editCount, updatedAt })
+    .where(and(eq(schema.intervals.id, cur.id), applied))
   await db.batch([
+    insertIf(db, schema.intervalEvents, event, and(
+      existsRow(db, schema.intervals.id, cur.id, isNull(schema.intervals.deletedAt), eq(schema.intervals.editCount, cur.editCount)),
+      notExists(sameJobClashQuery(db, cur.workerId, jobId, after, cur.id)),
+      notExists(lockedWeeksQuery(db, cur.workerId, keys)),
+    )!),
     write,
-    db.insert(schema.intervalEvents).values(intervalEventRow(cur.id, 'edit', ctx.workerId, diffInterval(cur, updated), now)),
-    ...(await submittedWeekResets(db, cur.workerId, keys, ctx.workerId, now)),
+    ...submittedWeekResets(db, cur.workerId, keys, ctx.workerId, now, applied),
   ] as Batch)
+  if (!(await db.select({ id: schema.intervalEvents.id }).from(schema.intervalEvents).where(eq(schema.intervalEvents.id, event.id)).get())) {
+    await explainRefusedWrite(db, cur.id, cur.editCount, async () => {
+      await assertNoSameJobOverlap(db, cur.workerId, jobId, after, cur.id)
+      await assertWeeksEditable(db, cur.workerId, keys)
+    })
+  }
   return updated
 }
 
@@ -265,15 +299,21 @@ export async function deleteInterval(
   const keys = weekKeysTouched({ startMs: cur.startedAt.getTime(), endMs: cur.endedAt.getTime() }, tz)
   await assertWeeksEditable(db, cur.workerId, keys)
   const now = deps.now()
-  const write = db
-    .update(schema.intervals)
-    .set({ deletedAt: now, updatedAt: now })
-    .where(eq(schema.intervals.id, cur.id))
+  // As in updateInterval: the event carries the checks, the delete applies only if it was written.
+  // An entry edited since it was read is not deleted; the user hasn't seen the edit.
+  const event = intervalEventRow(cur.id, 'delete', ctx.workerId, null, now)
+  const applied = existsRow(db, schema.intervalEvents.id, event.id)
   await db.batch([
-    write,
-    db.insert(schema.intervalEvents).values(intervalEventRow(cur.id, 'delete', ctx.workerId, null, now)),
-    ...(await submittedWeekResets(db, cur.workerId, keys, ctx.workerId, now)),
+    insertIf(db, schema.intervalEvents, event, and(
+      existsRow(db, schema.intervals.id, cur.id, isNull(schema.intervals.deletedAt), eq(schema.intervals.editCount, cur.editCount)),
+      notExists(lockedWeeksQuery(db, cur.workerId, keys)),
+    )!),
+    db.update(schema.intervals).set({ deletedAt: now, updatedAt: now }).where(and(eq(schema.intervals.id, cur.id), applied)),
+    ...submittedWeekResets(db, cur.workerId, keys, ctx.workerId, now, applied),
   ] as Batch)
+  if (!(await db.select({ id: schema.intervalEvents.id }).from(schema.intervalEvents).where(eq(schema.intervalEvents.id, event.id)).get())) {
+    await explainRefusedWrite(db, cur.id, cur.editCount, () => assertWeeksEditable(db, cur.workerId, keys))
+  }
 }
 
 /** Self + supervisees (or one worker), intervals intersecting the local day, clipped for the trio. Time only (#5). */
