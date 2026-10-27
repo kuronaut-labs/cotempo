@@ -15,7 +15,7 @@ import { isoWeekStart, weekDates } from '~/lib/week'
 import { recon as piecesRecon, type Piece } from '~/lib/attribution'
 import { loadPieces, type RoleRecon, type TimeRecon } from './reports'
 import type { ProjectListRow } from './projects'
-import { allProjects } from './projects'
+import { allProjects } from './projectList'
 import type { Deps } from './deps'
 
 export type ClientListRow = {

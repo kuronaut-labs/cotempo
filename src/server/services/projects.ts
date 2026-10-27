@@ -76,12 +76,6 @@ export async function listProjects(deps: Deps, ctx: SessionContext, input: ListP
   return page(await projectRows(deps, ctx, input), input)
 }
 
-/** Every matching row, sorted, unpaged — for detail pages that must not stop at a page limit. */
-export async function allProjects(deps: Deps, ctx: SessionContext, input: RowsInput): Promise<ProjectListRow[]> {
-  const rows = await projectRows(deps, ctx, input)
-  return page(rows, { sort: input.sort, limit: rows.length }).rows
-}
-
 async function projectRows(
   deps: Deps,
   ctx: SessionContext,
@@ -293,7 +287,8 @@ export async function projectFigures(
   ])
   // Overtime needs ALL of the worker's pieces for the period, not just this project's (#overtime).
   const workerIds = [...new Set(allPieces.map((p) => p.workerId))]
-  const widePieces = workerIds.length ? await loadPieces(deps, period, { workerIds, ...scope }) : []
+  // workerIds come from scoped pieces, so they are already within the viewer's scope.
+  const widePieces = workerIds.length ? await loadPieces(deps, period, { workerIds }) : []
   const overtimeRows = overtimeByProject(widePieces, new Set(jobIds), settings.defaultDayMinutes)
 
   const byJob = detail.jobs.map((j) => {
