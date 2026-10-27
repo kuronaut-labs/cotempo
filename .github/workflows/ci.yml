@@ -16,6 +16,8 @@ jobs:
       - run: npm ci
       - run: npm approve-scripts workerd esbuild || true
       - run: npm rebuild workerd esbuild
+      # Tests read secrets from .dev.vars (gitignored); the example's placeholders pass the env schema.
+      - run: cp .dev.vars.example .dev.vars
       - run: npm run cf-typegen
       - run: node scripts/check-contract-tests.mjs
       - run: npm run lint
