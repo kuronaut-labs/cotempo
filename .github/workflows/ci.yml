@@ -28,7 +28,9 @@ jobs:
 
   deploy:
     needs: check
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Off until the repository variable DEPLOY_ENABLED is 'true'. Job conditions can't
+    # read secrets, so a variable is the switch; set it once the prod secrets exist.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
